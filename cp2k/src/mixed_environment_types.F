@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -47,6 +47,11 @@ MODULE mixed_environment_types
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
+!> CHANGE_AC
+!> 15-12-11
+  USE jacob_types,                     ONLY: aom_basket_type
+!> End CHANGE_AC
+
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -76,6 +81,12 @@ MODULE mixed_environment_types
           DIMENSION(:), POINTER                       :: par
      REAL(KIND=dp)                                    :: dx, lerr
      CHARACTER(default_path_length)                   :: coupling_function
+!> CHANGE_AC
+!> 15-12-11
+     TYPE (aom_basket_type)                           :: aom_basket
+!> End CHANGE_AC
+
+
   END TYPE mixed_environment_type
 
 ! *****************************************************************************

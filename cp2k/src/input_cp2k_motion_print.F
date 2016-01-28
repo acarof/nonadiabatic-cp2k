@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -169,6 +169,22 @@ CONTAINS
          description="Specifies the format of the output file for the forces on cores.")
     CALL section_add_subsection(section,print_key)
     CALL section_release(print_key)
+
+
+!> CHANGE_AC
+!> 15-12-08
+!> To print the different forces in a multiple force field simulation, add a new
+!> case : "MULTIPLE_FF"
+    CALL cp_print_key_section_create(print_key,"MULTIPLE_FF",&
+         description="Controls the output of the forces",&
+         print_level=high_print_level, common_iter_levels=1,&
+         filename="",unit_str="hartree*bohr^-1")
+    CALL add_format_keyword(keyword, print_key, pos=.FALSE.,&
+         description="Specifies the format of the output file for the forces.")
+    CALL section_add_subsection(section,print_key)
+    CALL section_release(print_key)
+!> End CHANGE_AC
+
 
     CALL cp_print_key_section_create(print_key,"MIXED_ENERGIES",&
          description="Controls the output of the energies of the two"//&

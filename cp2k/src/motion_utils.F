@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -304,6 +304,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+
     NULLIFY(logger, cell, subsys, my_particles, particle_set)
     logger => cp_get_default_logger()
     id_label = logger%iter_info%level_name(logger%iter_info%n_rlevel)
@@ -329,6 +330,14 @@ CONTAINS
     CASE("FORCE_MIXING_LABELS")
        id_dcd = "FML "
        id_wpc = "FORCE_MIXING_LABELS"
+!> CHANGE_AC
+!> 15-12-08
+!> To print the different forces in a multiple force field simulation, add a new
+!> case : "MULTIPLE_FF"
+    CASE("MULTIPLE_FF")
+       id_dcd = "MFF"
+       id_wpc = "MULTIPLE_FF"
+!> End CHANGE_AC
     CASE DEFAULT
        CPABORT("")
     END SELECT

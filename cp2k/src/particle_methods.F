@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -263,6 +263,18 @@ CONTAINS
                 f(:) = particle_set(iatom)%f(:)
              END IF
              WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),f(1:3)*factor
+!> CHANGE_AC
+!> 15-12-08
+!> To print the different forces in a multiple force field simulation, add a new
+!> case : "MULTIPLE_FF"
+!          CASE ("MULTIPLE_FF")
+!             IF (PRESENT(array)) THEN
+!                f(:) = array((iatom-1)*3+1:(iatom-1)*3+3)
+!             ELSE
+!                f(:) = 1 
+!             END IF
+!             WRITE (iunit,TRIM(my_format)//"1X,3F20.10)") TRIM(name),f(1:3)*factor
+!> End CHANGE_AC
           END SELECT
        END DO
     CASE (dump_atomic)

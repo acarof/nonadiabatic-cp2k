@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,15 @@ MODULE input_cp2k_mixed
                                              mix_generic,&
                                              mix_linear_combination,&
                                              mix_minimum,&
-                                             mix_restrained
+!                                            mix_restrained
+!> CHANGE_AC
+!> 15-12-11
+!> To create a new way to combine the force
+!> To get the adiabatic force 
+                                             mix_restrained, &
+                                             mix_adiab
+!> End CHANGE_AC
+
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -75,15 +83,31 @@ CONTAINS
                          "MINIMUM",&
                          "COUPLED",&
                          "RESTRAINT",&
-                         "GENMIX"),&
+!                        "GENMIX"),&
+!> CHANGE_AC
+!> 15-12-11
+!> To create a new way to combine the force
+!> To get the adiabatic force 
+                        "GENMIX",&
+                        "ADIABATIC"),&
+!> End CHANGE_AC
          enum_desc=s2a("Linear combination of force envs (support only 2 force_evals)", &
                        "Use the force env with the minimum energy (support only 2 force_evals)",&
                        "Consider the force envs as a two state system with a given"//&
                        " coupling matrix element (support only 2 force_evals)",&
                        "Use the difference between the energy of the force envs as a"//&
                        " restraint on the first (support only 2 force_evals)",&
-                       "Defines a user-driven generica coupling (support for an unlimited number of force_eval)"),&
-         enum_i_vals=(/mix_linear_combination,mix_minimum,mix_coupled,mix_restrained,mix_generic/))
+!                       "Defines a user-driven generica coupling (support for an unlimited number of force_eval)"),&
+!         enum_i_vals=(/mix_linear_combination,mix_minimum,mix_coupled,mix_restrained,mix_generic/))
+!> CHANGE_AC
+!> 15-12-11
+!> To create a new way to combine the force
+!> To get the adiabatic force 
+                       "Defines a user-driven generica coupling (support for an unlimited number of force_eval)",&
+                       "Combines the diabatic forces to get the adiabatic forces"),&
+         enum_i_vals=(/mix_linear_combination,mix_minimum,mix_coupled,mix_restrained,mix_generic, &
+                       mix_adiab /))
+!> End CHANGE_AC
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -143,6 +167,113 @@ CONTAINS
     CALL keyword_release(keyword)
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
+
+    ! Adiabatic force eval
+!> CHANGE_AC
+!> 15-12-11
+!> To create a new way to combine the force
+!> To get the adiabatic force 
+    CALL section_create(subsection,name="ADIABATIC",&
+         description="Defines the methods to obtain the adiabatic forces.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+    CALL keyword_create(keyword, name="METHOD_PROPAGATION",&
+         description="Defines the methods to obtain the adiabatic forces.",&
+         usage="METHOD_PROPAGATION : CLASSICAL_PATH, FSSH",  type_of_var=char_t,&
+         n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
+
+
+!> 15-12-11
+    CALL keyword_create(keyword, name="METHOD_COUPLING",&
+         description="Defines the methods to obtain the adiabatic forces.",&
+         usage="METHOD_COUPLING : AOM",  type_of_var=char_t,&
+         n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    CALL section_create(sub2section,name="AOM",&
+         description="Defines the methods to obtain the adiabatic forces.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+    CALL keyword_create(keyword, name="NUMBER_DIABATIC_STATES",&
+         description="Number of diabatic states to consider",&
+         usage="2", type_of_var=integer_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="NUMBER_ATOMS_PER_SITE",&
+         description="Number of atoms per site",&
+         usage="1", type_of_var=integer_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="NUMBER_ORBITALS",&
+         description="Number of orbitals per sites",&
+         usage="1", type_of_var=integer_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CUT_OFF",&
+         description="Distance cut-off for H_ab calculation",&
+         usage="6.0D0", type_of_var=real_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="SCALING_FACTOR",&
+         description="Hab = scaling*Sab",&
+         usage="0.50D0*0.065190D0", type_of_var=real_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="INIT_SITES",&
+         description="starting molecule number",&
+         usage="1", type_of_var=integer_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CBAR",&
+         description="Sab constant factor",&
+         usage="0.5082", type_of_var=real_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="ATOMIC_OVERLAP_CUTOFF",&
+         description="An atomic overlap cutoff",&
+         usage="1.0D-17", type_of_var=real_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="NUCLEAR_TIMESTEP",&
+         description="Timestep for atomic motion, must be coherent",&
+         usage="in femtosecond", type_of_var=real_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="ELECTRONIC_PARTIAL_STEP",&
+         description="Number of electronic steps by atomic step",&
+         usage="5", type_of_var=integer_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+         description="The homo coefficient in the format:"//&
+         "<p><tt>ATOMIC_KIND  LIST NO HOMOS HOMOP</tt></p>",&
+         repeats=.TRUE., usage="{{String} {Int} {Int} {Real} {Real}}",&
+         type_of_var=lchar_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL section_add_subsection(subsection,sub2section)
+    CALL section_release(sub2section)
+
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
+!> End CHANGE_AC
+
 
     ! Multiple force_eval
     CALL section_create(subsection,name="GENERIC",&
@@ -326,6 +457,19 @@ CONTAINS
          print_level=medium_print_level,filename="__STD_OUT__")
     CALL section_add_subsection(section,print_key)
     CALL section_release(print_key)
+
+!> CHANGE_AC
+!> 15-12-11
+!> To print the different forces in a multiple force field simulation
+    CALL cp_print_key_section_create(print_key,"FORCES",&
+         description="Controls the printing of forces of multiple FF information.", &
+         print_level=medium_print_level,filename="__STD_OUT__")
+    CALL section_add_subsection(section,print_key)
+    CALL section_release(print_key)
+!> End CHANGE_AC
+
+
+
   END SUBROUTINE create_print_mix_section
 
 END MODULE input_cp2k_mixed
