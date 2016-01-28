@@ -1,0 +1,11 @@
+CC       = gcc
+CPP      =
+FC       = mpif90 
+LD       = mpif90
+AR       = ar -r
+WFLAGS   = -Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion -Werror 
+DFLAGS   = -D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5 -D__parallel -D__SCALAPACK
+FCFLAGS  = -I /scratch/grudorff/modules/libs/libxc-2.2.2/include $(CFLAGS) -std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O2 -march=native -ffast-math $(PROFOPT) $(DFLAGS) $(WFLAGS)
+LDFLAGS  =  $(FCFLAGS)
+CFLAGS   =  $(DFLAGS)  -fno-omit-frame-pointer -g -O1
+LIBS     = -lscalapack -lreflapack -lrefblas -lfftw3 -lxcf90 -lxc -lderiv -lint -lstdc++
