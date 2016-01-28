@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -539,7 +539,12 @@ CONTAINS
        END IF
 
        ![NB] let nve work with force mixing which does not have consistent energies and forces
-       CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.)
+!       CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.)
+!> CHANGE_AC
+!> 1-01-25
+       CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
+            itimes = itimes)
+!> END CHANGE_AC
 
        IF(ehrenfest_md)THEN
           CALL rt_prop_output(force_env%qs_env,ehrenfest,delta_iter=force_env%qs_env%rtp%delta_iter)
