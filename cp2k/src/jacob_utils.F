@@ -403,15 +403,15 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
                 sumg = sumg + g(i)
                 if (hop <= sumg) then
                         if (i .ne. state) then
-                                print *, "SURFACE HOP!"
+!                                print *, "SURFACE HOP!"
                                 write(24,*) i                        
                                 print *, "New state: ", i
                                 decohere = .FALSE.
                                 return
                         elseif (i == state) then
-                                print *, "No surface hop."
+!                                print *, "No surface hop."
                                 write(24,*) state
-                                print *, "State: ", state
+!                                print *, "State: ", state
                                 
                                 !if there has not been any surfacehop, we need to consider the possibility of the decoherence correction
                                 !if the non-adiabatic coupling dphi to all other states is below a certain threshold

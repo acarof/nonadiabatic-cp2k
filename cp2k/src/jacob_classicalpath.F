@@ -81,7 +81,7 @@ CONTAINS
      logical :: inrun
         integer :: coord
      !integer :: mol, i, j, k, l, m, d, stat, atoms, times, c, t, t2, init, inc, filelength, state, mat, orb, bondsno
-     integer :: mol, i, j, k, l, m, d, atoms, times, c, t, t2, init, inc, state, mat, orb
+     integer :: mol, i, j, k, l, m, d, atoms, c, t, t2, init, inc, state, mat, orb
      integer, dimension(:), allocatable :: atomlist, pfiles, elements
      integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
      integer, dimension(:,:,:), allocatable :: neighbourlist
@@ -157,7 +157,7 @@ CONTAINS
 !          times = 2
 !     elseif (progtype == 'C') then
           !times = 1000
-          times = 2 ! CHANGE_AC
+!          times = 2 ! CHANGE_AC
 !     end if
      !bonds per molecule
 !     bondsno = 5
@@ -201,7 +201,7 @@ CONTAINS
 !          else
                !inrun = .TRUE.
  
-         if (itimes.eq.0) then 
+         if (itimes.eq.1) then 
             inrun = .FALSE.
          else
             inrun = .TRUE.
@@ -310,7 +310,7 @@ CONTAINS
         endif
 
      !if the program has been previously called, a bunch of data will have been saved
-     if (inrun) then
+     if (itimes.ge.3) then
 !          !such as electronic coefficients from last time step
 !          open(unit=12,file='./C.txt',position='append',action='write')
 !          open(unit=18,file='./Cin_temp.txt',action='read')
@@ -323,6 +323,17 @@ CONTAINS
 !          open(unit=27,file='./stmt',action='read')
 !          open(unit=28,file='./stmtm',action='read')
      !if not, it may need to be initialised/calculated for the first time
+     else if (itimes.eq.2) then
+!OPEN          open(unit=12,file='./C.txt',action='write')
+          !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
+          do i=1,mat
+               ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
+               ctotal(i) = CMPLX(0.0D0, 0.0D0,dp)
+          end do
+          ctin(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+          ctotal(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+!WRITE          write(12,*) abs(ctotal(1:mat))
+                aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
      else
 !OPEN          open(unit=12,file='./C.txt',action='write')
           !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
@@ -349,7 +360,8 @@ CONTAINS
 
      !c tells you how many atoms you will have per timestep
      c = mol*atoms
-     allocate(crds(3,c,times+1))
+     !allocate(crds(3,c,times+1))
+     allocate(crds(3,c,3))
      if (.not. allocated(crds)) then
           stop "Error: array 'crds' not allocated correctly."
      end if
@@ -498,7 +510,8 @@ CONTAINS
           stop "Error: array 'nacv' not allocated correctly."
      end if
      !diagonals of the Hamiltonian
-     allocate(siteenergies(times+1,mat))
+     !allocate(siteenergies(times+1,mat))
+     allocate(siteenergies(3,mat))
      if (.not. allocated(siteenergies)) then
           stop "Error: array 'siteenergies' not allocated correctly."
      end if
@@ -563,10 +576,16 @@ CONTAINS
 !CHANGE_AC
 !READ THE COORDINATES
         do coord=1,3
-              if (inrun) then
+              if (itimes.gt.3) then
+                 crds(coord,:,1) = PACK(aom_basket%rm2(:,coord), ext_pres)
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
+                 crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
+              else if (itimes.eq.2) then 
+                 crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
+                 crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
+              else if (itimes.eq.2) then 
+                 crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
               endif
-              crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
         enddo
 !END CHANGE_AC
 
@@ -599,7 +618,8 @@ CONTAINS
           end do
           do m=1,atoms
                do d=1,3
-                    coms(d,i) = coms(d,i) + (crds(d,(i-1)*atoms + m,1))/atoms
+                    !coms(d,i) = coms(d,i) + (crds(d,(i-1)*atoms + m,1))/atoms
+                    coms(d,i) = coms(d,i) + (crds(d,(i-1)*atoms + m,3))/atoms
                end do
           end do
      end do
@@ -748,10 +768,12 @@ CONTAINS
      do i=1,atoms
           do j=1,3
                !At(j,i) = bohrang*crds(j,i,1)
-               At(j,i) = crds(j,i,1)
+               !At(j,i) = crds(j,i,1)
+               At(j,i) = crds(j,i,3) !CHANGE_AC : 3 is the current timestep
           end do
      end do
-     if (.not. inrun) then
+     !if (.not. inrun) then
+     if (itimes.eq.1) then
           call connect_list2(At, atomlist, connlist1, connlist2)
 !          open(unit=40,file='./connectlist1',action='write')
 !          open(unit=41,file='./connectlist2',action='write')
@@ -785,7 +807,9 @@ CONTAINS
 
      !for each timestep: this loop is (probably) the main bulk of the code
 !PRINT     print *, "Calling overlap routine for each pair along the trajectory (this may take a while)"
-     do t=2,times
+!     do t=2,times
+t =2
+      if (itimes.ge.3) then
 !          if (progtype == 'C') then
 !PRINT               print *, "Molecular timestep", t, "beginning."
 !          end if
@@ -809,8 +833,8 @@ CONTAINS
                !calculate the site energy for this molecule
                !at this timestep
 !               call sitecalc(At, bonds, atoms, siteenergies(t,i))
-                        siteenergies(i,t)   = aom_basket%energies(i) ! CHANGE_AC
-                        siteenergies(i,t+1) = energies_plus(i) ! CHANGE_AC
+                        siteenergies(t,i)   = aom_basket%energies(i) ! CHANGE_AC
+                        siteenergies(t+1,i) = energies_plus(i) ! CHANGE_AC
                !then one timestep ahead: also calculate diagonal forces at this timestep
 !               call sitecalc(Atp, bonds, atoms, siteenergies(t+1,i), F(:,:,i), mol, i)
 !WRITE               write(30,*) i, siteenergies(t+1,i)
@@ -1033,7 +1057,8 @@ CONTAINS
                end do !loop over k
           end do !loop over i
           !during a simulation, you can read in a lot of these overlaps from a previous timestep
-          if (inrun) then
+          !if (inrun) then
+          if (itimes.ge.3) then
                do i=1,mat
                     do j=1,mat
 !                         read(21,*) Stt(j,i)
@@ -1061,6 +1086,7 @@ CONTAINS
 !          open(unit=26,file='./sttm',action='write')
 !          open(unit=27,file='./stmt',action='write')
 !          open(unit=28,file='./stmtm',action='write')
+         if (itimes.ge.2) !CHANGE_AC
           do i=1,mat
                do j=1,mat
                                 aom_basket%Stt(j,i)   = Stptp(j,i)
@@ -1073,6 +1099,7 @@ CONTAINS
 !                    write(28,*) Stt(j,i)
                end do
           end do
+         endif !CHANGE_AC
 !               close(unit=21)
 !          close(unit=26)
 !          close(unit=27)
@@ -1237,18 +1264,31 @@ CONTAINS
 !          close(unit=12)
 !          close(unit=18)
 
-     end do !loop over t
+!     end do !loop over t
+      endif
 
 !CHANGE_AC
 !STORE THE COORDINATES
-        do i=1,c
-           do coord=1,3
-              aom_basket%rm1(i,coord) = positions_plus(i,coord)
+        if (itimes.ge.2) then
+           do i=1,c
+              do coord=1,3
+                 aom_basket%rm2(i,coord) = aom_basket%rm1(i,coord)
+                 aom_basket%rm1(i,coord) = positions_plus(i,coord)
+              enddo
            enddo
-        enddo
-        do i=1,mol
-           aom_basket%energies(i) = energies_plus(i)
-        enddo
+           do i=1,mol
+              aom_basket%energies(i) = energies_plus(i)
+           enddo
+        else 
+           do i=1,c
+              do coord=1,3
+                 aom_basket%rm1(i,coord) = positions_plus(i,coord)
+              enddo
+           enddo
+           do i=1,mol
+              aom_basket%energies(i) = energies_plus(i)
+           enddo
+        endif
 !END CHANGE_AC
 !PRINT     print *, "All done!"
 
