@@ -124,6 +124,7 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat)
                 stop "Error: array 'Splace2' not allocated correctly."
         end if
 
+print*, Stt
         Sttsqrt = Stt
         call matinvsqrt(mol, .FALSE., Sttsqrt)
         Sttinvsqrt = Stt
@@ -138,13 +139,22 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat)
 
         !first term: Sttsqrt*(Stptpinvsqrt - Stmtmtinvsqrt)
         Splace1 = Stptpinvsqrt - Stmtminvsqrt
+print*, "eeee"
+print*, Stptpinvsqrt 
+print*, Stmtminvsqrt
+print*, Splace1
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttsqrt, mol, Splace1, mol, 0.0D0, Sterm1, mol)
+print*, Sterm1
 
         !second term: Sttinvsqrt*(Sttp - Sttm)*Sttinvsqrt
         Splace1 = Sttp - Sttm
+print*, Splace1
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Splace1, mol, Sttinvsqrt, mol, 0.0D0, Splace2, mol)
+print*, Splace2
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
-
+print*, Sterm2
+print*, "eeee"
+print*, "eeee"
         X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
@@ -516,7 +526,11 @@ subroutine matinvsqrt(mol, invert, S)
         job = 'V'
         up = 'U'
         !DSYEV is from the BLAS. Returns vector of eigenvalues D and overwrites S with matrix of eigenvectors
+print*, S
         call DSYEV(job, up, mol, S, mol, D, DGETRI_WORK, 3*mol, stat)
+print*, "DSYEV"
+print*, S
+print*, D
         if (stat /= 0) then
                 write(*,*) "Error with subroutine DSYEV: error status", stat
                 stop

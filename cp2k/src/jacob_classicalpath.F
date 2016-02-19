@@ -609,7 +609,8 @@ print*, energies_plus(:), "kkkk"
 !CHANGE_AC
 !READ THE COORDINATES
         do coord=1,3
-              if (itimes.gt.3) then
+              if (itimes.ge.3) then
+print*, "hey"
                  crds(coord,:,1) = PACK(aom_basket%rm2(:,coord), ext_pres)
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
@@ -662,7 +663,8 @@ print*, ext_pres
                end do
           end do
      end do
-
+print*, "coms"
+print*, coms
      !construct neigbours list: 1 if close enough, 0 if not
 !PRINT     print *, "Constructing nearest neighbours list..."
      allocate(NN(mat,mat))
@@ -692,6 +694,9 @@ print*, ext_pres
                end if                    
           end do
      end do
+print*, "NN"
+print*, dist
+print*, NN
 !PRINT     print *, "Nearest neighbours found."
 
      !allocate the arrays that will contain atomic coordinates for the overlap routine
@@ -1001,6 +1006,7 @@ print*, neighbourlist(m,:,j), "lalala"
                                              call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2),&
                                              & S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = S
+print*, S
                                              call calc_sab(Atm, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,1),&
                                              & S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                              Stmt(orb*(i-1)+d,orb*(k-1)+m) = S
@@ -1055,6 +1061,7 @@ print*, neighbourlist(m,:,j), "lalala"
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Bt, connlist2,&
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                                   Stt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+print*, cbar*S
                                                   ! H1(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, -scaling*S)
                                                   H1(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
                                                   call calc_sab(Atm, connlist2, &
@@ -1188,7 +1195,9 @@ print*, neighbourlist(m,:,j), "lalala"
 !PRINT               print *, "Propagating the electron for one molecular timestep..."
                do t2=1,int(deltatMD/deltatE)
 
+print*, "Stt",Stt
                     call makeX(mat, H1, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
+print*, X1
                     !create timestepped equivalents
                     H12 = H1 + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
@@ -1197,6 +1206,7 @@ print*, neighbourlist(m,:,j), "lalala"
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
                     call makeX(mat, H12, Stt, Sttp, Sttm, Stptp, Stmtm, X12, deltatMD)
+print*, X12
      
                     H2 = H12 + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
@@ -1205,6 +1215,17 @@ print*, neighbourlist(m,:,j), "lalala"
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
                     call makeX(mat, H2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD)
+print*, "vvvv"
+print*, mat
+print*, H2
+print*, Stt
+print*, Sttp
+print*, Sttm
+print*, Stptp
+print*, Stmtm
+print*, X2
+print*, deltatMD
+print*, "vvvv"
      
                     !K2 = dcmplx(0.0D0, 0.0D0)
                     K2 = cmplx(0.0D0, 0.0D0,dp)
@@ -1247,12 +1268,24 @@ print*, neighbourlist(m,:,j), "lalala"
      
                     !put everything together
                     Ktot = Imat + (deltatE/6.0D0)*(X1 + 2*K2 + 2*K3 + K4)
+print*, "wwww"
+print*, Imat
+print*, (deltatE/6.0D0)
+print*, X1
+print*, 2*K2
+print*, 2*K3
+print*, K4
+print*, Ktot
+print*, "wwww"
      
                     !timestep electron propagation and print out
                     !alpha = dcmplx(1.0D0, 0.0D0)
                     alpha = cmplx(1.0D0, 0.0D0,dp)
                     inc = 1
                     call ZGEMV(zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc)
+print*, t2, zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc
+print*, itimes, ctout, "tttt"
+print*, itimes, ctout, "tttt"
      
                     ctmag = 0.0D0
                     !ctcomp = dcmplx(0.0D0, 0.0D0)
@@ -1322,7 +1355,9 @@ print*, neighbourlist(m,:,j), "lalala"
 !               end if
 !          end if
 !WRITE          write(18,*) ctin(1:mat)
+print*, itimes, ctin, "tttt"
                 aom_basket%ctin(1:mat) = ctin(1:mat)
+print*, itimes, aom_basket%ctin, "tttt"
 
 !          close(unit=24)
 !          close(unit=12)
