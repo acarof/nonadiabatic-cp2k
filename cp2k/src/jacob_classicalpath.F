@@ -66,9 +66,9 @@ CONTAINS
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions_plus
         REAL(kind=dp), DIMENSION(:),  POINTER    :: energies_plus
         TYPE(aom_basket_type)                    :: aom_basket
-        integer, dimension(:), ALLOCATABLE, INTENT(OUT)        :: ext_elements
-        LOGICAL, dimension(:), ALLOCATABLE,  INTENT(OUT)       :: ext_pres
-        REAL(KIND=dp), dimension(:), ALLOCATABLE, INTENT(OUT)  :: ext_scoeff,ext_pcoeff
+        integer, dimension(:), ALLOCATABLE, INTENT(IN)        :: ext_elements
+        LOGICAL, dimension(:), ALLOCATABLE,  INTENT(IN)       :: ext_pres
+        REAL(KIND=dp), dimension(:), ALLOCATABLE, INTENT(IN)  :: ext_scoeff,ext_pcoeff
         INTEGER, POINTER                                       :: itimes
 
       !  REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions, positions_plus
@@ -82,7 +82,8 @@ CONTAINS
         integer :: coord
      !integer :: mol, i, j, k, l, m, d, stat, atoms, times, c, t, t2, init, inc, filelength, state, mat, orb, bondsno
      integer :: mol, i, j, k, l, m, d, atoms, c, t, t2, init, inc, state, mat, orb
-     integer, dimension(:), allocatable :: atomlist, pfiles, elements
+!     integer, dimension(:), allocatable :: atomlist, pfiles, elements
+     integer, dimension(:), allocatable :: atomlist, elements
      integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
      integer, dimension(:,:,:), allocatable :: neighbourlist
      !REAL(KIND=dp) :: cutoff, scaling, deltatMD, deltatE, lambdai, distance
@@ -91,9 +92,9 @@ CONTAINS
      !COMPLEX(KIND=dp), dimension(2,2) :: CT, DCT
      !character(len=100) :: mdcrd, mdcrdm, mdcrdp, bondlistfile, filler, scoefficients, mdcrdtype, atomlistfile, elementfile
      !character(len=100) ::  scoefficients
-     character(len=100), dimension(:), allocatable :: pcoefficients
+!     character(len=100), dimension(:), allocatable :: pcoefficients
      !character(len=1) :: zgemm_type, input, progtype
-     character(len=1) :: zgemm_type, input
+     character(len=1) :: zgemm_type
      !REAL(KIND=dp) :: ctmag, bohrang, mev, kcal, offset, cbar, nsave, minao
      REAL(KIND=dp) :: ctmag, bohrang, mev, kcal, cbar, minao
      !REAL(KIND=dp), dimension(:), allocatable :: scoeffs, E1, E2
@@ -116,12 +117,15 @@ CONTAINS
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: Ktot, K2, K3, K4
      !REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Atpp, Bt, Btm, Btp, coms, siteenergies, Atal
      REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
-     integer, dimension(:,:), allocatable :: bonds
+!     integer, dimension(:,:), allocatable :: bonds
 
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      INTEGER, DIMENSION(:), ALLOCATABLE :: elementtot
      LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask
+!     INTEGER                            :: my_itimes
 
+
+print*, energies_plus(:), "kkkk"
 
      !We begin by reading in the input parameters
      !There are currently two modes this program can run in
@@ -200,7 +204,17 @@ CONTAINS
 !               inrun = .FALSE.
 !          else
                !inrun = .TRUE.
- 
+
+         !my_itimes = itimes 
+!         print*, "here we are 001"
+!         print*, "itimes", itimes 
+!         print*, "here we are 002"
+!         if (ASSOCIATED(itimes)) then
+!            print*, "Associated!"
+!            print*, 'itimes', itimes
+!         else
+!            print*, "Not associated"
+!         endif
          if (itimes.eq.1) then 
             inrun = .FALSE.
          else
@@ -246,6 +260,23 @@ CONTAINS
 !     open(unit=23,file=bondlistfile,action='read')
      !relatively self-explanatory
      mat = orb*mol
+     c = mol*atoms
+
+    if (itimes.le.1) then
+       ALLOCATE(aom_basket%population(mat))
+       ALLOCATE(aom_basket%ctin(mat))
+       ALLOCATE(aom_basket%hamiltonian(mat,mat))
+       allocate(aom_basket%connlist1(4,atoms))
+       ALLOCATE(aom_basket%neighbourlist(mol,3,0:atoms))
+       ALLOCATE(aom_basket%Stt(mat,mat))
+       ALLOCATE(aom_basket%Stmt(mat,mat))
+       ALLOCATE(aom_basket%Sttm(mat,mat))
+       ALLOCATE(aom_basket%Stmtm(mat,mat))
+           ALLOCATE(aom_basket%rm1(c,3))
+           ALLOCATE(aom_basket%rm2(c,3))
+           ALLOCATE(aom_basket%energies(mol))
+     allocate(aom_basket%bneighbour(3,0:atoms))
+    endif
 
      !calculate timestep from femtoseconds in atomic units
      !molecular timestep is generally 0.5fs to improve energy conservation
@@ -310,6 +341,7 @@ CONTAINS
         endif
 
      !if the program has been previously called, a bunch of data will have been saved
+
      if (itimes.ge.3) then
 !          !such as electronic coefficients from last time step
 !          open(unit=12,file='./C.txt',position='append',action='write')
@@ -359,7 +391,6 @@ CONTAINS
      !open(unit=19,file='./timings.txt',position='append',action='write')
 
      !c tells you how many atoms you will have per timestep
-     c = mol*atoms
      !allocate(crds(3,c,times+1))
      allocate(crds(3,c,3))
      if (.not. allocated(crds)) then
@@ -419,6 +450,7 @@ CONTAINS
 
      !then the complex ones i.e. H matrices; combinations of H and S
 
+     print *, "All done!",itimes,439
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
      !For ease of calculation therefore, in this program,
      !H1 etc are always -i*H.
@@ -493,6 +525,7 @@ CONTAINS
           end do
      end do
 
+     print *, "All done!",itimes,515
      !bonds is an array that lists all the bonds between atoms in each molecule
      !it lists them as: atom 1, atom 2, bond type
 !     allocate(bonds(3,bondsno))
@@ -583,19 +616,25 @@ CONTAINS
               else if (itimes.eq.2) then 
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
-              else if (itimes.eq.2) then 
+              else if (itimes.eq.1) then 
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
               endif
         enddo
 !END CHANGE_AC
+print*, crds(:,1,3)
+print*, positions_plus(1,:)
+print*, ext_pres
 
+     print *, "All done!",itimes,612
 !CHANGE_AC
 !READ THE COORDINATES
      !now we also read in the atomic coefficients
         ALLOCATE(pcoefftot(c))
         ALLOCATE(scoefftot(c))
-        pcoefftot = PACK(ext_pcoeff, ext_pres)
-        scoefftot = PACK(ext_scoeff, ext_pres)
+        pcoefftot = ext_pcoeff
+        scoefftot = ext_scoeff
+!        pcoefftot = PACK(ext_pcoeff, ext_pres)
+!        scoefftot = PACK(ext_scoeff, ext_pres)
 !END CHANGE_AC
      do i=1,atoms
           do j=1,orb
@@ -689,6 +728,7 @@ CONTAINS
 !          stop "Error: array 'F' not allocated correctly."
 !     end if
 
+     print *, "All done!",itimes,715
      !elements contains the atomic number of each atom (this goes into At, Bt etc)
      !it is user-defined input
      allocate(elements(atoms))
@@ -725,9 +765,12 @@ CONTAINS
 
 !CHANGE_AC
         allocate(atomlist_mask(c))
-        atomlist_mask =(scoefftot.eq.0).OR.(pcoefftot.eq.0)
+        atomlist_mask =.NOT.((scoefftot.eq.0).AND.(pcoefftot.eq.0))
         allocate(atomlist(COUNT(atomlist_mask(1:atoms))))
         atomlist = PACK( (/ (i, i=1,atoms) /), atomlist_mask(1:atoms) )
+    if (itimes.le.1) then
+       allocate(aom_basket%connlist2(4,size(atomlist)))
+    endif
 !END CHANGE_AC
         
 
@@ -741,6 +784,7 @@ CONTAINS
 !     end do
 !     close(36)
 
+     print *, "All done!",itimes,768
      !these arrays are data for the non-adiabatic coupling calculation
      !they help efficiency by telling the program which atoms are connected
      !and thus which pairs to carry out the calculation for
@@ -771,12 +815,16 @@ CONTAINS
                !At(j,i) = crds(j,i,1)
                At(j,i) = crds(j,i,3) !CHANGE_AC : 3 is the current timestep
           end do
+          print*, "a",At(:,i)
+          print*, "a",crds(:,i,3)
      end do
+     print *, "All done!",itimes,800
      !if (.not. inrun) then
      if (itimes.eq.1) then
           call connect_list2(At, atomlist, connlist1, connlist2)
 !          open(unit=40,file='./connectlist1',action='write')
 !          open(unit=41,file='./connectlist2',action='write')
+print*, connlist2, "here"
           do i=1,atoms
 !WRITE               write(40,*), connlist1(1:4,i)
                         aom_basket%connlist1(1:4,i) = connlist1(1:4,i)
@@ -785,18 +833,21 @@ CONTAINS
 !WRITE               write(41,*), connlist2(1:4,i)
                         aom_basket%connlist2(1:4,i) = connlist2(1:4,i)
           end do
+print*, aom_basket%connlist2, "here here"
 !          close(unit=40)
 !          close(unit=41)
-     else
+     else if (itimes.gt.1) then
 !          open(unit=40,file='./connectlist1',action='read')
 !          open(unit=41,file='./connectlist2',action='read')
 !          do i=1,atoms
 !               read(40,*), connlist1(1:4,i)
-                        connlist1(1:4,i) = aom_basket%connlist1(1:4,i)
+                        connlist1(1:4,:) = aom_basket%connlist1(1:4,:)
 !          end do
+print*, aom_basket%connlist2, "here here and and"
 !          do i=1,size(atomlist)
 !               read(41,*), connlist2(1:4,i)
-                        connlist2(1:4,i) = aom_basket%connlist2(1:4,i)
+                        connlist2(1:4,:) = aom_basket%connlist2(1:4,:)
+print*, connlist2, "and here"
 !          end do
 !          close(unit=40)
 !          close(unit=41)
@@ -805,6 +856,7 @@ CONTAINS
      !used to give correct commands to ZGEMX subroutines later
      zgemm_type = 'N'
 
+     print *, "All done!",itimes,833
      !for each timestep: this loop is (probably) the main bulk of the code
 !PRINT     print *, "Calling overlap routine for each pair along the trajectory (this may take a while)"
 !     do t=2,times
@@ -835,10 +887,13 @@ t =2
 !               call sitecalc(At, bonds, atoms, siteenergies(t,i))
                         siteenergies(t,i)   = aom_basket%energies(i) ! CHANGE_AC
                         siteenergies(t+1,i) = energies_plus(i) ! CHANGE_AC
+print*, energies_plus(i), "koko"
+print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
+
                !then one timestep ahead: also calculate diagonal forces at this timestep
 !               call sitecalc(Atp, bonds, atoms, siteenergies(t+1,i), F(:,:,i), mol, i)
 !WRITE               write(30,*) i, siteenergies(t+1,i)
-                        aom_basket%hamiltonian(i,i) = siteenergies(t+1,i)
+!                        aom_basket%hamiltonian(i,i) = siteenergies(t+1,i)
 
                !then for each other molecule
                do k=1,mol
@@ -857,6 +912,7 @@ t =2
                          end do
                     end do
                     if (i == 1) then
+print*, "lololo"
                          do d=1,orb
                               do l=1,atoms
                                    pcoeffsrun(l,orb*(k-1)+d,1) = pcoeffs(l,d)
@@ -871,7 +927,8 @@ t =2
                               end do
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
-                         if ((input == 'c') .or. (inrun .eqv. .FALSE.)) then
+!                         if ((input == 'c') .or. (inrun .eqv. .FALSE.)) then
+                         if (itimes.eq.3) then
                               do d=1,orb
                                    do m=1,orb
                                         call sab_screen_new(At, atomlist, connlist1, pcoeffsrun(:,orb*(i-1)+d,2),&
@@ -881,24 +938,30 @@ t =2
                               end do
                               neighbourlist(k,1:3,0) = [0, 0, 0]
                               neighbourlist(k,:,1:atoms) = bneighbour(:,1:atoms)
+print*, "lololo"
                               if (k == mol) then
 !                                   open(unit=43,file='./bneighbour',action='write')
+print*, "lilili"
                                    do m=1,mol
                                         do j=1,atoms
 !WRITE                                             write(43,*), neighbourlist(m,:,j)
+print*, neighbourlist(m,:,j), "lilili"
                                                                 aom_basket%neighbourlist(m,:,j) = & 
                                                                         neighbourlist(m,:,j)
+print*, aom_basket%neighbourlist(m,:,j), "lilili"
                                         end do
                                    end do
-                                   close(43)
+                              !     close(43)
                               end if
                          else
 !                              open(unit=43,file='./bneighbour',action='read')
                               do m=1,mol
                                    neighbourlist(m,1:3,0) = [0, 0, 0]
                                    do j=1,atoms
+print*, aom_basket%neighbourlist(m,:,j), "lalala"
                                                                 neighbourlist(m,:,j)=&
                                                                 aom_basket%neighbourlist(m,:,j)
+print*, neighbourlist(m,:,j), "lalala"
 !                                        read(43,*), neighbourlist(m,:,j)
                                    end do
                               end do
@@ -1077,6 +1140,7 @@ t =2
                end do
           end if !(inrun)
 !WRITE          write(13,*) -kcal*imagpart(H2(1,orb+1))
+     print *, "All done!",itimes,1106
 
 !          close(unit=21)
 !          close(unit=26)
@@ -1086,7 +1150,7 @@ t =2
 !          open(unit=26,file='./sttm',action='write')
 !          open(unit=27,file='./stmt',action='write')
 !          open(unit=28,file='./stmtm',action='write')
-         if (itimes.ge.2) !CHANGE_AC
+         if (itimes.ge.2) then !CHANGE_AC
           do i=1,mat
                do j=1,mat
                                 aom_basket%Stt(j,i)   = Stptp(j,i)
@@ -1277,24 +1341,47 @@ t =2
               enddo
            enddo
            do i=1,mol
+print*, energies_plus(i), "keke"
               aom_basket%energies(i) = energies_plus(i)
            enddo
-        else 
+        else if (itimes.eq.1) then
            do i=1,c
               do coord=1,3
                  aom_basket%rm1(i,coord) = positions_plus(i,coord)
               enddo
            enddo
            do i=1,mol
+print*, energies_plus(i), "keke"
               aom_basket%energies(i) = energies_plus(i)
            enddo
         endif
-!END CHANGE_AC
-!PRINT     print *, "All done!"
 
-     deallocate(pcoefficients, pfiles, pcoeffs, pcoeffsrun, scoeffs)
+!PREPARE THE PRINT
+       !aom_basket%hamiltonian(i,i) = siteenergies(t+1,i)
+       aom_basket%hamiltonian = AIMAG(H2)
+
+!END CHANGE_AC
+!PRINT     print *, "All done!",itimes
+     print *, "All done!",itimes
+
+!     deallocate(pcoefficients, pfiles, pcoeffs, pcoeffsrun, scoeffs)
+     deallocate(pcoeffs, pcoeffsrun, scoeffs)
      deallocate(ctin, ctout, ctotal)
-     deallocate(siteenergies, crds, coms, bonds, NN, At, Atm, Atp, Bt, Btm, Btp, atomlist, connlist1, connlist2)
+     !deallocate(siteenergies, crds, coms, bonds, NN, At, Atm, Atp, Bt, Btm, Btp, atomlist, connlist1, connlist2)
+     deallocate(siteenergies)
+     deallocate(crds)
+     deallocate(coms)
+     deallocate(NN)
+     deallocate(At)
+     deallocate(Atm)
+     deallocate(Atp)
+     deallocate(Bt)
+     deallocate(Btm)
+     deallocate(Btp)
+     deallocate(atomlist)
+     deallocate(connlist1)
+print*, connlist2
+     deallocate(connlist2)
      deallocate(H1, H2, H12, Hdiff, Hsave, X1, X2, X12, Ktot, K2, K3, K4)
      deallocate(Stt, Stptp, Stmtm, Sttp, Sttm, Stpt, Stmt)
      deallocate(Sttdiff, Stptpdiff, Stmtmdiff, Sttpdiff, Sttmdiff, nacv, dist)

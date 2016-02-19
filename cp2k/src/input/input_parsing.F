@@ -117,6 +117,7 @@ CONTAINS
               "Error 1: this routine must be called just after having parsed the start of the section "&
               //TRIM(parser_location(parser)))
     section => section_vals%section
+
     IF (root_sect) THEN
        token=parser%input_line(parser%icol1:parser%icol2)
        CALL uppercase(token)

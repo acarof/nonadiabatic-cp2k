@@ -204,6 +204,17 @@ CONTAINS
                                                 shell_particles
     TYPE(virial_type), POINTER               :: virial
 
+!> CHANGE_AC
+    INTEGER, POINTER               :: my_itimes ! CHANGE_AC
+    INTEGER, TARGET                :: zero 
+   IF (PRESENT(itimes)) then
+      my_itimes => itimes
+   ELSE
+      zero = 0
+      my_itimes => zero
+   ENDIF
+!> END CHANGE_AC
+
     NULLIFY (logger, virial, subsys, atprop_env, cell)
     logger => cp_get_default_logger()
     eval_ef = .TRUE.
@@ -252,7 +263,7 @@ CONTAINS
                require_consistent_energy_force=require_consistent_energy_force)
        CASE ( use_mixed_force )
           !CALL mixed_energy_forces(force_env,calculate_forces)
-          CALL mixed_energy_forces(force_env,calculate_forces, itimes) !CHANGE_AC
+          CALL mixed_energy_forces(force_env,calculate_forces, my_itimes) !CHANGE_AC
 !          CALL mixed_energy_forces_print(force_env,calculate_forces)  !CHANGE_AC
        CASE default
           CPABORT("")
@@ -786,11 +797,11 @@ CONTAINS
 !> \author Florian Schiffmann
 ! *****************************************************************************
   !SUBROUTINE mixed_energy_forces(force_env, calculate_forces)
-  SUBROUTINE mixed_energy_forces(force_env, calculate_forces, itimes) !CHANGE_AC
+  SUBROUTINE mixed_energy_forces(force_env, calculate_forces, my_itimes) !CHANGE_AC
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    INTEGER, POINTER, OPTIONAL               :: itimes !CHANGE_AC
+    INTEGER, POINTER                         :: my_itimes !CHANGE_AC
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_energy_forces', &
       routineP = moduleN//':'//routineN
@@ -833,8 +844,10 @@ CONTAINS
 !    TYPE(mixed_force_type), POINTER          :: global_positions
     TYPE(section_vals_type), POINTER         :: adiab_section
     CHARACTER(LEN=default_string_length)     :: adiab_keyword
-    TYPE(mixed_environment_type), POINTER     :: mixed_env
+    TYPE(mixed_environment_type), POINTER    :: mixed_env
+!    INTEGER, POINTER                         :: my_itimes !CHANGE_AC
 !> End CHANGE_AC
+
 
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(force_env))
@@ -1090,7 +1103,7 @@ CONTAINS
     CASE(mix_adiab)
         adiab_section => section_vals_get_subs_vals(mixed_section, "ADIABATIC")
         CALL section_vals_val_get(adiab_section,"METHOD_PROPAGATION",c_val=adiab_keyword)
-        mixed_env = force_env%mixed_env
+        mixed_env => force_env%mixed_env
         SELECT CASE(adiab_keyword)
         CASE("CLASSICAL_PATH")
            !Check that all the FF have the same number of atoms than the 1st FF
@@ -1103,7 +1116,7 @@ CONTAINS
            ENDDO 
            CALL adiab_classicalpath_routines(particles_mix, virial_mix, results_mix,   &
                 global_forces, energies, virials, results, nforce_eval,&
-                map_index, mapping_section,adiab_section,mixed_env,itimes) 
+                map_index, mapping_section,adiab_section,mixed_env,my_itimes) 
         CASE("FSSH")
            !Check that all the FF have the same number of atoms than the 1st FF
            !because in the subroutine the number of atoms wil be the one of 1st

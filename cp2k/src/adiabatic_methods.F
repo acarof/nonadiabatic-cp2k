@@ -96,7 +96,7 @@ CONTAINS
 
     SUBROUTINE  adiab_classicalpath_routines(particles_mix, virial_mix, results_mix,   &
                 global_forces, energies_plus, virials, results, nforce_eval,&
-                map_index, mapping_section, adiab_section, mixed_env, itimes)
+                map_index, mapping_section, adiab_section, mixed_env, my_itimes)
 
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(virial_type), POINTER               :: virial_mix
@@ -113,7 +113,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: adiab_section
     TYPE(mixed_environment_type), OPTIONAL, &
       POINTER                                :: mixed_env
-    INTEGER, POINTER                         :: itimes
+    INTEGER, POINTER                         :: my_itimes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_classicalpath_routines', &
       routineP = moduleN//':'//routineN
@@ -122,7 +122,7 @@ CONTAINS
     INTEGER                                  :: aom_natom, nadiab
     INTEGER                                  :: norbitals, ext_init, ext_atoms
     INTEGER                                  :: ext_el_steps
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: energies
+!    REAL(KIND=dp), DIMENSION(:), POINTER     :: energies
     REAL(kind=dp)                            :: ext_cutoff, ext_scaling
     REAL(KIND=dp)                            :: ext_timestep
     REAL(kind=dp)                            :: ext_cbar, ext_minao
@@ -141,10 +141,17 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
     REAL(KIND=dp), DIMENSION(:),POINTER      :: populations
 !    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER, POINTER                         :: itimes
 
+ !   print*, "la", my_itimes
+ !   itimes => my_itimes
+ !       if (ASSOCIATED(itimes)) then
+ !   print*, "ici", itimes
     natom = SIZE(global_forces(1)%forces,2)
-    ALLOCATE(energies(nforce_eval))
-    ALLOCATE(energies_plus(nforce_eval))
+print*, energies_plus, "pppp"
+!    ALLOCATE(energies(nforce_eval))
+!    ALLOCATE(energies_plus(nforce_eval))
+print*, energies_plus, "pppp"
 !    ALLOCATE(positions(natom,3))
     ALLOCATE(positions_plus(natom,3))
 !    ALLOCATE(velocities(natom,3))
@@ -188,6 +195,11 @@ CONTAINS
         CALL section_vals_list_get(coupling_section,"_DEFAULT_KEYWORD_",list=listcoeff)
         CALL read_listcoeff(listcoeff, ext_elements, ext_pres, & 
                             ext_scoeff, ext_pcoeff, natom)
+    itimes => my_itimes
+        if (ASSOCIATED(itimes)) then
+           print*, "ASSOCIATED 1"
+           print*, "itimes", itimes
+        endif
         CALL construct_ham_X_SH_full_degen_classicalpath(nadiab=nadiab, &
              ext_atoms=ext_atoms, norbitals=norbitals, &
              ext_cutoff = ext_cutoff, ext_scaling = ext_scaling, &
@@ -199,23 +211,32 @@ CONTAINS
              aom_basket = aom_basket, ext_elements=ext_elements, &
              ext_pres = ext_pres, ext_scoeff=ext_scoeff, &
              ext_pcoeff=ext_pcoeff, itimes=itimes)
+!print*, 'here we are 02'
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
+        ALLOCATE(coefficients(norbitals*nadiab))
+        ALLOCATE(populations(norbitals*nadiab))
+        ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
+
         coefficients = aom_basket%ctin
         populations  = aom_basket%population
         hamiltonian  = aom_basket%hamiltonian
+print*, hamiltonian, "mmmm"
         CALL adiab_print_coeff(adiab_section, coefficients, nadiab,norbitals)
         CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals)
         CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
+        
+        mixed_env%aom_basket=aom_basket
     CASE DEFAULT
         CPABORT("There is no method to calculate the coupling")
     END SELECT
 
-!    DO iparticle = 1, natom
-!      jparticle = map_index(iparticle)
-!       particles_mix%els(jparticle)%f(:)= global_forces(1)%forces(:,iparticle)
-!       positions(jparticle,:)  = particles_mix%els(jparticle)%r(:)
-!    END DO
+!GIVE BACK THE FORCES TO FIST
+    DO iparticle = 1, natom
+      jparticle = map_index(iparticle)
+      particles_mix%els(jparticle)%f(:)= global_forces(1)%forces(:,iparticle)
+!      positions(jparticle,:)  = particles_mix%els(jparticle)%r(:)
+    END DO
 
 !Move coordinates minus 1 to coordinates minus 2 and coordinates to coordinate
 !minus 1
@@ -323,7 +344,8 @@ CONTAINS
              CASE (3)
                 CALL read_float_object(line_att(start_c:end_c-1),&
                                        my_pres2,error_message)
-                my_pres = INT(my_pres)
+                my_pres = INT(my_pres2)
+print*, "b", my_pres2, my_pres
                 IF (my_pres.eq.0) THEN
                    ext_pres(iatom) = .FALSE.
                 ELSE
@@ -383,14 +405,14 @@ CONTAINS
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%COEFFICIENTS",&
-               extension=".xyz",log_filename=.FALSE.)
+               extension=".xyz", middle_name="coeff", log_filename=.FALSE.)
    
     IF (unit_nr>0) THEN
 
 !       ncoeff = SIZE(coefficients)
 
        WRITE ( unit_nr, "(2I8)" ) nadiab, norbitals
-       WRITE ( unit_nr, '(A)' ) '# Diab. State, Orb., Re(C), I(C) '
+       WRITE ( unit_nr, '(A)' ) 'Diab. State, Orb., Re(C), I(C) '
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
@@ -433,14 +455,14 @@ CONTAINS
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%POPULATIONS",&
-               extension=".xyz",log_filename=.FALSE.)
+               extension=".xyz", middle_name="pop",log_filename=.FALSE.)
 
     IF (unit_nr>0) THEN
 
 !       ncoeff = SIZE(coefficients)
 
        WRITE ( unit_nr, "(2I8)" ) nadiab, norbitals
-       WRITE ( unit_nr, '(A)' ) '# Diab. State, Orb., Pop. '
+       WRITE ( unit_nr, '(A)' ) 'Diab. State, Orb., Pop. '
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
@@ -473,7 +495,7 @@ CONTAINS
     INTEGER                                  :: unit_nr
 !    INTEGER                                  :: i
     INTEGER                                  :: iadiab, iorbitals
-    INTEGER                                  :: jadiab, jorbitals
+ !   INTEGER                                  :: jorbitals
 !    TYPE(particle_type), POINTER             :: particle_set(:)
 !    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=default_string_length)     ::  my_format, my_format2
@@ -483,19 +505,21 @@ CONTAINS
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%HAMILTONIAN",&
-               extension=".xyz",log_filename=.FALSE.)
+               extension=".xyz",middle_name="hamilt", log_filename=.FALSE.)
+
+print*, hamiltonian, "nnnn"
 
     IF (unit_nr>0) THEN
 
 !       ncoeff = SIZE(coefficients)
 
        WRITE ( unit_nr, "(2I8)" ) nadiab, norbitals
-       WRITE ( unit_nr, '(A)' ) '# Hamiltonian: (nadiab*norbitals)^2'
+       WRITE ( unit_nr, '(A)' ) 'Hamiltonian: (nadiab*norbitals)^2'
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
-            DO jadiab=1, nadiab
-               DO jorbitals=1,norbitals 
+!            DO jadiab=1, nadiab
+!               DO jorbitals=1,norbitals 
 !          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
 !                  name=atm_name)
 !          my_format="(A4,"
@@ -504,8 +528,9 @@ CONTAINS
 !          name = TRIM(atm_name)
          WRITE(unit_nr,TRIM(my_format)//"1X,"//TRIM(my_format2)//"F20.10)") iadiab, iorbitals, &
                            hamiltonian( (iadiab-1)*norbitals + iorbitals,:) 
-              ENDDO
-            ENDDO
+print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
+!              ENDDO
+!            ENDDO
           ENDDO
        ENDDO
 

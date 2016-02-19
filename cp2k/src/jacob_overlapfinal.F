@@ -125,7 +125,8 @@ contains
          else
 
              write(*,*) 'No such functional group' 
-             stop
+!             stop
+            connectlist(j,i) =  atomlist(i)
 
          end if
 
@@ -152,7 +153,7 @@ contains
 
       connectlist1=0
       connectlist2=0
-
+print*, atomlist
       do i=1,size(atomlist)
 
          j=1
@@ -162,13 +163,15 @@ contains
          connectlist1(1,l)=atomlist(i)
          connectlist2(1,i)=atomlist(i)
 
-         !print*,l
+         print*,l
 
          do k=1,size(xyz,2)
 
             distvec=xyz(:,atomlist(i)) - xyz(:,k)
 
-            !print*, atomlist(i), k, DNRM2(3,distvec,1)
+print*, xyz(:,atomlist(i))
+print*, xyz(:,k)
+            print*, atomlist(i), k, DNRM2(3,distvec,1)
 
 
 !           Current nearest neighbour cutoff is 3.00 a. u.
@@ -177,7 +180,7 @@ contains
             if (atomlist(i) .ne. k .and. DNRM2(3,distvec,1) < 3.5D0) then
 
                                j = j + 1
-                connectlist1(j,l) = k
+            
                 connectlist2(j,i) = k
 
 
@@ -216,9 +219,11 @@ contains
             connectlist2(j+1,i) =  atomlist(i)
          else
 
-!             write(*,*) 'No such functional group'
-!		print *, j
-             stop
+             write(*,*) 'No such functional group'
+             print *, j
+            connectlist1(j+1,l) =  atomlist(i)
+            connectlist2(j+1,i) =  atomlist(i)
+            ! stop
 
          end if
 

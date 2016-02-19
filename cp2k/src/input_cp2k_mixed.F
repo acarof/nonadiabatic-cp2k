@@ -67,6 +67,8 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: sub2section, sub3section, &
                                                 subsection
+    TYPE(section_type), POINTER              :: print_key
+
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MIXED",&
@@ -173,6 +175,7 @@ CONTAINS
 !> 15-12-11
 !> To create a new way to combine the force
 !> To get the adiabatic force 
+
     CALL section_create(subsection,name="ADIABATIC",&
          description="Defines the methods to obtain the adiabatic forces.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -183,8 +186,8 @@ CONTAINS
          n_var=-1)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
-    CALL section_add_subsection(section,subsection)
-    CALL section_release(subsection)
+!    CALL section_add_subsection(section,subsection)
+!    CALL section_release(subsection)
 
 
 !> 15-12-11
@@ -195,6 +198,7 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
 
+    NULLIFY(sub2section)
     CALL section_create(sub2section,name="AOM",&
          description="Defines the methods to obtain the adiabatic forces.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -202,61 +206,61 @@ CONTAINS
     CALL keyword_create(keyword, name="NUMBER_DIABATIC_STATES",&
          description="Number of diabatic states to consider",&
          usage="2", type_of_var=integer_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="NUMBER_ATOMS_PER_SITE",&
          description="Number of atoms per site",&
          usage="1", type_of_var=integer_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="NUMBER_ORBITALS",&
          description="Number of orbitals per sites",&
          usage="1", type_of_var=integer_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="CUT_OFF",&
          description="Distance cut-off for H_ab calculation",&
          usage="6.0D0", type_of_var=real_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="SCALING_FACTOR",&
          description="Hab = scaling*Sab",&
          usage="0.50D0*0.065190D0", type_of_var=real_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="INIT_SITES",&
          description="starting molecule number",&
          usage="1", type_of_var=integer_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="CBAR",&
          description="Sab constant factor",&
          usage="0.5082", type_of_var=real_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="ATOMIC_OVERLAP_CUTOFF",&
          description="An atomic overlap cutoff",&
          usage="1.0D-17", type_of_var=real_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="NUCLEAR_TIMESTEP",&
          description="Timestep for atomic motion, must be coherent",&
          usage="in femtosecond", type_of_var=real_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="ELECTRONIC_PARTIAL_STEP",&
          description="Number of electronic steps by atomic step",&
          usage="5", type_of_var=integer_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -264,14 +268,45 @@ CONTAINS
          "<p><tt>ATOMIC_KIND  LIST NO HOMOS HOMOP</tt></p>",&
          repeats=.TRUE., usage="{{String} {Int} {Int} {Real} {Real}}",&
          type_of_var=lchar_t)
-    CALL section_add_keyword(section,keyword)
+    CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
     CALL section_add_subsection(subsection,sub2section)
     CALL section_release(sub2section)
 
+    CALL section_create(sub2section,name="PRINT",&
+         description="Section of possible print options in ADIABATIC env.",&
+         n_keywords=0, n_subsections=1, repeats=.FALSE.)
+
+    NULLIFY(print_key)
+
+    CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="COEFFICIENTS",&
+          description="Print the coefficients",&
+          filename="")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
+     CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="POPULATIONS",&
+          description="Print the populations",&
+          filename="")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
+     CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="HAMILTONIAN",&
+          description="Print the hamiltonian",&
+          filename="")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
+    CALL section_add_subsection(subsection,sub2section)
+    CALL section_release(sub2section)
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
+!    CALL section_add_subsection(section,subsection)
+!    CALL section_release(subsection)
 !> End CHANGE_AC
 
 
