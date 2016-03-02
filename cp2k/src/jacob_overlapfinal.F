@@ -17,7 +17,7 @@
 module jacob_overlapfinal
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-
+#include "./base/base_uses.f90"
 
       implicit none
 
@@ -124,7 +124,8 @@ contains
 
          else
 
-             write(*,*) 'No such functional group' 
+             CPABORT("No such functional group ")
+             !write(*,*) 'No such functional group' 
 !             stop
             connectlist(j,i) =  atomlist(i)
 
@@ -153,7 +154,7 @@ contains
 
       connectlist1=0
       connectlist2=0
-print*, atomlist
+!print*, atomlist
       do i=1,size(atomlist)
 
          j=1
@@ -163,15 +164,15 @@ print*, atomlist
          connectlist1(1,l)=atomlist(i)
          connectlist2(1,i)=atomlist(i)
 
-         print*,l
+        ! print*,l
 
          do k=1,size(xyz,2)
 
             distvec=xyz(:,atomlist(i)) - xyz(:,k)
 
-print*, xyz(:,atomlist(i))
-print*, xyz(:,k)
-            print*, atomlist(i), k, DNRM2(3,distvec,1)
+!print*, xyz(:,atomlist(i))
+!print*, xyz(:,k)
+            !print*, atomlist(i), k, DNRM2(3,distvec,1)
 
 
 !           Current nearest neighbour cutoff is 3.00 a. u.
@@ -193,16 +194,16 @@ print*, xyz(:,k)
 
          !sp2 carbons, N in pyrrole
          if(j .eq. 4) then
-print*, "j = 4"
+!print*, "j = 4"
 
          !N in pyridine O in ethers
          elseif(j .eq. 3) then
-print*, "j = 3"
+!print*, "j = 3"
              connectlist1(j+1,l) = atomlist(i)
              connectlist2(j+1,i) = atomlist(i)
          !O in ketones
          elseif(j .eq. 2) then
-print*, "j = 2"
+!print*, "j = 2"
             do k=1,size(xyz,2)
 
                distvec=xyz(:,connectlist1(2,l)) - xyz(:,k)
@@ -222,9 +223,10 @@ print*, "j = 2"
             connectlist2(j+1,i) =  atomlist(i)
          else
 
-             write(*,*) 'No such functional group'
-             print*, "No such functional group"
-             print *, j
+             CPABORT("No such functional group")
+             !write(*,*) 'No such functional group'
+             !print*, "No such functional group"
+             !print *, j
             !connectlist1(j+1,l) =  atomlist(i)
             !connectlist2(j+1,i) =  atomlist(i)
             ! stop
@@ -271,24 +273,24 @@ print*, "j = 2"
       REAL(KIND=dp) :: neighbourlist(3,3)
       REAL(KIND=dp) :: veca(3), vecb(3), DNRM2
       
-print*, "  "
-print*, "xyz", xyz(:,1)
-print*, "connectlist", connectlist
+!print*, "  "
+!print*, "xyz", xyz(:,1)
+!print*, "connectlist", connectlist
 
       rvecs=0
 
       do i=1,size(connectlist,2)
 
          do k = 2,size(connectlist,1)
-print*, i,k,connectlist(k,i)
-print*, xyz(:,connectlist(k,i))
+!print*, i,k,connectlist(k,i)
+!print*, xyz(:,connectlist(k,i))
               neighbourlist(:,k-1) = xyz(:,connectlist(k,i))
 
          end do
 
-print*, neighbourlist(:,1)
-print*, neighbourlist(:,2)
-print*, neighbourlist(:,3)
+!print*, neighbourlist(:,1)
+!print*, neighbourlist(:,2)
+!print*, neighbourlist(:,3)
 
          veca=neighbourlist(:,1)-neighbourlist(:,3)
          vecb=neighbourlist(:,2)-neighbourlist(:,3)
@@ -296,15 +298,15 @@ print*, neighbourlist(:,3)
          rvecs(1,connectlist(1,i)) = veca(2)*vecb(3)-veca(3)*vecb(2)
          rvecs(2,connectlist(1,i)) = veca(3)*vecb(1)-veca(1)*vecb(3)
          rvecs(3,connectlist(1,i)) = veca(1)*vecb(2)-veca(2)*vecb(1)
-print*, "veca", veca
-print*, "vecb", vecb
+!print*, "veca", veca
+!print*, "vecb", vecb
          
 
-print*, 290,  "calc_recvs", i, rvecs(:,connectlist(1,i))
+!print*, 290,  "calc_recvs", i, rvecs(:,connectlist(1,i))
          rvecs(:,connectlist(1,i)) = rvecs(:,connectlist(1,i))/&
 &        DNRM2(3 , rvecs(:,connectlist(1,i)) , 1)
-print*, "DNRM2", i, DNRM2(3 , rvecs(:,connectlist(1,i)) , 1) 
-print*, "calc_recvs", i, rvecs(:,connectlist(1,i))
+!print*, "DNRM2", i, DNRM2(3 , rvecs(:,connectlist(1,i)) , 1) 
+!print*, "calc_recvs", i, rvecs(:,connectlist(1,i))
 
       end do
 
@@ -409,7 +411,7 @@ print*, "calc_recvs", i, rvecs(:,connectlist(1,i))
       integer :: i,j,k
 
       allocate(prvecs(size(unitvecs,2),3), stat=stat_err)
-      if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT("Problems in allocation")
 
       prvecs = 0.0d0
 
@@ -452,15 +454,16 @@ print*, "calc_recvs", i, rvecs(:,connectlist(1,i))
       integer :: stat_err
 
       integer :: i,j,k
-print*, "   "
-print*, 434
-print*, unitvecs
-print*, " "
-print*, rvec
-print*, " " 
+!print*, "   "
+!print*, 434
+!print*, unitvecs
+!print*, " "
+!print*, rvec
+!print*, " " 
 
       allocate(prvecs(size(unitvecs,2),3), stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       prvecs = 0.d0
 
@@ -519,10 +522,11 @@ print*, " "
       integer :: stat_err
       integer :: i
       allocate(c(3,size(expcoeffa,2)), stat=stat_err)
-      if (stat_err .ne. 0) stop
-print*, 502, expcoeffa
-print*, "   " 
-print*, 502, expcoeffb 
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
+!print*, 502, expcoeffa
+!print*, "   " 
+!print*, 502, expcoeffb 
       c = expcoeffa * expcoeffb
       do i=1,size(expcoeffa,2)
         if (dist(i) .gt. abs(epsilon(0.d0))) then
@@ -531,14 +535,14 @@ print*, 502, expcoeffb
 
 
           !sarray(i) = (c(1,i) + c(2,i)) * S_pi(dist(i)) + c(3,i) * S_sigma(dist(i))
-print*, "    "
-print*, 512, "sarray, i", i, sarray(i)
+!print*, "    "
+!print*, 512, "sarray, i", i, sarray(i)
           sarray(i) = (c(1,i) + c(2,i)) * S_ppi(p,t) + c(3,i) * S_psigma(p,t)
-print*, 512, "c, i", i, c(1,i), c(2,i), c(3,i)
-print*, 512, "c, p,t", p,t, S_ppi(p,t), S_psigma(p,t)
+!print*, 512, "c, i", i, c(1,i), c(2,i), c(3,i)
+!print*, 512, "c, p,t", p,t, S_ppi(p,t), S_psigma(p,t)
 
-print*, 512, "sarray, i", i, sarray(i)
-print*, "    "
+!print*, 512, "sarray, i", i, sarray(i)
+!print*, "    "
         else
          sarray(i) = 1.d0
         end if
@@ -708,7 +712,8 @@ print*, "    "
       elseif (k < 0) then
           
 !        print*, 'Negative number argumented to factorial!'
-        stop
+       ! stop
+         CPABORT("Negative number argumented to factorial!")
 
       end if
 
@@ -846,22 +851,27 @@ print*, "    "
       !close(69)
 
       allocate(prervecsa(3,size(prexyza,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(xyza(4,size(connlista,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(coeffap(size(connlista,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       !allocate(coeffas(size(connlista,2)),stat=stat_err)
       !if (stat_err .ne. 0) stop
 
       allocate(rvecsa(3,size(connlista,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(stc(size(xyza,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
 
       call calc_rvecs(prexyza(2:4,:), prervecsa, connlista)
@@ -874,7 +884,7 @@ print*, "    "
            rvecsa(:,i)=prervecsa(:,connlista(1,i))
 
       end do
-print*, "calc_sab", coeffap
+!print*, "calc_sab", coeffap
 
       deallocate(prervecsa)
  
@@ -886,31 +896,39 @@ print*, "calc_sab", coeffap
 &         present(sab) .and. present(connlistb)) then
 
          allocate(unitvecs(3,size(connlistb,2),3),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(dist(size(connlistb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(prervecsb(3,size(prexyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
  
          allocate(xyzb(4, size(connlistb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(expcoeffa(3,size(xyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(coeffbp(size(xyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
   
          !allocate(coeffbs(size(xyzb,2)),stat=stat_err)
          !if (stat_err .ne. 0) stop
 
          allocate(expcoeffb(3,size(xyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(rvecsb(3,size(connlistb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          call calc_rvecs(prexyzb(2:4,:), prervecsb, connlistb)
 
@@ -927,10 +945,12 @@ print*, "calc_sab", coeffap
         deallocate(prervecsb)
        
         allocate(musbp(size(xyzb,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(sarrayp(size(xyzb,2),size(xyza,2)), stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         !allocate(sarrays(size(xyza,2),size(xyzb,2)), stat=stat_err)
         !if (stat_err .ne. 0) stop
@@ -981,7 +1001,7 @@ print*, "calc_sab", coeffap
                    & size(sarrayp,1), coeffbp, 1, 0.d0, stc, 1)
 
         sab = DDOT(size(coeffap,1),coeffap,1,stc,1)
-print*, "calc_sab", coeffap
+!print*, "calc_sab", coeffap
 
         !print*, size(sarrayp,1), size(sarrayp,2)
 
@@ -1012,22 +1032,28 @@ print*, "calc_sab", coeffap
         !Normalize
 
         allocate(unitvecs(3,size(xyza,2),3),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(dist(size(xyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(musbp(size(xyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(sarrayp(size(xyza,2),size(xyza,2)), stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(expcoeffa(3,size(xyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(expcoeffb(3,size(xyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
 
         sarrayp=0.0D0
@@ -1142,10 +1168,10 @@ print*, "calc_sab", coeffap
 
           call DGEMV('t', size(xyza,2), size(xyza,2), 1.0d0, sarrayp,&
                      & size(xyza,2), coeffap, 1, 0.d0, stc, 1)
-print*, "calc_sab", coeffap
+!print*, "calc_sab", coeffap
 
           c = DDOT(size(xyza,2),coeffap,1,stc,1)
-print*, "calc_sab", coeffap
+!print*, "calc_sab", coeffap
 
           !call DGEMV('t', size(xyza,2), size(xyza,2), 1.0d0, sarrays,&
           !           & size(xyza,2), coeffas, 1, 0.d0, stc, 1)
@@ -1167,7 +1193,7 @@ print*, "calc_sab", coeffap
           !write(*,*) 'This is c ',sqrt(c)
 
           coeffap = coeffap / sqrt(c) 
-print*, "calc_sab", coeffap
+!print*, "calc_sab", coeffap
           !coeffas = coeffas / sqrt(c)
 
           do i=1,size(connlista,2)
@@ -1248,27 +1274,33 @@ print*, "calc_sab", coeffap
       REAL(KIND=dp) :: c
       REAL(KIND=dp) :: DDOT
 
-print*, 1221, "sarray", sarray
+!print*, 1221, "sarray", sarray
       slaters(:,1)=(/0.0D0, 0.0D0, 3.0D0, 0.9560D0, 1.2881D0, 1.100D0, 1.9237D0, 2.2458D0/)
       slaters(:,2)=(/0.0D0, 0.0D0, 0.0D0, 0.0000D0, 1.2107D0, 1.000D0, 1.6000D0, 2.2266D0/)
 
       allocate(coeffap(size(connlistal,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
      
       allocate(xyza(4, size(connlistal,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(rvecsa(3, size(prexyza,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+      !   if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(stc(size(prexyza,2)),stat=stat_err) !????? or b
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(minicon(4,size(linecol)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(minipre(3,size(prervecsa,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       !print*, 'One size fits all?', size(connlistal,2), size(prexyza,2), size(linecol),size(prervecsa,2), &
 !&             size(sarray,1),  size(sarray,2) 
@@ -1285,16 +1317,16 @@ print*, 1221, "sarray", sarray
          !print*, (minicon(k,i), k=1,size(minicon,1))
 
       end do
-print*, "  "
-print*, 1276
-print*, "  "
+!print*, "  "
+!print*, 1276
+!print*, "  "
          call calc_rvecs(prexyza(2:4,:), minipre , minicon)          
 
 
       !Updating rvecs for pass
 
       do i=1,size(linecol)
-print*, "minipre", minipre(:,linecol(i))
+!print*, "minipre", minipre(:,linecol(i))
            prervecsa(:,linecol(i))=minipre(:,linecol(i))
 
            !print*, (prervecsa(k,linecol(i)), k=1,size(prervecsa,1))         
@@ -1307,9 +1339,9 @@ print*, "minipre", minipre(:,linecol(i))
 
       xyza=prexyza
       coeffap=precoeffap 
-print*, "green", coeffap
+!print*, "green", coeffap
       rvecsa=prervecsa
-print*, "rvecsa", rvecsa(:,1)
+!print*, "rvecsa", rvecsa(:,1)
 
       ! These variables are recaculated for each atom in A
 
@@ -1322,31 +1354,38 @@ print*, "rvecsa", rvecsa(:,1)
          !print*, 'waaaargh', size(connlistbl,2) bloody cyclopentadiene fails in next line
 
          allocate(unitvecs(3,size(connlistbl,2),3),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          !print*, 'waaaargh'
 
          allocate(dist(size(connlistbl,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(rvecsb(3, size(prexyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(expcoeffa(3,size(prexyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(coeffbp(size(prexyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(expcoeffb(3,size(prexyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          if(size(linecol) .eq. size(atomlista)) then
 
 !        In the very first step rvecsb needs initialisation 
 
              allocate(grandconb(4,size(atomlistb)),stat=stat_err)
-             if (stat_err .ne. 0) stop
+             !if (stat_err .ne. 0) stop
+             if (stat_err .ne. 0) CPABORT(" ")
 
              do i=1,size(atomlistb)
 
@@ -1366,7 +1405,8 @@ print*, "rvecsa", rvecsa(:,1)
 
 
          allocate(musbp(size(prexyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
          
          do i=1,size(prexyzb,2)
 
@@ -1401,18 +1441,18 @@ print*, "rvecsa", rvecsa(:,1)
 
         end do
 
-print*, 1371
-print*, "stc", stc
-print*, "sarray", sarray
-print*, coeffbp
+!print*, 1371
+!print*, "stc", stc
+!print*, "sarray", sarray
+!print*, coeffbp
         call DGEMV('t', size(sarray,1), size(sarray,2), 1.0d0, sarray,&
                    & size(sarray,1), coeffbp, 1, 0.d0, stc, 1)
-print*, "stc", stc
+!print*, "stc", stc
 
-print*, "green", coeffap
-print*, "stc", stc
+!print*, "green", coeffap
+!print*, "stc", stc
         sab = DDOT(size(coeffap,1),coeffap,1,stc,1)
-print*, "green", coeffap
+!print*, "green", coeffap
 
         deallocate(expcoeffb, expcoeffa, unitvecs, dist, musbp, rvecsb, coeffbp)
 
@@ -1423,19 +1463,24 @@ print*, "green", coeffap
         !Normalize
 
         allocate(unitvecs(3,size(prexyza,2),3),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(dist(size(prexyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(musbp(size(prexyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(expcoeffa(3,size(prexyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(expcoeffb(3,size(prexyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         do i=1,size(prexyza,2)
 
@@ -1454,17 +1499,17 @@ print*, "green", coeffap
              !print*, 'unitvecs', dist(6), (unitvecs(k, 6, 3), k=1,3)
 
              !print*, 'Some info', prexyza(2:4,i), dist(33), (unitvecs(k, 33, 3), k=1,3)
-print*, "rvecsa", rvecsa(:,i)
+!print*, "rvecsa", rvecsa(:,i)
              call project_onto_unitvectors(unitvecs, rvecsa(:,i), expcoeffa)
-print*, 1435, "expcoeffa", expcoeffa
+!print*, 1435, "expcoeffa", expcoeffa
              call project_onto_unitvectors(unitvecs, rvecsa, expcoeffb)
-print*, 1435, "expcoeffb", expcoeffb
+!print*, 1435, "expcoeffb", expcoeffb
 
              !print*, 'exp', (expcoeffb(k,10), k=1,3), (expcoeffa(k,10), k=1,3), dist(10)
-print*, 1430, sarray
+!print*, 1430, sarray
             
              call calc_overlap_p(expcoeffa, expcoeffb, muap, musbp, dist, sarray(:,i))
-print*, 1433, sarray
+!print*, 1433, sarray
 
              !print*, 'dist, sarray', dist(7),  sarray(7,i)
 
@@ -1492,24 +1537,24 @@ print*, 1433, sarray
           !print*, 'line 10', (sarray(k,10), k=1,size(sarray, 1))
           !print*, 'Sarray element 8, 9', sarray(8, 9)
 
-print*, "green", coeffap
-print*, "stc", stc
-print*, "sarray", sarray
+!print*, "green", coeffap
+!print*, "stc", stc
+!print*, "sarray", sarray
           call DGEMV('t', size(prexyza,2), size(prexyza,2), 1.0d0, sarray,&
                      & size(prexyza,2), coeffap, 1, 0.d0, stc, 1)
-print*, "green", coeffap
-print*, "stc", stc
+!print*, "green", coeffap
+!print*, "stc", stc
 
           c = DDOT(size(prexyza,2),coeffap,1,stc,1)
-print*, "green", coeffap
-print*, size(prexyza,2)
-print*, coeffap
-print*, stc
-print*, "green", "c", c
+!print*, "green", coeffap
+!print*, size(prexyza,2)
+!print*, coeffap
+!print*, stc
+!print*, "green", "c", c
           !write(*,*) 'This is c ', sqrt(c)
 
           coeffap = coeffap / sqrt(c)
-print*, "green", coeffap
+!print*, "green", coeffap
 
           precoeffap = coeffap
 
@@ -1577,31 +1622,39 @@ print*, "green", coeffap
       natomb=size(xyzb,2)
 
       allocate(rvecsa(3,natoma),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(rvecsadr(3,natoma),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(rvecsb(3,natomb),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(rvecsbdr(3,natomb),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(xyzadr(4,natoma),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(xyzbdr(4,natomb),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(coeffapdr(natoma),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       !allocate(coeffasdr(natoma),stat=stat_err)
       !if (stat_err .ne. 0) stop
 
       allocate(coeffbpdr(natomb),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       !allocate(coeffbsdr(natomb),stat=stat_err)
       !if (stat_err .ne. 0) stop
@@ -1616,16 +1669,20 @@ print*, "green", coeffap
 !     Initialising the atomic overlap matrices
 
       allocate(sarrayn(natoma,natoma),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(sarrayndr(natoma,natoma),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(sarrayo(natomb,natoma),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(sarrayodr(natomb,natoma),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       sarrayo=0.0D0
       sarrayn=0.0D0
@@ -1633,11 +1690,11 @@ print*, "green", coeffap
 !     Normalising coefficients and initialising atomic overlap matrix for wavefunction 
 !     normalisation 
 
-print*, "blue", coeffap
-print*, 1603, sarrayn
+!print*, "blue", coeffap
+!print*, 1603, sarrayn
       call calc_sab_turbo(xyza, atomlista, connlistal, coeffap, rvecsa, sarrayn, atomlista)
-print*, 1605, sarrayn
-print*, "blue", coeffap
+!print*, 1605, sarrayn
+!print*, "blue", coeffap
 
 
 !     Calculating Sab(R,R) and initialising p_pi directions and atomic overlap matrix sarrayo
@@ -1645,7 +1702,7 @@ print*, "blue", coeffap
       call calc_sab_turbo2(xyza, atomlista, connlistal, coeffap, rvecsa,&
 &                                 sarrayo, atomlista, aneighbour(:,2:(size(aneighbour,2))),&
 &                     sabRR, xyzb, atomlistb, connlistbl, coeffbp, rvecsb)
-print*, "blue", coeffap
+!print*, "blue", coeffap
 
 !     Looping all over the structure 
 
@@ -1666,7 +1723,8 @@ print*, "blue", coeffap
           end do
 
           allocate(linecol(f-1),stat=stat_err)
-          if (stat_err .ne. 0) stop
+          !if (stat_err .ne. 0) stop
+          if (stat_err .ne. 0) CPABORT(" ")
 
           linecol=dummylinecol(2:f)
 
@@ -1720,16 +1778,20 @@ print*, "blue", coeffap
       deallocate(sarrayn, sarrayndr, sarrayo, sarrayodr)
 
       allocate(sarrayn(natomb,natomb),stat=stat_err)
-      if (stat_err .ne. 0) stop
+!if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(sarrayndr(natomb,natomb),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(sarrayo(natoma,natomb),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(sarrayodr(natoma,natomb),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       sarrayo=0.0D0
       sarrayn=0.0D0
@@ -1738,12 +1800,12 @@ print*, "blue", coeffap
 
       call calc_sab_turbo(xyzb, atomlistb, connlistbl, coeffbp, rvecsb, sarrayn, atomlistb)
 
-print*, "blue", coeffap
+!print*, "blue", coeffap
       call calc_sab_turbo2(xyzb, atomlistb, connlistbl, coeffbp, rvecsb, sarrayo,&
 &                          atomlistb, bneighbour(:,2:(size(bneighbour,2))),&
 &                         sabRR, xyza, atomlista, connlistal, coeffap, rvecsa)
 
-print*, "blue", coeffap
+!print*, "blue", coeffap
       do i=1,size(connlistbl,2)
 
           f=1
@@ -1760,6 +1822,7 @@ print*, "blue", coeffap
 
           allocate(linecol(f-1),stat=stat_err)
           if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) CPABORT(" ")
 
           linecol=dummylinecol(2:f)
 
@@ -1776,11 +1839,11 @@ print*, "blue", coeffap
               call calc_sab_turbo(xyzbdr, atomlistb, connlistbl, coeffbpdr, rvecsbdr, sarrayndr, linecol)
 
 
-print*, "blue", coeffap
+!print*, "blue", coeffap
               call calc_sab_turbo2(xyzbdr, atomlistb, connlistbl, coeffbpdr,& 
 &                                  rvecsbdr, sarrayodr, linecol, bneighbour(:,2:(size(bneighbour,2))),&
 &                                  sabRDRR, xyza, atomlista, connlistal,coeffap, rvecsa)
-print*, "blue", coeffap
+!print*, "blue", coeffap
  
               nacvb(j,i)=(sabRDRR-sabRR)/dR
           
@@ -1843,10 +1906,12 @@ print*, "blue", coeffap
       integer :: i, j, stat_err     
 
       allocate(connect(size(connectlist,1),size(connectlist,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(neighb(size(neighbourlist,1),size(neighbourlist,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       j=0
 
@@ -1916,42 +1981,51 @@ print*, "blue", coeffap
       !REAL(KIND=dp) :: c
       !REAL(KIND=dp) :: DDOT
 
-print*, "   "
-print*, "sab_screen_new"
-print*, prexyza(1,:)
-print*, prexyza(2,:)
-print*, prexyza(3,:)
-print*, prexyza(4,:)
-print*, linecol
+!print*, "   "
+!print*, "sab_screen_new"
+!print*, prexyza(1,:)
+!print*, prexyza(2,:)
+!print*, prexyza(3,:)
+!print*, prexyza(4,:)
+!print*, linecol
       slaters(:,1)=(/0.0D0, 0.0D0, 3.0D0, 0.9560D0, 1.2881D0, 1.100D0, 1.9237D0, 2.2458D0/)
       slaters(:,2)=(/0.0D0, 0.0D0, 0.0D0, 0.0000D0, 1.2107D0, 1.000D0, 1.6000D0, 2.2266D0/)
 
       allocate(coeffap(size(connlistal,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
      
       allocate(xyza(4, size(connlistal,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(expcoeffa(3,size(prexyzb,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(rvecsa(3, size(prexyza,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(stc(size(prexyza,2)),stat=stat_err) !????? or b
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(minicon(4,size(linecol)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(minipre(3,size(prexyza,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
  
       allocate(screenlist1(size(prexyzb,2),size(prexyza,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(screenlist2(size(prexyza,2),size(prexyzb,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       screenlist1=0
       screenlist2=0
@@ -1966,7 +2040,7 @@ print*, linecol
 
       end do
 
-print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"          
+!print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"          
       call calc_rvecs(prexyza(2:4,:), minipre , minicon)          
 
 !     Updating rvecs for pass
@@ -1989,28 +2063,35 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
 !     Inherent for B atom
 
       allocate(unitvecs(3,size(connlistbl,2),3),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(dist(size(connlistbl,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(rvecsb(3, size(prexyzb,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(coeffbp(size(prexyzb,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(expcoeffb(3,size(prexyzb,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(sarray(size(prexyzb,2),size(prexyza,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
 
       sarray=0.0D0
 
       allocate(grandconb(4,size(atomlistb)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       do i=1,size(atomlistb)
 
@@ -2026,7 +2107,8 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
       coeffbp=precoeffbp
 
       allocate(musbp(size(prexyzb,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
          
       do i=1,size(prexyzb,2)
 
@@ -2073,7 +2155,8 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
        end do
 
       allocate(preaneighbour(size(prexyzb,2)+1,size(prexyza,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
 !     Creating aneighbour list
 
@@ -2087,7 +2170,8 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
       screenlist2=transpose(screenlist1)
 
       allocate(prebneighbour(size(xyza,2)+1,size(prexyzb,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       call neighbouratoms(screenlist2, bneighbour)
 
@@ -2160,22 +2244,28 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
       slaters(:,2)=(/0.0D0, 0.0D0, 0.0D0, 0.0000D0, 1.2107D0, 1.000D0, 1.6000D0, 2.2266D0/)
 
       allocate(coeffap(size(connlistal,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
      
       allocate(xyza(4, size(connlistal,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(rvecsa(3, size(prexyza,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+      !   if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(stc(size(prexyza,2)),stat=stat_err) !????? or b
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(minicon(4,size(linecol)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(minipre(3,size(prervecsa,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+      if (stat_err .ne. 0) CPABORT(" ")
 
 !     Identifying p_pi directions
 
@@ -2219,7 +2309,8 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
           if(size(linecol) .eq. size(atomlista)) then
 
              allocate(grandconb(4,size(atomlistb)),stat=stat_err)
-             if (stat_err .ne. 0) stop
+             !if (stat_err .ne. 0) stop
+             if (stat_err .ne. 0) CPABORT(" ")
 
              do i=1,size(atomlistb)
 
@@ -2234,7 +2325,8 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
           end if
 
           allocate(coeffbp(size(prexyzb,2)),stat=stat_err)
-          if (stat_err .ne. 0) stop
+          !if (stat_err .ne. 0) stop
+          if (stat_err .ne. 0) CPABORT(" ")
 
           coeffbp=precoeffbp
 
@@ -2247,7 +2339,8 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
 !            line of aneighbour.
 
              allocate(xyzb(4,aneighbour(1,i)),stat=stat_err)
-             if (stat_err .ne. 0) stop
+             !if (stat_err .ne. 0) stop
+             if (stat_err .ne. 0) CPABORT(" ")
 
              do k=1,aneighbour(1,i)
 
@@ -2256,22 +2349,28 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
              end do
 
              allocate(expcoeffa(3,size(xyzb,2)),stat=stat_err)
-             if (stat_err .ne. 0) stop
+             !if (stat_err .ne. 0) stop
+             if (stat_err .ne. 0) CPABORT(" ")
 
              allocate(unitvecs(3,size(xyzb,2),3),stat=stat_err)
-             if (stat_err .ne. 0) stop
+             !if (stat_err .ne. 0) stop
+             if (stat_err .ne. 0) CPABORT(" ")
 
              allocate(dist(size(xyzb,2)),stat=stat_err)
-             if (stat_err .ne. 0) stop
+             !if (stat_err .ne. 0) stop
+             if (stat_err .ne. 0) CPABORT(" ")
 
              allocate(rvecsb(3, size(xyzb,2)),stat=stat_err)
-             if (stat_err .ne. 0) stop
+             !if (stat_err .ne. 0) stop
+             if (stat_err .ne. 0) CPABORT(" ")
 
              allocate(expcoeffb(3,size(xyzb,2)),stat=stat_err)
-             if (stat_err .ne. 0) stop
+             !if (stat_err .ne. 0) stop
+             if (stat_err .ne. 0) CPABORT(" ")
 
              allocate(sarrayline(size(xyzb,2)),stat=stat_err)
-             if (stat_err .ne. 0) stop
+             !if (stat_err .ne. 0) stop
+             if (stat_err .ne. 0) CPABORT(" ")
 
              do k=1,aneighbour(1,i)
 
@@ -2280,7 +2379,8 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
              end do
 
              allocate(musbp(size(prexyzb,2)),stat=stat_err)
-             if (stat_err .ne. 0) stop
+             !if (stat_err .ne. 0) stop
+             if (stat_err .ne. 0) CPABORT(" ")
          
              do k=1,size(xyzb,2)
 
@@ -2330,19 +2430,24 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
         !Normalize
 
         allocate(unitvecs(3,size(prexyza,2),3),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(dist(size(prexyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(musbp(size(prexyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(expcoeffa(3,size(prexyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(expcoeffb(3,size(prexyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         do i=1,size(prexyza,2)
 
@@ -2450,22 +2555,28 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
       !close(69)
 
       allocate(prervecsa(3,size(prexyza,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(xyza(4,size(connlista,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(coeffap(size(connlista,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(coeffas(size(connlista,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(rvecsa(3,size(connlista,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
       allocate(stc(size(xyza,2)),stat=stat_err)
-      if (stat_err .ne. 0) stop
+      !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
 
       call calc_rvecs(prexyza(2:4,:), prervecsa, connlista)
@@ -2489,31 +2600,40 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
 &         present(precoeffbs) .and. present(sab) .and. present(connlistb)) then
 
          allocate(unitvecs(3,size(connlistb,2),3),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(dist(size(connlistb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(prervecsb(3,size(prexyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
  
          allocate(xyzb(4, size(connlistb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(expcoeffa(3,size(xyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(coeffbp(size(xyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
   
          allocate(coeffbs(size(xyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(expcoeffb(3,size(xyzb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          allocate(rvecsb(3,size(connlistb,2)),stat=stat_err)
-         if (stat_err .ne. 0) stop
+         !if (stat_err .ne. 0) stop
+         if (stat_err .ne. 0) CPABORT(" ")
 
          call calc_rvecs(prexyzb(2:4,:), prervecsb, connlistb)
 
@@ -2530,22 +2650,28 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
         deallocate(prervecsb)
        
         allocate(musbs(size(xyzb,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(musbp(size(xyzb,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(sarrayp(size(xyzb,2),size(xyza,2)), stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(sarrays(size(xyzb,2),size(xyza,2)), stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(sarraysp(size(xyzb,2),size(xyza,2)), stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(sarrayps(size(xyzb,2),size(xyza,2)), stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         do i=1,size(xyzb,2)
 
@@ -2617,34 +2743,44 @@ print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"
         !Normalize
 
         allocate(unitvecs(3,size(xyza,2),3),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(dist(size(xyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(musbs(size(xyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(musbp(size(xyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(sarrayp(size(xyza,2),size(xyza,2)), stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(sarrays(size(xyza,2),size(xyza,2)), stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(sarraysp(size(xyza,2),size(xyza,2)), stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(sarrayps(size(xyza,2),size(xyza,2)), stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(expcoeffa(3,size(xyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
         allocate(expcoeffb(3,size(xyza,2)),stat=stat_err)
-        if (stat_err .ne. 0) stop
+        !if (stat_err .ne. 0) stop
+        if (stat_err .ne. 0) CPABORT(" ")
 
 
         sarrayp=0

@@ -148,10 +148,10 @@ CONTAINS
  !       if (ASSOCIATED(itimes)) then
  !   print*, "ici", itimes
     natom = SIZE(global_forces(1)%forces,2)
-print*, energies_plus, "pppp"
+!print*, energies_plus, "pppp"
 !    ALLOCATE(energies(nforce_eval))
 !    ALLOCATE(energies_plus(nforce_eval))
-print*, energies_plus, "pppp"
+!print*, energies_plus, "pppp"
 !    ALLOCATE(positions(natom,3))
     ALLOCATE(positions_plus(natom,3))
 !    ALLOCATE(velocities(natom,3))
@@ -196,10 +196,10 @@ print*, energies_plus, "pppp"
         CALL read_listcoeff(listcoeff, ext_elements, ext_pres, & 
                             ext_scoeff, ext_pcoeff, natom)
     itimes => my_itimes
-        if (ASSOCIATED(itimes)) then
-           print*, "ASSOCIATED 1"
-           print*, "itimes", itimes
-        endif
+        !if (ASSOCIATED(itimes)) then
+          ! print*, "ASSOCIATED 1"
+          ! print*, "itimes", itimes
+        !endif
         CALL construct_ham_X_SH_full_degen_classicalpath(nadiab=nadiab, &
              ext_atoms=ext_atoms, norbitals=norbitals, &
              ext_cutoff = ext_cutoff, ext_scaling = ext_scaling, &
@@ -221,7 +221,7 @@ print*, energies_plus, "pppp"
         coefficients = aom_basket%ctin
         populations  = aom_basket%population
         hamiltonian  = aom_basket%hamiltonian
-print*, hamiltonian, "mmmm"
+!print*, hamiltonian, "mmmm"
         CALL adiab_print_coeff(adiab_section, coefficients, nadiab,norbitals)
         CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals)
         CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
@@ -345,7 +345,7 @@ print*, hamiltonian, "mmmm"
                 CALL read_float_object(line_att(start_c:end_c-1),&
                                        my_pres2,error_message)
                 my_pres = INT(my_pres2)
-print*, "b", my_pres2, my_pres
+!print*, "b", my_pres2, my_pres
                 IF (my_pres.eq.0) THEN
                    ext_pres(iatom) = .FALSE.
                 ELSE
@@ -507,7 +507,7 @@ print*, "b", my_pres2, my_pres
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%HAMILTONIAN",&
                extension=".xyz",middle_name="hamilt", log_filename=.FALSE.)
 
-print*, hamiltonian, "nnnn"
+!print*, hamiltonian, "nnnn"
 
     IF (unit_nr>0) THEN
 
@@ -528,7 +528,7 @@ print*, hamiltonian, "nnnn"
 !          name = TRIM(atm_name)
          WRITE(unit_nr,TRIM(my_format)//"1X,"//TRIM(my_format2)//"F20.10)") iadiab, iorbitals, &
                            hamiltonian( (iadiab-1)*norbitals + iorbitals,:) 
-print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
+!print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
 !              ENDDO
 !            ENDDO
           ENDDO

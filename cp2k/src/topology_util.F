@@ -813,7 +813,7 @@ CONTAINS
        wrk_tmp => work(index1)%array1
        Nsize=SIZE(wrk_tmp)
        ALLOCATE(work(index1)%array1(Nsize+1))
-print*, wrk_tmp
+!print*, wrk_tmp
        work(index1)%array1(1:Nsize) = wrk_tmp
        work(index1)%array1(Nsize+1) = index2
        DEALLOCATE(wrk_tmp)

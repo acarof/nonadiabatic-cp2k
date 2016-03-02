@@ -43,6 +43,9 @@ MODULE jacob_classicalpath
         USE jacob_utils
         USE jacob_types,                     ONLY: aom_basket_type
 
+#include "./base/base_uses.f90"
+
+
      implicit none
 
         PRIVATE
@@ -125,7 +128,7 @@ CONTAINS
 !     INTEGER                            :: my_itimes
 
 
-print*, energies_plus(:), "kkkk"
+!print*, energies_plus(:), "kkkk"
 
      !We begin by reading in the input parameters
      !There are currently two modes this program can run in
@@ -303,7 +306,8 @@ print*, energies_plus(:), "kkkk"
      !deltaA is a diagonal matrix which allows arbitrary free energy difference between diabatic states
      allocate(deltaA(mat,mat))
      if (.not. allocated(deltaA)) then
-          stop "Error: array 'deltaA' not allocated correctly."
+          CPABORT("Error: array 'deltaA' not allocated correctly.")
+          !stop "Error: array 'deltaA' not allocated correctly."
      end if
      do i=1,mat
           do j=1,mat
@@ -319,16 +323,19 @@ print*, energies_plus(:), "kkkk"
      !ctin goes into the subroutine ZGEMV; ctout comes out of it (so essentially ctin = c(t), ctout = c(t+1))
      allocate(ctin(mat))
      if (.not. allocated(ctin)) then
-          stop "Error: array 'ctin' not allocated correctly."
+          CPABORT("Error: array 'ctin' not allocated correctly.")
+          !stop "Error: array 'ctin' not allocated correctly."
      end if
      allocate(ctout(mat))
      if (.not. allocated(ctout)) then
-          stop "Error: array 'ctout' not allocated correctly."
+          CPABORT("Error: array 'ctout' not allocated correctly.")
+          !stop "Error: array 'ctout' not allocated correctly."
      end if
      !ctotal is |c(t)|^2: this is the output for diabatic electronic state
      allocate(ctotal(mat))
      if (.not. allocated(ctotal)) then
-          stop "Error: array 'ctotal' not allocated correctly."
+          CPABORT("Error: array 'ctotal' not allocated correctly.")
+          !stop "Error: array 'ctotal' not allocated correctly."
      end if
 
      !the stateno file contains a numeric representation of the adiabatic electronic state
@@ -395,63 +402,76 @@ print*, energies_plus(:), "kkkk"
      !allocate(crds(3,c,times+1))
      allocate(crds(3,c,3))
      if (.not. allocated(crds)) then
-          stop "Error: array 'crds' not allocated correctly."
+          CPABORT("Error: array 'crds' not allocated correctly.")
+          !stop "Error: array 'crds' not allocated correctly."
      end if
 
      !need to allocate these square matrices
      !first the real, S-related ones
      allocate(Stt(mat,mat))
      if (.not. allocated(Stt)) then
-          stop "Error: array 'Stt' not allocated correctly."
+          CPABORT("Error: array 'Stt' not allocated correctly.")
+          !stop "Error: array 'Stt' not allocated correctly."
      end if
      allocate(Stpt(mat,mat))
      if (.not. allocated(Stpt)) then
-          stop "Error: array 'Stpt' not allocated correctly."
+          CPABORT("Error: array 'Stpt' not allocated correctly.")
+          !stop "Error: array 'Stpt' not allocated correctly."
      end if
      allocate(Sttp(mat,mat))
      if (.not. allocated(Sttp)) then
-          stop "Error: array 'Sttp' not allocated correctly."
+          CPABORT("Error: array 'Stt' not allocated correctly.")
+          !stop "Error: array 'Sttp' not allocated correctly."
      end if
      allocate(Stptp(mat,mat))
      if (.not. allocated(Stptp)) then
-          stop "Error: array 'Stptp' not allocated correctly."
+          CPABORT("Error: array 'Stptp' not allocated correctly.")
+          !stop "Error: array 'Stptp' not allocated correctly."
      end if
      allocate(Stmt(mat,mat))
      if (.not. allocated(Stmt)) then
-          stop "Error: array 'Stmt' not allocated correctly."
+          CPABORT("Error: array 'Stmt' not allocated correctly.")
+          !stop "Error: array 'Stmt' not allocated correctly."
      end if
      allocate(Sttm(mat,mat))
      if (.not. allocated(Sttm)) then
-          stop "Error: array 'Sttm' not allocated correctly."
+          CPABORT("Error: array 'Sttm' not allocated correctly.")
+          !stop "Error: array 'Sttm' not allocated correctly."
      end if
      allocate(Stmtm(mat,mat))
      if (.not. allocated(Stmtm)) then
-          stop "Error: array 'Stmtm' not allocated correctly."
+          CPABORT("Error: array 'Stmtm' not allocated correctly.")
+          !stop "Error: array 'Stmtm' not allocated correctly."
      end if
      allocate(Sttdiff(mat,mat))
      if (.not. allocated(Sttdiff)) then
-          stop "Error: array 'Sttdiff' not allocated correctly."
+          CPABORT("Error: array 'Sttdiff' not allocated correctly.")
+          !stop "Error: array 'Sttdiff' not allocated correctly."
      end if
      allocate(Stmtmdiff(mat,mat))
      if (.not. allocated(Stmtmdiff)) then
-          stop "Error: array 'Stmtmdiff' not allocated correctly."
+          CPABORT("Error: array 'Stmtmdiff' not allocated correctly.")
+          !stop "Error: array 'Stmtmdiff' not allocated correctly."
      end if
      allocate(Stptpdiff(mat,mat))
      if (.not. allocated(Stptpdiff)) then
-          stop "Error: array 'Stptpdiff' not allocated correctly."
+          CPABORT("Error: array 'Stptpdiff' not allocated correctly.")
+          !stop "Error: array 'Stptpdiff' not allocated correctly."
      end if
      allocate(Sttpdiff(mat,mat))
      if (.not. allocated(Sttpdiff)) then
-          stop "Error: array 'Sttpdiff' not allocated correctly."
+          CPABORT("Error: array 'Sttpdiff' not allocated correctly.")
+          !stop "Error: array 'Sttpdiff' not allocated correctly."
      end if
      allocate(Sttmdiff(mat,mat))
      if (.not. allocated(Sttmdiff)) then
-          stop "Error: array 'Sttmdiff' not allocated correctly."
+          CPABORT("Error: array 'Sttmdiff' not allocated correctly.")
+          !stop "Error: array 'Sttmdiff' not allocated correctly."
      end if
 
      !then the complex ones i.e. H matrices; combinations of H and S
 
-     print *, "All done!",itimes,439
+     !print *, "All done!",itimes,439
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
      !For ease of calculation therefore, in this program,
      !H1 etc are always -i*H.
@@ -459,35 +479,43 @@ print*, energies_plus(:), "kkkk"
 
      allocate(H1(mat,mat))
      if (.not. allocated(H1)) then
-          stop "Error: array 'H1' not allocated correctly."
+          CPABORT("Error: array 'H1' not allocated correctly.")
+          !stop "Error: array 'H1' not allocated correctly."
      end if
      allocate(H2(mat,mat))
      if (.not. allocated(H2)) then
-          stop "Error: array 'H2' not allocated correctly."
+          CPABORT("Error: array 'H2' not allocated correctly.")
+          !stop "Error: array 'H2' not allocated correctly."
      end if
      allocate(H12(mat,mat))
      if (.not. allocated(H12)) then
-          stop "Error: array 'H12' not allocated correctly."
+          CPABORT("Error: array 'H12' not allocated correctly.")
+          !stop "Error: array 'H12' not allocated correctly."
      end if
      allocate(Hdiff(mat,mat))
      if (.not. allocated(Hdiff)) then
-          stop "Error: array 'Hdiff' not allocated correctly."
+          CPABORT("Error: array 'Hdiff' not allocated correctly.")
+          !stop "Error: array 'Hdiff' not allocated correctly."
      end if
      allocate(Hsave(mat,mat))
      if (.not. allocated(Hsave)) then
-          stop "Error: array 'Hsave' not allocated correctly."
+          CPABORT("Error: array 'Hsave' not allocated correctly.")
+          !stop "Error: array 'Hsave' not allocated correctly."
      end if
      allocate(X1(mat,mat))
      if (.not. allocated(X1)) then
-          stop "Error: array 'X1' not allocated correctly."
+          CPABORT("Error: array 'X1' not allocated correctly.")
+          !stop "Error: array 'X1' not allocated correctly."
      end if
      allocate(X2(mat,mat))
      if (.not. allocated(X2)) then
-          stop "Error: array 'X2' not allocated correctly."
+          CPABORT("Error: array 'X2' not allocated correctly.")
+          !stop "Error: array 'X2' not allocated correctly."
      end if
      allocate(X12(mat,mat))
      if (.not. allocated(X12)) then
-          stop "Error: array 'X12' not allocated correctly."
+          CPABORT("Error: array 'X12' not allocated correctly.")
+          !stop "Error: array 'X12' not allocated correctly."
      end if
 
      !finally the K matrices, which are the terms in the Runge-Kutta integration
@@ -495,25 +523,30 @@ print*, energies_plus(:), "kkkk"
      !Ktot is the final constant by which c(t) is multiplied
      allocate(Ktot(mat,mat))
      if (.not. allocated(Ktot)) then
-          stop "Error: array 'Ktot' not allocated correctly."
+          CPABORT("Error: array 'Ktot' not allocated correctly.")
+          !stop "Error: array 'Ktot' not allocated correctly."
      end if
      allocate(K2(mat,mat))
      if (.not. allocated(K2)) then
-          stop "Error: array 'K2' not allocated correctly."
+          CPABORT("Error: array 'K2' not allocated correctly.")
+          !stop "Error: array 'K2' not allocated correctly."
      end if
      allocate(K3(mat,mat))
      if (.not. allocated(K3)) then
-          stop "Error: array 'K3' not allocated correctly."
+          CPABORT("Error: array 'K3' not allocated correctly.")
+          !stop "Error: array 'K3' not allocated correctly."
      end if
      allocate(K4(mat,mat))
      if (.not. allocated(K4)) then
-          stop "Error: array 'K4' not allocated correctly."
+          CPABORT("Error: array 'K4' not allocated correctly.")
+          !stop "Error: array 'K4' not allocated correctly."
      end if
 
      !Imat is an identity matrix of the dimensions of the other square matrices
      allocate(Imat(mat,mat))
      if (.not. allocated(Imat)) then
-          stop "Error: array 'Imat' not allocated correctly."
+          CPABORT("Error: array 'Imat' not allocated correctly.")
+          !stop "Error: array 'Imat' not allocated correctly."
      end if
      !define once, then use whenever
      do j=1,mat
@@ -526,7 +559,7 @@ print*, energies_plus(:), "kkkk"
           end do
      end do
 
-     print *, "All done!",itimes,515
+     !print *, "All done!",itimes,515
      !bonds is an array that lists all the bonds between atoms in each molecule
      !it lists them as: atom 1, atom 2, bond type
 !     allocate(bonds(3,bondsno))
@@ -541,28 +574,33 @@ print*, energies_plus(:), "kkkk"
      !non-adiabatic coupling vectors
      allocate(nacv(3,mat,mat,2*mat*atoms))
      if (.not. allocated(nacv))then
-          stop "Error: array 'nacv' not allocated correctly."
+          CPABORT("Error: array 'nacv' not allocated correctly.")
+          !stop "Error: array 'nacv' not allocated correctly."
      end if
      !diagonals of the Hamiltonian
      !allocate(siteenergies(times+1,mat))
      allocate(siteenergies(3,mat))
      if (.not. allocated(siteenergies)) then
-          stop "Error: array 'siteenergies' not allocated correctly."
+          CPABORT("Error: array 'siteenergies' not allocated correctly.")
+          !stop "Error: array 'siteenergies' not allocated correctly."
      end if
 
      !atomic coefficients for the overlap routine
      allocate(pcoeffs(atoms,orb))
      if (.not. allocated(pcoeffs)) then
-          stop "Error: array 'pcoeffs' not allocated correctly."
+          CPABORT("Error: array 'pcoeffs' not allocated correctly.")
+          !stop "Error: array 'pcoeffs' not allocated correctly."
      end if
      !pcoeffsrun exists because the p-coefficients need to be renormalised for each structure
      allocate(pcoeffsrun(atoms,mat,3))
      if (.not. allocated(pcoeffsrun)) then
-          stop "Error: array 'pcoeffsrun' not allocated correctly."
+          CPABORT("Error: array 'pcoeffsrun' not allocated correctly.")
+          !stop "Error: array 'pcoeffsrun' not allocated correctly."
      end if
      allocate(scoeffs(atoms))
      if (.not. allocated(scoeffs)) then
-          stop "Error: array 'scoeffs' not allocated correctly."
+          CPABORT("Error: array 'scoeffs' not allocated correctly.")
+          !stop "Error: array 'scoeffs' not allocated correctly."
      end if
 
 !PRINT     print *, "Reading in coordinates..."
@@ -611,7 +649,7 @@ print*, energies_plus(:), "kkkk"
 !READ THE COORDINATES
         do coord=1,3
               if (itimes.ge.2) then
-print*, "hey"
+!print*, "hey"
                  crds(coord,:,1) = PACK(aom_basket%rm2(:,coord), ext_pres)
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
@@ -623,11 +661,11 @@ print*, "hey"
               endif
         enddo
 !END CHANGE_AC
-print*, crds(:,1,3)
-print*, positions_plus(1,:)
-print*, ext_pres
+!print*, crds(:,1,3)
+!print*, positions_plus(1,:)
+!print*, ext_pres
 
-     print *, "All done!",itimes,612
+ !    print *, "All done!",itimes,612
 !CHANGE_AC
 !READ THE COORDINATES
      !now we also read in the atomic coefficients
@@ -664,17 +702,19 @@ print*, ext_pres
                end do
           end do
      end do
-print*, "coms"
-print*, coms
+!print*, "coms"
+!print*, coms
      !construct neigbours list: 1 if close enough, 0 if not
 !PRINT     print *, "Constructing nearest neighbours list..."
      allocate(NN(mat,mat))
      if (.not. allocated(NN)) then
-          stop "Error: neighbour list not allocated correctly."
+          CPABORT("Error: array 'NN' not allocated correctly.")
+          !stop "Error: neighbour list not allocated correctly."
      end if
      allocate(dist(mol,mol))
      if (.not. allocated(dist)) then
-          stop "Error: distance list not allocated correctly."
+          CPABORT("Error: array 'dist' not allocated correctly.")
+          !stop "Error: distance list not allocated correctly."
      end if
      do i=1,mol
           do j=1,mol
@@ -695,9 +735,9 @@ print*, coms
                end if                    
           end do
      end do
-print*, "NN"
-print*, dist
-print*, NN
+!print*, "NN"
+!print*, dist
+!print*, NN
 !PRINT     print *, "Nearest neighbours found."
 
      !allocate the arrays that will contain atomic coordinates for the overlap routine
@@ -705,27 +745,33 @@ print*, NN
      !Naming convention: At = A(t), Atp = A(t+1), Atm = A(t-1), etc
      allocate(At(4,atoms))
      if (.not. allocated(At)) then
-          stop "Error: array 'At' not allocated correctly."
+          CPABORT("Error: array 'At' not allocated correctly.")
+          !stop "Error: array 'At' not allocated correctly."
      end if
      allocate(Atp(4,atoms))
      if (.not. allocated(Atp)) then
-          stop "Error: array 'Atp' not allocated correctly."
+          CPABORT("Error: array 'Atp' not allocated correctly.")
+          !stop "Error: array 'Atp' not allocated correctly."
      end if
      allocate(Atm(4,atoms))
      if (.not. allocated(Atm)) then
-          stop "Error: array 'Atm' not allocated correctly."
+          CPABORT("Error: array 'Atm' not allocated correctly.")
+          !stop "Error: array 'Atm' not allocated correctly."
      end if
      allocate(Bt(4,atoms))
      if (.not. allocated(Bt)) then
-          stop "Error: array 'Bt' not allocated correctly."
+          CPABORT("Error: array 'Bt' not allocated correctly.")
+          !stop "Error: array 'Bt' not allocated correctly."
      end if
      allocate(Btp(4,atoms))
      if (.not. allocated(Btp)) then
-          stop "Error: array 'Btp' not allocated correctly."
+          CPABORT("Error: array 'Btp' not allocated correctly.")
+          !stop "Error: array 'Btp' not allocated correctly."
      end if
      allocate(Btm(4,atoms))
      if (.not. allocated(Btm)) then
-          stop "Error: array 'Btm' not allocated correctly."
+          CPABORT("Error: array 'Btm' not allocated correctly.")
+          !stop "Error: array 'Btm' not allocated correctly."
      end if
 
      !array of diagonal atomic forces
@@ -734,12 +780,13 @@ print*, NN
 !          stop "Error: array 'F' not allocated correctly."
 !     end if
 
-     print *, "All done!",itimes,715
+     !print *, "All done!",itimes,715
      !elements contains the atomic number of each atom (this goes into At, Bt etc)
      !it is user-defined input
      allocate(elements(atoms))
      if (.not. allocated(elements)) then
-          stop "Error: array 'elements' not allocated correctly."
+          CPABORT("Error: array 'elements' not allocated correctly.")
+          !stop "Error: array 'elements' not allocated correctly."
      end if
 !OPEN     open(unit=44,file=elementfile,action='read')
 !CHANGE_AC
@@ -790,29 +837,34 @@ print*, NN
 !     end do
 !     close(36)
 
-     print *, "All done!",itimes,768
+     !print *, "All done!",itimes,768
      !these arrays are data for the non-adiabatic coupling calculation
      !they help efficiency by telling the program which atoms are connected
      !and thus which pairs to carry out the calculation for
      allocate(connlist1(4,atoms))
      if (.not. allocated(connlist1)) then
-          stop "Error: array 'connlist1' not allocated correctly."
+          CPABORT("Error: array 'connlist1' not allocated correctly.")
+          !stop "Error: array 'connlist1' not allocated correctly."
      end if
      allocate(connlist2(4,size(atomlist)))
      if (.not. allocated(connlist2)) then
-          stop "Error: array 'connlist2' not allocated correctly."
+          CPABORT("Error: array 'connlist2' not allocated correctly.")
+          !stop "Error: array 'connlist2' not allocated correctly."
      end if
      allocate(aneighbour(3,0:atoms))
      if (.not. allocated(aneighbour)) then
-          stop "Error: array 'aneighbour' not allocated correctly."
+          CPABORT("Error: array 'aneighbour' not allocated correctly.")
+          !stop "Error: array 'aneighbour' not allocated correctly."
      end if
      allocate(bneighbour(3,0:atoms))
      if (.not. allocated(bneighbour)) then
-          stop "Error: array 'bneighbour' not allocated correctly."
+          CPABORT("Error: array 'bneighbour' not allocated correctly.")
+          !stop "Error: array 'bneighbour' not allocated correctly."
      end if
      allocate(neighbourlist(mol,3,0:atoms))
      if (.not. allocated(neighbourlist)) then
-          stop "Error: array 'neighbourlist' not allocated correctly."
+          CPABORT("Error: array 'neighbourlist' not allocated correctly.")
+          !stop "Error: array 'neighbourlist' not allocated correctly."
      end if
      !we fill out the connlist arrays before calculating the nacv
      do i=1,atoms
@@ -821,23 +873,23 @@ print*, NN
                !At(j,i) = crds(j,i,1)
                At(j,i) = crds(j,i,3) !CHANGE_AC : 3 is the current timestep
           end do
-          print*, "a",At(:,i)
-          print*, "a",crds(:,i,3)
+          !print*, "a",At(:,i)
+          !print*, "a",crds(:,i,3)
      end do
-     print *, "All done!",itimes,800
+     !print *, "All done!",itimes,800
      !if (.not. inrun) then
      if (itimes.eq.0) then
           call connect_list2(At, atomlist, connlist1, connlist2)
 !          open(unit=40,file='./connectlist1',action='write')
 !          open(unit=41,file='./connectlist2',action='write')
-print*, connlist1(:,1), "connlist1 eq 0"
-print*, connlist1(:,2), "connlist1 eq 0"
-print*, connlist1(:,3), "connlist1 eq 0"
-print*, connlist1(:,4), "connlist1 eq 0"
-print*, connlist1(:,5), "connlist1 eq 0"
-print*, connlist1(:,6), "connlist1 eq 0"
-print*, connlist2(:,1), "connlist2 eq 0"
-print*, connlist2(:,2), "connlist2 eq 0"
+!print*, connlist1(:,1), "connlist1 eq 0"
+!print*, connlist1(:,2), "connlist1 eq 0"
+!print*, connlist1(:,3), "connlist1 eq 0"
+!print*, connlist1(:,4), "connlist1 eq 0"
+!print*, connlist1(:,5), "connlist1 eq 0"
+!print*, connlist1(:,6), "connlist1 eq 0"
+!print*, connlist2(:,1), "connlist2 eq 0"
+!print*, connlist2(:,2), "connlist2 eq 0"
           do i=1,atoms
 !WRITE               write(40,*), connlist1(1:4,i)
                         aom_basket%connlist1(1:4,i) = connlist1(1:4,i)
@@ -846,7 +898,7 @@ print*, connlist2(:,2), "connlist2 eq 0"
 !WRITE               write(41,*), connlist2(1:4,i)
                         aom_basket%connlist2(1:4,i) = connlist2(1:4,i)
           end do
-print*, aom_basket%connlist2, "here here"
+!print*, aom_basket%connlist2, "here here"
 !          close(unit=40)
 !          close(unit=41)
      else if (itimes.gt.0) then
@@ -856,18 +908,19 @@ print*, aom_basket%connlist2, "here here"
 !               read(40,*), connlist1(1:4,i)
                         connlist1(1:4,:) = aom_basket%connlist1(1:4,:)
 !          end do
-print*, aom_basket%connlist2, "here here and and"
+!print*, aom_basket%connlist2, "here here and and"
 !          do i=1,size(atomlist)
 !               read(41,*), connlist2(1:4,i)
                         connlist2(1:4,:) = aom_basket%connlist2(1:4,:)
-print*, connlist1(:,1), "connlist1 gt 0"
-print*, connlist1(:,2), "connlist1 gt 0"
-print*, connlist1(:,3), "connlist1 gt 0"
-print*, connlist1(:,4), "connlist1 gt 0"
-print*, connlist1(:,5), "connlist1 gt 0"
-print*, connlist1(:,6), "connlist1 gt 0"
-print*, connlist2(:,1), "connlist2 gt 0"
-print*, connlist2(:,2), "connlist2 gt 0"
+!print*, atomlist
+!print*, connlist1(:,1), "connlist1 gt 0"
+!print*, connlist1(:,2), "connlist1 gt 0"
+!print*, connlist1(:,3), "connlist1 gt 0"
+!print*, connlist1(:,4), "connlist1 gt 0"
+!print*, connlist1(:,5), "connlist1 gt 0"
+!print*, connlist1(:,6), "connlist1 gt 0"
+!print*, connlist2(:,1), "connlist2 gt 0"
+!print*, connlist2(:,2), "connlist2 gt 0"
 !          end do
 !          close(unit=40)
 !          close(unit=41)
@@ -876,7 +929,7 @@ print*, connlist2(:,2), "connlist2 gt 0"
      !used to give correct commands to ZGEMX subroutines later
      zgemm_type = 'N'
 
-     print *, "All done!",itimes,833
+     !print *, "All done!",itimes,833
      !for each timestep: this loop is (probably) the main bulk of the code
 !PRINT     print *, "Calling overlap routine for each pair along the trajectory (this may take a while)"
 !     do t=2,times
@@ -907,8 +960,8 @@ t =2
 !               call sitecalc(At, bonds, atoms, siteenergies(t,i))
                         siteenergies(t,i)   = aom_basket%energies(i) ! CHANGE_AC
                         siteenergies(t+1,i) = energies_plus(i) ! CHANGE_AC
-print*, energies_plus(i), "koko"
-print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
+!print*, energies_plus(i), "koko"
+!print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
 
                !then one timestep ahead: also calculate diagonal forces at this timestep
 !               call sitecalc(Atp, bonds, atoms, siteenergies(t+1,i), F(:,:,i), mol, i)
@@ -932,16 +985,16 @@ print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
                          end do
                     end do
                     if (i == 1) then
-print*, "lololo", "k =",k
+!print*, "lololo", "k =",k
                          do d=1,orb
                               do l=1,atoms
                                    pcoeffsrun(l,orb*(k-1)+d,1) = pcoeffs(l,d)
                               end do
                               call calc_sab(Btm, connlist2, pcoeffsrun(:,orb*(k-1)+d,1))
                               do l=1,atoms
-print*, "pcoeffs l d",d,l,pcoeffs(l,d)
+!print*, "pcoeffs l d",d,l,pcoeffs(l,d)
                                    pcoeffsrun(l,orb*(k-1)+d,2) = pcoeffs(l,d)
-print*, "pcoeffsrun l d",d,l,pcoeffsrun(l,orb*(k-1)+d,2)
+!print*, "pcoeffsrun l d",d,l,pcoeffsrun(l,orb*(k-1)+d,2)
                               end do
                               call calc_sab(Bt, connlist2, pcoeffsrun(:,orb*(k-1)+d,2))
                               do l=1,atoms
@@ -949,20 +1002,20 @@ print*, "pcoeffsrun l d",d,l,pcoeffsrun(l,orb*(k-1)+d,2)
                               end do
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
-print*, "pcoeffsrun"
-print*, pcoeffsrun(:,:,1)
-print*, pcoeffsrun(:,1,2)
-print*, pcoeffsrun(:,2,2)
-print*, "pcoeffsrun"
+!print*, "pcoeffsrun"
+!print*, pcoeffsrun(:,:,1)
+!print*, pcoeffsrun(:,1,2)
+!print*, pcoeffsrun(:,2,2)
+!print*, "pcoeffsrun"
 !                         if ((input == 'c') .or. (inrun .eqv. .FALSE.)) then
                          if (itimes.eq.2) then
                               do d=1,orb
                                    do m=1,orb
-print*, 947, d,m
-print*, At(1,:)
-print*, At(2,:)
-print*, At(3,:)
-print*, At(4,:)
+!print*, 947, d,m
+!print*, At(1,:)
+!print*, At(2,:)
+!print*, At(3,:)
+!print*, At(4,:)
                                         call sab_screen_new(At, atomlist, connlist1, pcoeffsrun(:,orb*(i-1)+d,2),&
                                         & atomlist, Bt, atomlist, connlist1, pcoeffsrun(:,orb*(k-1)+m,2),&
                                         & aneighbour(:,1:atoms), bneighbour(:,1:atoms), minao)
@@ -970,18 +1023,18 @@ print*, At(4,:)
                               end do
                               neighbourlist(k,1:3,0) = [0, 0, 0]
                               neighbourlist(k,:,1:atoms) = bneighbour(:,1:atoms)
-print*, 954, "bneighbour", bneighbour(:,1:atoms)
-print*, "lololo itimes eq 2"
+!print*, 954, "bneighbour", bneighbour(:,1:atoms)
+!print*, "lololo itimes eq 2"
                               if (k == mol) then
 !                                   open(unit=43,file='./bneighbour',action='write')
-print*, "lilili"
+!print*, "lilili"
                                    do m=1,mol
                                         do j=1,atoms
 !WRITE                                             write(43,*), neighbourlist(m,:,j)
-print*, neighbourlist(m,:,j), "lilili"
+!print*, neighbourlist(m,:,j), "lilili"
                                                                 aom_basket%neighbourlist(m,:,j) = & 
                                                                         neighbourlist(m,:,j)
-print*, aom_basket%neighbourlist(m,:,j), "lilili"
+!print*, aom_basket%neighbourlist(m,:,j), "lilili"
                                         end do
                                    end do
                               !     close(43)
@@ -991,10 +1044,10 @@ print*, aom_basket%neighbourlist(m,:,j), "lilili"
                               do m=1,mol
                                    neighbourlist(m,1:3,0) = [0, 0, 0]
                                    do j=1,atoms
-print*, aom_basket%neighbourlist(m,:,j), "lalala"
+!print*, aom_basket%neighbourlist(m,:,j), "lalala"
                                                                 neighbourlist(m,:,j)=&
                                                                 aom_basket%neighbourlist(m,:,j)
-print*, neighbourlist(m,:,j), "lalala"
+!print*, neighbourlist(m,:,j), "lalala"
 !                                        read(43,*), neighbourlist(m,:,j)
                                    end do
                               end do
@@ -1016,19 +1069,19 @@ print*, neighbourlist(m,:,j), "lalala"
                                         call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                         Sttp(orb*(i-1)+d,orb*(k-1)+m) = S
-print*, "WOOHOO"
+!print*, "WOOHOO"
                                         call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3), S, Bt,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = S
-print*, "WAAHAA"
-print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
+!print*, "WAAHAA"
+!print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                         call calc_dRSab(At, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
                                         &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
                                         &neighbourlist(i,:,:), neighbourlist(k,:,:))
-print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
+!print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                    end do
                               end do
 
@@ -1037,13 +1090,13 @@ print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                         do m=1,orb
 !print*, At
 !print*, connlist2
-print*, pcoeffsrun(1:atoms,orb*(i-1)+d,2)
+!print*, pcoeffsrun(1:atoms,orb*(i-1)+d,2)
 !print*, Bt
-print*, pcoeffsrun(1:atoms,orb*(k-1)+m,2)
+!print*, pcoeffsrun(1:atoms,orb*(k-1)+m,2)
                                              call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2),&
                                              & S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = S
-print*, "S", S
+!print*, "S", S
                                              call calc_sab(Atm, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,1),&
                                              & S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                              Stmt(orb*(i-1)+d,orb*(k-1)+m) = S
@@ -1099,7 +1152,7 @@ print*, "S", S
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Bt, connlist2,&
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                                   Stt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
-print*, cbar*S
+!print*, cbar*S
                                                   ! H1(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, -scaling*S)
                                                   H1(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
                                                   call calc_sab(Atm, connlist2, &
@@ -1185,7 +1238,7 @@ print*, cbar*S
                end do
           end if !(inrun)
 !WRITE          write(13,*) -kcal*imagpart(H2(1,orb+1))
-     print *, "All done!",itimes,1106
+     !print *, "All done!",itimes,1106
 
 !          close(unit=21)
 !          close(unit=26)
@@ -1233,9 +1286,9 @@ print*, cbar*S
 !PRINT               print *, "Propagating the electron for one molecular timestep..."
                do t2=1,int(deltatMD/deltatE)
 
-print*, "Stt",Stt
+!print*, "Stt",Stt
                     call makeX(mat, H1, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
-print*, X1
+!print*, X1
                     !create timestepped equivalents
                     H12 = H1 + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
@@ -1244,7 +1297,7 @@ print*, X1
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
                     call makeX(mat, H12, Stt, Sttp, Sttm, Stptp, Stmtm, X12, deltatMD)
-print*, X12
+!print*, X12
      
                     H2 = H12 + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
@@ -1253,17 +1306,17 @@ print*, X12
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
                     call makeX(mat, H2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD)
-print*, "vvvv"
-print*, mat
-print*, H2
-print*, Stt
-print*, Sttp
-print*, Sttm
-print*, Stptp
-print*, Stmtm
-print*, X2
-print*, deltatMD
-print*, "vvvv"
+!print*, "vvvv"
+!print*, mat
+!print*, H2
+!print*, Stt
+!print*, Sttp
+!print*, Sttm
+!print*, Stptp
+!print*, Stmtm
+!print*, X2
+!print*, deltatMD
+!print*, "vvvv"
      
                     !K2 = dcmplx(0.0D0, 0.0D0)
                     K2 = cmplx(0.0D0, 0.0D0,dp)
@@ -1306,24 +1359,24 @@ print*, "vvvv"
      
                     !put everything together
                     Ktot = Imat + (deltatE/6.0D0)*(X1 + 2*K2 + 2*K3 + K4)
-print*, "wwww"
-print*, Imat
-print*, (deltatE/6.0D0)
-print*, X1
-print*, 2*K2
-print*, 2*K3
-print*, K4
-print*, Ktot
-print*, "wwww"
+!print*, "wwww"
+!print*, Imat
+!print*, (deltatE/6.0D0)
+!print*, X1
+!print*, 2*K2
+!print*, 2*K3
+!print*, K4
+!print*, Ktot
+!print*, "wwww"
      
                     !timestep electron propagation and print out
                     !alpha = dcmplx(1.0D0, 0.0D0)
                     alpha = cmplx(1.0D0, 0.0D0,dp)
                     inc = 1
                     call ZGEMV(zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc)
-print*, t2, zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc
-print*, itimes, ctout, "tttt"
-print*, itimes, ctout, "tttt"
+!print*, t2, zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc
+!print*, itimes, ctout, "tttt"
+!print*, itimes, ctout, "tttt"
      
                     ctmag = 0.0D0
                     !ctcomp = dcmplx(0.0D0, 0.0D0)
@@ -1393,9 +1446,9 @@ print*, itimes, ctout, "tttt"
 !               end if
 !          end if
 !WRITE          write(18,*) ctin(1:mat)
-print*, itimes, ctin, "tttt"
+!print*, itimes, ctin, "tttt"
                 aom_basket%ctin(1:mat) = ctin(1:mat)
-print*, itimes, aom_basket%ctin, "tttt"
+!print*, itimes, aom_basket%ctin, "tttt"
 
 !          close(unit=24)
 !          close(unit=12)
@@ -1414,7 +1467,7 @@ print*, itimes, aom_basket%ctin, "tttt"
               enddo
            enddo
            do i=1,mol
-print*, energies_plus(i), "keke"
+!print*, energies_plus(i), "keke"
               aom_basket%energies(i) = energies_plus(i)
            enddo
         else if (itimes.eq.0) then
@@ -1424,7 +1477,7 @@ print*, energies_plus(i), "keke"
               enddo
            enddo
            do i=1,mol
-print*, energies_plus(i), "keke"
+!print*, energies_plus(i), "keke"
               aom_basket%energies(i) = energies_plus(i)
            enddo
         endif
@@ -1435,7 +1488,7 @@ print*, energies_plus(i), "keke"
 
 !END CHANGE_AC
 !PRINT     print *, "All done!",itimes
-     print *, "All done!",itimes
+     !print *, "All done!",itimes
 
 !     deallocate(pcoefficients, pfiles, pcoeffs, pcoeffsrun, scoeffs)
      deallocate(pcoeffs, pcoeffsrun, scoeffs)
@@ -1453,7 +1506,7 @@ print*, energies_plus(i), "keke"
      deallocate(Btp)
      deallocate(atomlist)
      deallocate(connlist1)
-print*, connlist2
+!print*, connlist2
      deallocate(connlist2)
      deallocate(H1, H2, H12, Hdiff, Hsave, X1, X2, X12, Ktot, K2, K3, K4)
      deallocate(Stt, Stptp, Stmtm, Sttp, Sttm, Stpt, Stmt)

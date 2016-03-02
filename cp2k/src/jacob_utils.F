@@ -47,6 +47,9 @@ MODULE jacob_utils
                                                dp
    USE machine,                         ONLY: m_getpid
 
+#include "./base/base_uses.f90"
+
+
 
 IMPLICIT NONE
 
@@ -93,46 +96,54 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat)
         !allocate matrices
         allocate(Sttinvsqrt(mol,mol))
         if (.not. allocated(Sttinvsqrt)) then
-                stop "Error: array 'Sttinvsqrt' not allocated correctly."
+                CPABORT("Error: array 'Sttinvsqrt' not allocated correctly.")
+                !stop "Error: array 'Sttinvsqrt' not allocated correctly."
         end if
         allocate(Sttsqrt(mol,mol))
         if (.not. allocated(Sttsqrt)) then
-                stop "Error: array 'Sttsqrt' not allocated correctly."
+                CPABORT("Error: array 'Sttsqrt' not allocated correctly.")
+                !stop "Error: array 'Sttsqrt' not allocated correctly."
         end if
         allocate(Stptpinvsqrt(mol,mol))
         if (.not. allocated(Stptpinvsqrt)) then
-                stop "Error: array 'Stptpinvsqrt' not allocated correctly."
+                CPABORT("Error: array 'Stptpinvsqrt' not allocated correctly.")
+                !stop "Error: array 'Stptpinvsqrt' not allocated correctly."
         end if
         allocate(Stmtminvsqrt(mol,mol))
         if (.not. allocated(Stmtminvsqrt)) then
-                stop "Error: array 'Stmtminvsqrt' not allocated correctly."
+                CPABORT("Error: array 'Stmtminvsqrt' not allocated correctly.")
+                !stop "Error: array 'Stmtminvsqrt' not allocated correctly."
         end if
         allocate(Sterm1(mol,mol))
         if (.not. allocated(Sterm1)) then
-                stop "Error: array 'Sterm1' not allocated correctly."
+                CPABORT("Error: array 'Sterm1' not allocated correctly.")
+                !stop "Error: array 'Sterm1' not allocated correctly."
         end if
         allocate(Sterm2(mol,mol))
         if (.not. allocated(Sterm2)) then
-                stop "Error: array 'Sterm2' not allocated correctly."
+                CPABORT("Error: array 'Sterm2' not allocated correctly.")
+                !stop "Error: array 'Sterm2' not allocated correctly."
         end if
         allocate(Splace1(mol,mol))
         if (.not. allocated(Splace1)) then
-                stop "Error: array 'Splace1' not allocated correctly."
+                CPABORT("Error: array 'Splace1' not allocated correctly.")
+                !stop "Error: array 'Splace1' not allocated correctly."
         end if
         allocate(Splace2(mol,mol))
         if (.not. allocated(Splace2)) then
-                stop "Error: array 'Splace2' not allocated correctly."
+                CPABORT("Error: array 'Splace2' not allocated correctly.")
+                !stop "Error: array 'Splace2' not allocated correctly."
         end if
 
-print*, 'Stt'
+!print*, 'Stt'
         Sttsqrt = Stt
         call matinvsqrt(mol, .FALSE., Sttsqrt)
         Sttinvsqrt = Stt
         call matinvsqrt(mol, .TRUE., Sttinvsqrt)
-print*, 'Stptp'
+!print*, 'Stptp'
         Stptpinvsqrt = Stptp
         call matinvsqrt(mol, .TRUE., Stptpinvsqrt)
-print*, 'Stmtm'
+!print*, 'Stmtm'
         Stmtminvsqrt = Stmtm
         call matinvsqrt(mol, .TRUE., Stmtminvsqrt)
         
@@ -141,22 +152,22 @@ print*, 'Stmtm'
 
         !first term: Sttsqrt*(Stptpinvsqrt - Stmtmtinvsqrt)
         Splace1 = Stptpinvsqrt - Stmtminvsqrt
-print*, "eeee"
-print*, Stptpinvsqrt 
-print*, Stmtminvsqrt
-print*, Splace1
+!print*, "eeee"
+!print*, Stptpinvsqrt 
+!print*, Stmtminvsqrt
+!print*, Splace1
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttsqrt, mol, Splace1, mol, 0.0D0, Sterm1, mol)
-print*, Sterm1
+!print*, Sterm1
 
         !second term: Sttinvsqrt*(Sttp - Sttm)*Sttinvsqrt
         Splace1 = Sttp - Sttm
-print*, Splace1
+!print*, Splace1
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Splace1, mol, Sttinvsqrt, mol, 0.0D0, Splace2, mol)
-print*, Splace2
+!print*, Splace2
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
-print*, Sterm2
-print*, "eeee"
-print*, "eeee"
+!print*, Sterm2
+!print*, "eeee"
+!print*, "eeee"
         X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
@@ -277,51 +288,63 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
         !many allocations
         allocate(ak(mol))
         if (.not. allocated(ak)) then
-                stop "Error: array 'ak' not allocated in subroutine 'surfacehop'"
+                CPABORT("Error: array 'ak' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'ak' not allocated in subroutine 'surfacehop'"
         end if
         allocate(b(mol))
         if (.not. allocated(b)) then
-                stop "Error: array 'b' not allocated in subroutine 'surfacehop'"
+                CPABORT("Error: array 'b' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'b' not allocated in subroutine 'surfacehop'"
         end if
         allocate(g(mol))
         if (.not. allocated(g)) then
-                stop "Error: array 'g' not allocated in subroutine 'surfacehop'"
+                CPABORT("Error: array 'g' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'g' not allocated in subroutine 'surfacehop'"
         end if
         allocate(ct(mol))
         if (.not. allocated(ct)) then
-                stop "Error: array 'ct' not allocated in subroutine 'surfacehop'"
+                CPABORT("Error: array 'ct' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'ct' not allocated in subroutine 'surfacehop'"
         end if
         allocate(dphi(mol,mol))
         if (.not. allocated(dphi)) then
-                stop "Error: array 'dphi' not allocated in subroutine 'surfacehop'."
+                CPABORT("Error: array 'dphi' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'dphi' not allocated in subroutine 'surfacehop'."
         end if
         allocate(T1(mol,mol))
         if (.not. allocated(T1)) then
-                stop "Error: array 'T1' not allocated in subroutine 'surfacehop'."
+                CPABORT("Error: array 'T1' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'T1' not allocated in subroutine 'surfacehop'."
         end if
         allocate(T2(mol,mol))
         if (.not. allocated(T2)) then
-                stop "Error: array 'T2' not allocated in subroutine 'surfacehop'."
+                CPABORT("Error: array 'T2' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'T2' not allocated in subroutine 'surfacehop'."
         end if
         allocate(DT(mol,mol))
         if (.not. allocated(DT)) then
-                stop "Error: array 'DT' not allocated in subroutine 'surfacehop'."
+                CPABORT("Error: array 'DT' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'DT' not allocated in subroutine 'surfacehop'."
         end if
         allocate(TST(mol,mol))
         if (.not. allocated(TST)) then
-                stop "Error: array 'TST' not allocated in subroutine 'surfacehop'."
+                CPABORT("Error: array 'TST' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'TST' not allocated in subroutine 'surfacehop'."
         end if
         allocate(TDT(mol,mol))
         if (.not. allocated(TDT)) then
-                stop "Error: array 'TDT' not allocated in subroutine 'surfacehop'."
+                CPABORT("Error: array 'TDT' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'TDT' not allocated in subroutine 'surfacehop'."
         end if
         allocate(DS(mol,mol))
         if (.not. allocated(DS)) then
-                stop "Error: array 'DS' not allocated in subroutine 'surfacehop'."
+                !stop "Error: array 'DS' not allocated in subroutine 'surfacehop'."
+                CPABORT("Error: array 'DS' not allocated in subroutine 'surfacehop'")
         end if
         allocate(DC(mol,mol))
         if (.not. allocated(DC)) then
-                stop "Error: array 'DC' not allocated in subroutine 'surfacehop'."
+                CPABORT("Error: array 'DC' not allocated in subroutine 'surfacehop'")
+                !stop "Error: array 'DC' not allocated in subroutine 'surfacehop'."
         end if
 
         !use the matinvsqrt subroutine to find T = S^(-1/2)
@@ -509,33 +532,38 @@ subroutine matinvsqrt(mol, invert, S)
 
         allocate(D(mol))
         if (.not. allocated(D)) then
-                stop "Error: array 'D' not allocated correctly."
+                CPABORT("Error: array 'D' not allocated correctly.")
+                !stop "Error: array 'D' not allocated correctly."
         end if
         allocate(DGETRI_WORK(3*mol))
         if (.not. allocated(DGETRI_WORK)) then
-                stop "Error: array 'DGETRI_WORK' not allocated correctly."
+                CPABORT("Error: array 'DGETRI_WORK' not allocated correctly.")
+                !stop "Error: array 'DGETRI_WORK' not allocated correctly."
         end if
         allocate(P(mol,mol))
         if (.not. allocated(P)) then
-                stop "Error: array 'P' not allocated correctly."
+                CPABORT("Error: array 'P' not allocated correctly.")
+                !stop "Error: array 'P' not allocated correctly."
         end if
         allocate(Pinv(mol,mol))
         if (.not. allocated(Pinv)) then
-                stop "Error: array 'Pinv' not allocated correctly."
+                CPABORT("Error: array 'Pinv' not allocated correctly.")
+                !stop "Error: array 'Pinv' not allocated correctly."
         end if
 
         !to calculate inverse square root of matrix, first diagonalise it
         job = 'V'
         up = 'U'
         !DSYEV is from the BLAS. Returns vector of eigenvalues D and overwrites S with matrix of eigenvectors
-print*, S
+!print*, S
         call DSYEV(job, up, mol, S, mol, D, DGETRI_WORK, 3*mol, stat)
-print*, "DSYEV"
-print*, S
-print*, D
+!print*, "DSYEV"
+!print*, S
+!print*, D
         if (stat /= 0) then
-                write(*,*) "Error with subroutine DSYEV: error status", stat
-                stop
+                CPABORT("Error with subroutine DSYEV: error status")
+                !write(*,*) "Error with subroutine DSYEV: error status", stat
+                !stop
         end if
 
         P = S
@@ -583,15 +611,18 @@ subroutine adiabaticity(H, mol, C, E, print)
 
         allocate(C(mol,mol))
         if (.not. allocated(C)) then
-                stop "Error: array 'C' not allocated correctly."
+                CPABORT("Error: array 'C' not allocated correctly.")
+                !stop "Error: array 'C' not allocated correctly."
         end if
         allocate(E(mol))
         if (.not. allocated(E)) then
-                stop "Error: array 'E' not allocated correctly."
+                CPABORT("Error: array 'E' not allocated correctly.")
+                !stop "Error: array 'E' not allocated correctly."
         end if
         allocate(DGETRI_WORK(3*size(C)-1))
         if (.not. allocated(DGETRI_WORK)) then
-                stop "Error: array 'DGETRI_WORK' not allocated correctly."
+                CPABORT("Error: array 'DGETRI_WORK' not allocated correctly.")
+                !stop "Error: array 'DGETRI_WORK' not allocated correctly."
         end if
 
         C = H
@@ -603,21 +634,24 @@ subroutine adiabaticity(H, mol, C, E, print)
         LWORK = -1
         call DSYEV(job, up, mol, C, mol, E, DGETRI_WORK, LWORK, stat)
         if (stat /= 0) then
-                write(*,*) "Error with subroutine DSYEV: error status", stat
-                stop
+                CPABORT("Error with subroutine DSYEV: error status")
+                !write(*,*) "Error with subroutine DSYEV: error status", stat
+                !stop
         end if
         LWORK = max(3*size(C)-1, int(DGETRI_WORK(1)))
 
         deallocate(DGETRI_WORK)
         allocate(DGETRI_WORK(LWORK))
         if (.not. allocated(DGETRI_WORK)) then
-                stop "Error: array 'DGETRI_WORK' not allocated correctly."
+                CPABORT("Error: array 'DGETRI_WORK' not allocated correctly.")
+                !stop "Error: array 'DGETRI_WORK' not allocated correctly."
         end if
 
         call DSYEV(job, up, mol, C, mol, E, DGETRI_WORK, LWORK, stat)
         if (stat /= 0) then
-                write(*,*) "Error with subroutine DSYEV: error status", stat
-                stop
+                CPABORT("Error with subroutine DSYEV: error status")
+                !write(*,*) "Error with subroutine DSYEV: error status", stat
+                !stop
         end if
 
 !        if (print) then
@@ -669,35 +703,43 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S)
 
         allocate(H(mat,mat))
         if (.not. allocated(H)) then
-                stop "Error: array 'H' not allocated correctly."
+                CPABORT("Error: array 'H' not allocated correctly.")
+                !stop "Error: array 'H' not allocated correctly."
         end if
         allocate(T(mat,mat))
         if (.not. allocated(T)) then
-                stop "Error: array 'T' not allocated correctly."
+                !stop "Error: array 'T' not allocated correctly."
+                CPABORT("Error: array 'T' not allocated correctly.")
         end if
         allocate(DHtemp(mat,mat))
         if (.not. allocated(DHtemp)) then
-                stop "Error: array 'DHtemp' not allocated correctly."
+                !stop "Error: array 'DHtemp' not allocated correctly."
+                CPABORT("Error: array 'DHtemp' not allocated correctly.")
         end if
         allocate(DH(mat,mat,mat*atoms,3))
         if (.not. allocated(DH)) then
-                stop "Error: array 'DH' not allocated correctly."
+                !stop "Error: array 'DH' not allocated correctly."
+                CPABORT("Error: array 'DH' not allocated correctly.")
         end if
         allocate(DT(mat,mat,mat*atoms,3))
         if (.not. allocated(DT)) then
-                stop "Error: array 'DT' not allocated correctly."
+                !stop "Error: array 'DT' not allocated correctly."
+                CPABORT("Error: array 'DT' not allocated correctly.")
         end if
         allocate(my_DP(mat,mat,2*mat*atoms,3))
         if (.not. allocated(my_DP)) then
-                stop "Error: array 'my_DP' not allocated correctly."
+                !stop "Error: array 'my_DP' not allocated correctly."
+                CPABORT("Error: array 'my_DP' not allocated correctly.")
         end if
         allocate(F(3,mat,atoms))
         if (.not. allocated(F)) then
-                stop "Error: array 'F' not allocated correctly."
+                !stop "Error: array 'F' not allocated correctly."
+                CPABORT("Error: array 'F' not allocated correctly.")
         end if
         allocate(nsave(mat*atoms,3))
         if (.not. allocated(nsave)) then
-                stop "Error: array 'nsave' not allocated correctly."
+                !stop "Error: array 'nsave' not allocated correctly."
+                CPABORT("Error: array 'nsave' not allocated correctly.")
         end if
 
         do d=1,3
@@ -837,40 +879,49 @@ subroutine calcTDT(S, DS, T, DT, atoms, mol)
 
         allocate(W(3,mol,mol,mol*atoms))
         if (.not. allocated(W)) then
-                stop "Error: array 'W' not allocated correctly."
+                CPABORT("Error: array 'W' not allocated correctly.")
+                !stop "Error: array 'W' not allocated correctly."
         end if
         allocate(Wtop(3,mol,mol,mol*atoms))
         if (.not. allocated(Wtop)) then
-                stop "Error: array 'Wtop' not allocated correctly."
+                CPABORT("Error: array 'Wtop' not allocated correctly.")
+                !stop "Error: array 'Wtop' not allocated correctly."
         end if
         allocate(L(mol,mol))
         if (.not. allocated(L)) then
-                stop "Error: array 'L' not allocated correctly."
+                CPABORT("Error: array 'L' not allocated correctly.")
+                !stop "Error: array 'L' not allocated correctly."
         end if
         allocate(Tdiag(mol))
         if (.not. allocated(Tdiag)) then
-                stop "Error: array 'Tdiag' not allocated correctly."
+                CPABORT("Error: array 'Tdiag' not allocated correctly.")
+                !stop "Error: array 'Tdiag' not allocated correctly."
         end if
         allocate(Sinv(mol,mol))
         if (.not. allocated(Sinv)) then
-                stop "Error: array 'Sinv' not allocated correctly."
+                CPABORT("Error: array 'Sinv' not allocated correctly.")
+                !stop "Error: array 'Sinv' not allocated correctly."
         end if
         allocate(Wleft(mol,mol))
         if (.not. allocated(Wleft)) then
-                stop "Error: array 'Wleft' not allocated correctly."
+                CPABORT("Error: array 'Wleft' not allocated correctly.")
+                !stop "Error: array 'Wleft' not allocated correctly."
         end if
         allocate(Wright(mol,mol))
         if (.not. allocated(Wright)) then
-                stop "Error: array 'Wright' not allocated correctly."
+                CPABORT("Error: array 'Wright' not allocated correctly.")
+                !stop "Error: array 'Wright' not allocated correctly."
         end if
         allocate(Temp(mol,mol))
         if (.not. allocated(Temp)) then
-                stop "Error: array 'Temp' not allocated correctly."
+                CPABORT("Error: array  'Temp' not allocated correctly.")
+                !stop "Error: array 'Temp' not allocated correctly."
         end if
 
         allocate(DGETRI_WORK(3*mol))
         if (.not. allocated(DGETRI_WORK)) then
-                stop "Error: array 'DGETRI_WORK' not allocated correctly."
+                CPABORT("Error: array 'DGETRI_WORK' not allocated correctly.")
+                !stop "Error: array 'DGETRI_WORK' not allocated correctly."
         end if
 
         Sinv = matmul(T,T)
@@ -881,20 +932,23 @@ subroutine calcTDT(S, DS, T, DT, atoms, mol)
         LWORK = -1
         call DSYEV('V', 'U', mol, L, mol, Tdiag, DGETRI_WORK, LWORK, stat)
         if (stat /= 0) then
-                write(*,*) "Error with subroutine DSYEV: error status", stat
+                CPABORT("Error with subroutine DSYEV: error status")
+                !write(*,*) "Error with subroutine DSYEV: error status", stat
                 !print *, LWORK
-                stop
+                !stop
         end if
         LWORK = max(3*size(L)-1, int(DGETRI_WORK(1)))
         deallocate(DGETRI_WORK)
         allocate(DGETRI_WORK(LWORK))
         if (.not. allocated(DGETRI_WORK)) then
-                stop "Error: array 'DGETRI_WORK' not allocated correctly."
+                CPABORT("Error: array 'DGETRI_WORK not allocated correctly.")
+                !stop "Error: array 'DGETRI_WORK' not allocated correctly."
         end if
         call DSYEV('V', 'U', mol, L, mol, Tdiag, DGETRI_WORK, LWORK, stat)
         if (stat /= 0) then
-                write(*,*) "Error with subroutine DSYEV: error status", stat
-                stop
+                CPABORT("Error with subroutine DSYEV: error status")
+                !write(*,*) "Error with subroutine DSYEV: error status", stat
+                !stop
         end if
 
         !print *, "T", T
