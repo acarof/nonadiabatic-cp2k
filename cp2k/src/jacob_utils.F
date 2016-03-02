@@ -124,13 +124,15 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat)
                 stop "Error: array 'Splace2' not allocated correctly."
         end if
 
-print*, Stt
+print*, 'Stt'
         Sttsqrt = Stt
         call matinvsqrt(mol, .FALSE., Sttsqrt)
         Sttinvsqrt = Stt
         call matinvsqrt(mol, .TRUE., Sttinvsqrt)
+print*, 'Stptp'
         Stptpinvsqrt = Stptp
         call matinvsqrt(mol, .TRUE., Stptpinvsqrt)
+print*, 'Stmtm'
         Stmtminvsqrt = Stmtm
         call matinvsqrt(mol, .TRUE., Stmtminvsqrt)
         

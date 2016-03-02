@@ -181,6 +181,7 @@ print*, xyz(:,k)
 
                                j = j + 1
             
+                connectlist1(j,l) = k
                 connectlist2(j,i) = k
 
 
@@ -192,14 +193,16 @@ print*, xyz(:,k)
 
          !sp2 carbons, N in pyrrole
          if(j .eq. 4) then
+print*, "j = 4"
 
          !N in pyridine O in ethers
          elseif(j .eq. 3) then
+print*, "j = 3"
              connectlist1(j+1,l) = atomlist(i)
              connectlist2(j+1,i) = atomlist(i)
          !O in ketones
          elseif(j .eq. 2) then
-
+print*, "j = 2"
             do k=1,size(xyz,2)
 
                distvec=xyz(:,connectlist1(2,l)) - xyz(:,k)
@@ -220,9 +223,10 @@ print*, xyz(:,k)
          else
 
              write(*,*) 'No such functional group'
+             print*, "No such functional group"
              print *, j
-            connectlist1(j+1,l) =  atomlist(i)
-            connectlist2(j+1,i) =  atomlist(i)
+            !connectlist1(j+1,l) =  atomlist(i)
+            !connectlist2(j+1,i) =  atomlist(i)
             ! stop
 
          end if
@@ -267,16 +271,24 @@ print*, xyz(:,k)
       REAL(KIND=dp) :: neighbourlist(3,3)
       REAL(KIND=dp) :: veca(3), vecb(3), DNRM2
       
+print*, "  "
+print*, "xyz", xyz(:,1)
+print*, "connectlist", connectlist
 
       rvecs=0
 
       do i=1,size(connectlist,2)
 
          do k = 2,size(connectlist,1)
-
+print*, i,k,connectlist(k,i)
+print*, xyz(:,connectlist(k,i))
               neighbourlist(:,k-1) = xyz(:,connectlist(k,i))
 
          end do
+
+print*, neighbourlist(:,1)
+print*, neighbourlist(:,2)
+print*, neighbourlist(:,3)
 
          veca=neighbourlist(:,1)-neighbourlist(:,3)
          vecb=neighbourlist(:,2)-neighbourlist(:,3)
@@ -284,12 +296,15 @@ print*, xyz(:,k)
          rvecs(1,connectlist(1,i)) = veca(2)*vecb(3)-veca(3)*vecb(2)
          rvecs(2,connectlist(1,i)) = veca(3)*vecb(1)-veca(1)*vecb(3)
          rvecs(3,connectlist(1,i)) = veca(1)*vecb(2)-veca(2)*vecb(1)
-
+print*, "veca", veca
+print*, "vecb", vecb
          
 
+print*, 290,  "calc_recvs", i, rvecs(:,connectlist(1,i))
          rvecs(:,connectlist(1,i)) = rvecs(:,connectlist(1,i))/&
 &        DNRM2(3 , rvecs(:,connectlist(1,i)) , 1)
-
+print*, "DNRM2", i, DNRM2(3 , rvecs(:,connectlist(1,i)) , 1) 
+print*, "calc_recvs", i, rvecs(:,connectlist(1,i))
 
       end do
 
@@ -430,13 +445,19 @@ print*, xyz(:,k)
 
       REAL(KIND=dp), dimension(:,:), intent(out) :: expcoeff
 
-  
+ 
       REAL(KIND=dp), dimension(:,:), allocatable :: prvecs
       !real(8) :: DNRM2, norm
 
       integer :: stat_err
 
       integer :: i,j,k
+print*, "   "
+print*, 434
+print*, unitvecs
+print*, " "
+print*, rvec
+print*, " " 
 
       allocate(prvecs(size(unitvecs,2),3), stat=stat_err)
       if (stat_err .ne. 0) stop
@@ -499,7 +520,9 @@ print*, xyz(:,k)
       integer :: i
       allocate(c(3,size(expcoeffa,2)), stat=stat_err)
       if (stat_err .ne. 0) stop
- 
+print*, 502, expcoeffa
+print*, "   " 
+print*, 502, expcoeffb 
       c = expcoeffa * expcoeffb
       do i=1,size(expcoeffa,2)
         if (dist(i) .gt. abs(epsilon(0.d0))) then
@@ -508,7 +531,14 @@ print*, xyz(:,k)
 
 
           !sarray(i) = (c(1,i) + c(2,i)) * S_pi(dist(i)) + c(3,i) * S_sigma(dist(i))
+print*, "    "
+print*, 512, "sarray, i", i, sarray(i)
           sarray(i) = (c(1,i) + c(2,i)) * S_ppi(p,t) + c(3,i) * S_psigma(p,t)
+print*, 512, "c, i", i, c(1,i), c(2,i), c(3,i)
+print*, 512, "c, p,t", p,t, S_ppi(p,t), S_psigma(p,t)
+
+print*, 512, "sarray, i", i, sarray(i)
+print*, "    "
         else
          sarray(i) = 1.d0
         end if
@@ -844,6 +874,7 @@ print*, xyz(:,k)
            rvecsa(:,i)=prervecsa(:,connlista(1,i))
 
       end do
+print*, "calc_sab", coeffap
 
       deallocate(prervecsa)
  
@@ -950,6 +981,7 @@ print*, xyz(:,k)
                    & size(sarrayp,1), coeffbp, 1, 0.d0, stc, 1)
 
         sab = DDOT(size(coeffap,1),coeffap,1,stc,1)
+print*, "calc_sab", coeffap
 
         !print*, size(sarrayp,1), size(sarrayp,2)
 
@@ -1110,8 +1142,10 @@ print*, xyz(:,k)
 
           call DGEMV('t', size(xyza,2), size(xyza,2), 1.0d0, sarrayp,&
                      & size(xyza,2), coeffap, 1, 0.d0, stc, 1)
+print*, "calc_sab", coeffap
 
           c = DDOT(size(xyza,2),coeffap,1,stc,1)
+print*, "calc_sab", coeffap
 
           !call DGEMV('t', size(xyza,2), size(xyza,2), 1.0d0, sarrays,&
           !           & size(xyza,2), coeffas, 1, 0.d0, stc, 1)
@@ -1133,6 +1167,7 @@ print*, xyz(:,k)
           !write(*,*) 'This is c ',sqrt(c)
 
           coeffap = coeffap / sqrt(c) 
+print*, "calc_sab", coeffap
           !coeffas = coeffas / sqrt(c)
 
           do i=1,size(connlista,2)
@@ -1213,7 +1248,7 @@ print*, xyz(:,k)
       REAL(KIND=dp) :: c
       REAL(KIND=dp) :: DDOT
 
-
+print*, 1221, "sarray", sarray
       slaters(:,1)=(/0.0D0, 0.0D0, 3.0D0, 0.9560D0, 1.2881D0, 1.100D0, 1.9237D0, 2.2458D0/)
       slaters(:,2)=(/0.0D0, 0.0D0, 0.0D0, 0.0000D0, 1.2107D0, 1.000D0, 1.6000D0, 2.2266D0/)
 
@@ -1250,14 +1285,16 @@ print*, xyz(:,k)
          !print*, (minicon(k,i), k=1,size(minicon,1))
 
       end do
-
+print*, "  "
+print*, 1276
+print*, "  "
          call calc_rvecs(prexyza(2:4,:), minipre , minicon)          
 
 
       !Updating rvecs for pass
 
       do i=1,size(linecol)
-
+print*, "minipre", minipre(:,linecol(i))
            prervecsa(:,linecol(i))=minipre(:,linecol(i))
 
            !print*, (prervecsa(k,linecol(i)), k=1,size(prervecsa,1))         
@@ -1270,7 +1307,9 @@ print*, xyz(:,k)
 
       xyza=prexyza
       coeffap=precoeffap 
+print*, "green", coeffap
       rvecsa=prervecsa
+print*, "rvecsa", rvecsa(:,1)
 
       ! These variables are recaculated for each atom in A
 
@@ -1362,10 +1401,18 @@ print*, xyz(:,k)
 
         end do
 
+print*, 1371
+print*, "stc", stc
+print*, "sarray", sarray
+print*, coeffbp
         call DGEMV('t', size(sarray,1), size(sarray,2), 1.0d0, sarray,&
                    & size(sarray,1), coeffbp, 1, 0.d0, stc, 1)
+print*, "stc", stc
 
+print*, "green", coeffap
+print*, "stc", stc
         sab = DDOT(size(coeffap,1),coeffap,1,stc,1)
+print*, "green", coeffap
 
         deallocate(expcoeffb, expcoeffa, unitvecs, dist, musbp, rvecsb, coeffbp)
 
@@ -1407,14 +1454,17 @@ print*, xyz(:,k)
              !print*, 'unitvecs', dist(6), (unitvecs(k, 6, 3), k=1,3)
 
              !print*, 'Some info', prexyza(2:4,i), dist(33), (unitvecs(k, 33, 3), k=1,3)
-
+print*, "rvecsa", rvecsa(:,i)
              call project_onto_unitvectors(unitvecs, rvecsa(:,i), expcoeffa)
-
+print*, 1435, "expcoeffa", expcoeffa
              call project_onto_unitvectors(unitvecs, rvecsa, expcoeffb)
+print*, 1435, "expcoeffb", expcoeffb
 
              !print*, 'exp', (expcoeffb(k,10), k=1,3), (expcoeffa(k,10), k=1,3), dist(10)
+print*, 1430, sarray
             
              call calc_overlap_p(expcoeffa, expcoeffb, muap, musbp, dist, sarray(:,i))
+print*, 1433, sarray
 
              !print*, 'dist, sarray', dist(7),  sarray(7,i)
 
@@ -1442,14 +1492,24 @@ print*, xyz(:,k)
           !print*, 'line 10', (sarray(k,10), k=1,size(sarray, 1))
           !print*, 'Sarray element 8, 9', sarray(8, 9)
 
+print*, "green", coeffap
+print*, "stc", stc
+print*, "sarray", sarray
           call DGEMV('t', size(prexyza,2), size(prexyza,2), 1.0d0, sarray,&
                      & size(prexyza,2), coeffap, 1, 0.d0, stc, 1)
+print*, "green", coeffap
+print*, "stc", stc
 
           c = DDOT(size(prexyza,2),coeffap,1,stc,1)
-
+print*, "green", coeffap
+print*, size(prexyza,2)
+print*, coeffap
+print*, stc
+print*, "green", "c", c
           !write(*,*) 'This is c ', sqrt(c)
 
           coeffap = coeffap / sqrt(c)
+print*, "green", coeffap
 
           precoeffap = coeffap
 
@@ -1573,7 +1633,11 @@ print*, xyz(:,k)
 !     Normalising coefficients and initialising atomic overlap matrix for wavefunction 
 !     normalisation 
 
+print*, "blue", coeffap
+print*, 1603, sarrayn
       call calc_sab_turbo(xyza, atomlista, connlistal, coeffap, rvecsa, sarrayn, atomlista)
+print*, 1605, sarrayn
+print*, "blue", coeffap
 
 
 !     Calculating Sab(R,R) and initialising p_pi directions and atomic overlap matrix sarrayo
@@ -1581,6 +1645,7 @@ print*, xyz(:,k)
       call calc_sab_turbo2(xyza, atomlista, connlistal, coeffap, rvecsa,&
 &                                 sarrayo, atomlista, aneighbour(:,2:(size(aneighbour,2))),&
 &                     sabRR, xyzb, atomlistb, connlistbl, coeffbp, rvecsb)
+print*, "blue", coeffap
 
 !     Looping all over the structure 
 
@@ -1673,10 +1738,12 @@ print*, xyz(:,k)
 
       call calc_sab_turbo(xyzb, atomlistb, connlistbl, coeffbp, rvecsb, sarrayn, atomlistb)
 
+print*, "blue", coeffap
       call calc_sab_turbo2(xyzb, atomlistb, connlistbl, coeffbp, rvecsb, sarrayo,&
 &                          atomlistb, bneighbour(:,2:(size(bneighbour,2))),&
 &                         sabRR, xyza, atomlista, connlistal, coeffap, rvecsa)
 
+print*, "blue", coeffap
       do i=1,size(connlistbl,2)
 
           f=1
@@ -1709,9 +1776,11 @@ print*, xyz(:,k)
               call calc_sab_turbo(xyzbdr, atomlistb, connlistbl, coeffbpdr, rvecsbdr, sarrayndr, linecol)
 
 
+print*, "blue", coeffap
               call calc_sab_turbo2(xyzbdr, atomlistb, connlistbl, coeffbpdr,& 
 &                                  rvecsbdr, sarrayodr, linecol, bneighbour(:,2:(size(bneighbour,2))),&
 &                                  sabRDRR, xyza, atomlista, connlistal,coeffap, rvecsa)
+print*, "blue", coeffap
  
               nacvb(j,i)=(sabRDRR-sabRR)/dR
           
@@ -1847,6 +1916,13 @@ print*, xyz(:,k)
       !REAL(KIND=dp) :: c
       !REAL(KIND=dp) :: DDOT
 
+print*, "   "
+print*, "sab_screen_new"
+print*, prexyza(1,:)
+print*, prexyza(2,:)
+print*, prexyza(3,:)
+print*, prexyza(4,:)
+print*, linecol
       slaters(:,1)=(/0.0D0, 0.0D0, 3.0D0, 0.9560D0, 1.2881D0, 1.100D0, 1.9237D0, 2.2458D0/)
       slaters(:,2)=(/0.0D0, 0.0D0, 0.0D0, 0.0000D0, 1.2107D0, 1.000D0, 1.6000D0, 2.2266D0/)
 
@@ -1890,6 +1966,7 @@ print*, xyz(:,k)
 
       end do
 
+print*, "call calc_rvecs(prexyza(2:4,:), minipre , minicon)"          
       call calc_rvecs(prexyza(2:4,:), minipre , minicon)          
 
 !     Updating rvecs for pass

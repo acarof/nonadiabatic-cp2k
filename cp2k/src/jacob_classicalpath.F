@@ -78,7 +78,7 @@ CONTAINS
         routineP = moduleN//':'//routineN
 
      !logical :: inrun, debug, decohere, collapse
-     logical :: inrun
+!     logical :: inrun
         integer :: coord
      !integer :: mol, i, j, k, l, m, d, stat, atoms, times, c, t, t2, init, inc, filelength, state, mat, orb, bondsno
      integer :: mol, i, j, k, l, m, d, atoms, c, t, t2, init, inc, state, mat, orb
@@ -215,11 +215,11 @@ print*, energies_plus(:), "kkkk"
 !         else
 !            print*, "Not associated"
 !         endif
-         if (itimes.eq.1) then 
-            inrun = .FALSE.
-         else
-            inrun = .TRUE.
-         endif
+!         if (itimes.eq.1) then 
+!           inrun = .FALSE.
+!         else
+!            inrun = .TRUE.
+!         endif
 
 !               inrun = aom_basket%inrun
 !          end if
@@ -262,7 +262,8 @@ print*, energies_plus(:), "kkkk"
      mat = orb*mol
      c = mol*atoms
 
-    if (itimes.le.1) then
+    !if (itimes.le.1) then
+    if (itimes.eq.0) then
        ALLOCATE(aom_basket%population(mat))
        ALLOCATE(aom_basket%ctin(mat))
        ALLOCATE(aom_basket%hamiltonian(mat,mat))
@@ -334,7 +335,7 @@ print*, energies_plus(:), "kkkk"
      !open(unit=24,file='./stateno',action='read')
      !read(24,*) state
      !close(unit=24)
-        if (inrun) then
+        if (itimes.gt.1) then
            state = aom_basket%state
         else
            state = 1
@@ -609,15 +610,15 @@ print*, energies_plus(:), "kkkk"
 !CHANGE_AC
 !READ THE COORDINATES
         do coord=1,3
-              if (itimes.ge.3) then
+              if (itimes.ge.2) then
 print*, "hey"
                  crds(coord,:,1) = PACK(aom_basket%rm2(:,coord), ext_pres)
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
-              else if (itimes.eq.2) then 
+              else if (itimes.eq.1) then 
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
-              else if (itimes.eq.1) then 
+              else if (itimes.eq.0) then 
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
               endif
         enddo
@@ -773,7 +774,7 @@ print*, NN
         atomlist_mask =.NOT.((scoefftot.eq.0).AND.(pcoefftot.eq.0))
         allocate(atomlist(COUNT(atomlist_mask(1:atoms))))
         atomlist = PACK( (/ (i, i=1,atoms) /), atomlist_mask(1:atoms) )
-    if (itimes.le.1) then
+    if (itimes.eq.0) then
        allocate(aom_basket%connlist2(4,size(atomlist)))
     endif
 !END CHANGE_AC
@@ -825,11 +826,18 @@ print*, NN
      end do
      print *, "All done!",itimes,800
      !if (.not. inrun) then
-     if (itimes.eq.1) then
+     if (itimes.eq.0) then
           call connect_list2(At, atomlist, connlist1, connlist2)
 !          open(unit=40,file='./connectlist1',action='write')
 !          open(unit=41,file='./connectlist2',action='write')
-print*, connlist2, "here"
+print*, connlist1(:,1), "connlist1 eq 0"
+print*, connlist1(:,2), "connlist1 eq 0"
+print*, connlist1(:,3), "connlist1 eq 0"
+print*, connlist1(:,4), "connlist1 eq 0"
+print*, connlist1(:,5), "connlist1 eq 0"
+print*, connlist1(:,6), "connlist1 eq 0"
+print*, connlist2(:,1), "connlist2 eq 0"
+print*, connlist2(:,2), "connlist2 eq 0"
           do i=1,atoms
 !WRITE               write(40,*), connlist1(1:4,i)
                         aom_basket%connlist1(1:4,i) = connlist1(1:4,i)
@@ -841,7 +849,7 @@ print*, connlist2, "here"
 print*, aom_basket%connlist2, "here here"
 !          close(unit=40)
 !          close(unit=41)
-     else if (itimes.gt.1) then
+     else if (itimes.gt.0) then
 !          open(unit=40,file='./connectlist1',action='read')
 !          open(unit=41,file='./connectlist2',action='read')
 !          do i=1,atoms
@@ -852,7 +860,14 @@ print*, aom_basket%connlist2, "here here and and"
 !          do i=1,size(atomlist)
 !               read(41,*), connlist2(1:4,i)
                         connlist2(1:4,:) = aom_basket%connlist2(1:4,:)
-print*, connlist2, "and here"
+print*, connlist1(:,1), "connlist1 gt 0"
+print*, connlist1(:,2), "connlist1 gt 0"
+print*, connlist1(:,3), "connlist1 gt 0"
+print*, connlist1(:,4), "connlist1 gt 0"
+print*, connlist1(:,5), "connlist1 gt 0"
+print*, connlist1(:,6), "connlist1 gt 0"
+print*, connlist2(:,1), "connlist2 gt 0"
+print*, connlist2(:,2), "connlist2 gt 0"
 !          end do
 !          close(unit=40)
 !          close(unit=41)
@@ -866,7 +881,7 @@ print*, connlist2, "and here"
 !PRINT     print *, "Calling overlap routine for each pair along the trajectory (this may take a while)"
 !     do t=2,times
 t =2
-      if (itimes.ge.3) then
+           if (itimes.ge.2) then
 !          if (progtype == 'C') then
 !PRINT               print *, "Molecular timestep", t, "beginning."
 !          end if
@@ -917,14 +932,16 @@ print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
                          end do
                     end do
                     if (i == 1) then
-print*, "lololo"
+print*, "lololo", "k =",k
                          do d=1,orb
                               do l=1,atoms
                                    pcoeffsrun(l,orb*(k-1)+d,1) = pcoeffs(l,d)
                               end do
                               call calc_sab(Btm, connlist2, pcoeffsrun(:,orb*(k-1)+d,1))
                               do l=1,atoms
+print*, "pcoeffs l d",d,l,pcoeffs(l,d)
                                    pcoeffsrun(l,orb*(k-1)+d,2) = pcoeffs(l,d)
+print*, "pcoeffsrun l d",d,l,pcoeffsrun(l,orb*(k-1)+d,2)
                               end do
                               call calc_sab(Bt, connlist2, pcoeffsrun(:,orb*(k-1)+d,2))
                               do l=1,atoms
@@ -932,10 +949,20 @@ print*, "lololo"
                               end do
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
+print*, "pcoeffsrun"
+print*, pcoeffsrun(:,:,1)
+print*, pcoeffsrun(:,1,2)
+print*, pcoeffsrun(:,2,2)
+print*, "pcoeffsrun"
 !                         if ((input == 'c') .or. (inrun .eqv. .FALSE.)) then
-                         if (itimes.eq.3) then
+                         if (itimes.eq.2) then
                               do d=1,orb
                                    do m=1,orb
+print*, 947, d,m
+print*, At(1,:)
+print*, At(2,:)
+print*, At(3,:)
+print*, At(4,:)
                                         call sab_screen_new(At, atomlist, connlist1, pcoeffsrun(:,orb*(i-1)+d,2),&
                                         & atomlist, Bt, atomlist, connlist1, pcoeffsrun(:,orb*(k-1)+m,2),&
                                         & aneighbour(:,1:atoms), bneighbour(:,1:atoms), minao)
@@ -943,7 +970,8 @@ print*, "lololo"
                               end do
                               neighbourlist(k,1:3,0) = [0, 0, 0]
                               neighbourlist(k,:,1:atoms) = bneighbour(:,1:atoms)
-print*, "lololo"
+print*, 954, "bneighbour", bneighbour(:,1:atoms)
+print*, "lololo itimes eq 2"
                               if (k == mol) then
 !                                   open(unit=43,file='./bneighbour',action='write')
 print*, "lilili"
@@ -988,25 +1016,34 @@ print*, neighbourlist(m,:,j), "lalala"
                                         call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                         Sttp(orb*(i-1)+d,orb*(k-1)+m) = S
+print*, "WOOHOO"
                                         call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3), S, Bt,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = S
+print*, "WAAHAA"
+print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                         call calc_dRSab(At, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
                                         &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
                                         &neighbourlist(i,:,:), neighbourlist(k,:,:))
+print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                    end do
                               end do
 
-                              if (.not. inrun) then
+                              if (itimes.eq.2) then
                                    do d=1,orb
                                         do m=1,orb
+!print*, At
+!print*, connlist2
+print*, pcoeffsrun(1:atoms,orb*(i-1)+d,2)
+!print*, Bt
+print*, pcoeffsrun(1:atoms,orb*(k-1)+m,2)
                                              call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2),&
                                              & S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = S
-print*, S
+print*, "S", S
                                              call calc_sab(Atm, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,1),&
                                              & S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                              Stmt(orb*(i-1)+d,orb*(k-1)+m) = S
@@ -1054,7 +1091,8 @@ print*, S
                                         end do
                                    end do
 
-                                   if (.not. inrun) then
+                                   !if (.not. inrun) then
+                                   if (itimes.eq.2) then
                                         do d=1,orb
                                              do m=1,orb
                                                   call calc_sab(At, connlist2, &
@@ -1128,7 +1166,7 @@ print*, cbar*S
           end do !loop over i
           !during a simulation, you can read in a lot of these overlaps from a previous timestep
           !if (inrun) then
-          if (itimes.ge.3) then
+          if (itimes.gt.2) then
                do i=1,mat
                     do j=1,mat
 !                         read(21,*) Stt(j,i)
@@ -1368,7 +1406,7 @@ print*, itimes, aom_basket%ctin, "tttt"
 
 !CHANGE_AC
 !STORE THE COORDINATES
-        if (itimes.ge.2) then
+        if (itimes.ge.1) then
            do i=1,c
               do coord=1,3
                  aom_basket%rm2(i,coord) = aom_basket%rm1(i,coord)
@@ -1379,7 +1417,7 @@ print*, itimes, aom_basket%ctin, "tttt"
 print*, energies_plus(i), "keke"
               aom_basket%energies(i) = energies_plus(i)
            enddo
-        else if (itimes.eq.1) then
+        else if (itimes.eq.0) then
            do i=1,c
               do coord=1,3
                  aom_basket%rm1(i,coord) = positions_plus(i,coord)
