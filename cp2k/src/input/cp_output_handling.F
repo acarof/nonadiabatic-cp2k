@@ -785,7 +785,6 @@ CONTAINS
     ! use the cp_iter_string as a postfix
     postfix="-"//TRIM(cp_iter_string(logger%iter_info,print_key=print_key,for_file=.TRUE.))
     IF (TRIM(postfix)=="-") postfix=""
-
     ! and add the extension
     postfix=TRIM(postfix)//extension
     ! and let the logger generate the filename

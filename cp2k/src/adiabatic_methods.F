@@ -402,6 +402,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
 
+    NULLIFY(logger)
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%COEFFICIENTS",&
@@ -452,6 +453,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
 
+    NULLIFY(logger)
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%POPULATIONS",&
@@ -500,13 +502,16 @@ CONTAINS
 !    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=default_string_length)     ::  my_format, my_format2
     TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL                                  :: new_file
 
-
+    NULLIFY(logger)
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%HAMILTONIAN",&
-               extension=".xyz",middle_name="hamilt", log_filename=.FALSE.)
+               extension=".xyz",middle_name="hamilt", log_filename=.FALSE.,&
+               is_new_file=new_file)
 
+print*, "unit_nr", unit_nr, new_file
 !print*, hamiltonian, "nnnn"
 
     IF (unit_nr>0) THEN

@@ -283,6 +283,7 @@ CONTAINS
     CALL cp_print_key_section_create(print_key_section=print_key,&
           name="COEFFICIENTS",&
           description="Print the coefficients",&
+          common_iter_levels=1,&
           filename="")
      CALL section_add_subsection(sub2section,print_key)
      CALL section_release(print_key)
@@ -290,6 +291,7 @@ CONTAINS
      CALL cp_print_key_section_create(print_key_section=print_key,&
           name="POPULATIONS",&
           description="Print the populations",&
+          common_iter_levels=1,&
           filename="")
      CALL section_add_subsection(sub2section,print_key)
      CALL section_release(print_key)
@@ -297,6 +299,7 @@ CONTAINS
      CALL cp_print_key_section_create(print_key_section=print_key,&
           name="HAMILTONIAN",&
           description="Print the hamiltonian",&
+          common_iter_levels=1,&
           filename="")
      CALL section_add_subsection(sub2section,print_key)
      CALL section_release(print_key)
