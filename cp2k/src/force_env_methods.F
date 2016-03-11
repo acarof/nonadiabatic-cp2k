@@ -133,9 +133,9 @@ MODULE force_env_methods
 !> 15-12-11
 !> To create a new way to combine the force
 !> To get the adiabatic force 
-   !USE adiabatic_methods,             ONLY: adiab_fssh_routines,&
-   !                                         adiab_classicalpath_routines
-   USE adiabatic_methods,             ONLY:  adiab_classicalpath_routines
+   USE adiabatic_methods,             ONLY: adiab_fssh_routines,&
+                                            adiab_classicalpath_routines
+   !USE adiabatic_methods,             ONLY:  adiab_classicalpath_routines
 !> End CHANGE_AC
 
   IMPLICIT NONE
@@ -1107,9 +1107,9 @@ CONTAINS
                  CPABORT("Illegal use of FSSH_ATOMS methods")
               END IF
            ENDDO 
-!           CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
-!                global_forces, energies, virials, results, nforce_eval,&
-!                map_index, mapping_section, adiab_section) 
+           CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
+                global_forces, energies, virials, results, nforce_eval,&
+                map_index, mapping_section,adiab_section,mixed_env,my_itimes) 
         CASE DEFAULT
            CPABORT("There is no method to calculate the adiabatic force")
         END SELECT
