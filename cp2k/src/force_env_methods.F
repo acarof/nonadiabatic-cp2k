@@ -172,6 +172,8 @@ CONTAINS
 !      require_consistent_energy_force, linres, calc_stress_tensor)
 !> CHANGE_AC
 !> 1-01-25
+!> Get the itimes information
+!> Require for the Non Adiabatic Molecular Dynamics
       require_consistent_energy_force, linres, calc_stress_tensor,itimes)
 !> END CHANGE_AC
 
@@ -205,6 +207,8 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
 !> CHANGE_AC
+!> Get the itimes information
+!> Require for the Non Adiabatic Molecular Dynamics
     INTEGER, POINTER               :: my_itimes ! CHANGE_AC
     INTEGER, TARGET                :: zero 
    IF (PRESENT(itimes)) then
@@ -862,10 +866,6 @@ CONTAINS
                        virial=virial_mix,&
                        results=results_mix)
     NULLIFY(map_index, glob_natoms, global_forces)
-!CHANGE_AC 15.12.11
-!    NULLIFY(map_index, glob_natoms, global_forces)
-!    NULLIFY(map_index, glob_natoms, global_forces, global_positions)
-!END
     nforce_eval = SIZE(force_env%sub_force_env)
     mixed_section => section_vals_get_subs_vals(force_env_section,"MIXED")
     mapping_section => section_vals_get_subs_vals(mixed_section,"MAPPING")
@@ -975,25 +975,6 @@ CONTAINS
        CALL mp_sum(source, force_env%para_env%group)
        CALL cp_results_mp_bcast(results(iforce_eval)%results, source, force_env%para_env)
     END DO
-
-!CHANGE_AC, 15.12.11
-   !Get the positions
-   !All the force_eval share the same position, one can only get them from
-   !force_eval = 1
-!   ALLOCATE(global_positions%forces(3,glob_natoms(1)))
-!   global_positions%forces = 0.0_dp
-!   IF (ASSOCIATED(force_env%sub_force_env(1)%force_env)) THEN
-!       IF ( force_env%sub_force_env(1)%force_env%para_env%mepos==&
-!            force_env%sub_force_env(1)%force_env%para_env%source) THEN
-         ! Forces
-!         DO iparticle = 1, glob_natoms(1)
-!              global_positions%forces(:,iparticle) = &
-!                  particles(1)%list%els(iparticle)%f
-!         END DO
-!       END IF
-!   END IF
-!    CALL mp_sum(global_positions%forces, force_env%para_env%group)
-!END
 
 
     force_env%mixed_env%energies = energies
@@ -1107,11 +1088,11 @@ CONTAINS
         SELECT CASE(adiab_keyword)
         CASE("CLASSICAL_PATH")
            !Check that all the FF have the same number of atoms than the 1st FF
-           !because in the subroutine the number of atoms wil be the one of 1st
+           !because in the subroutine the number of atoms will be the one of 1st
            !FF
            DO iforce_eval = 2, nforce_eval
               IF (glob_natoms(iforce_eval).NE.glob_natoms(1)) THEN
-                 CPABORT("Illegal use of FSSH_ATOMS methods")
+                 CPABORT("Illegal use of CLASSICAL_PATH methods")
               END IF
            ENDDO 
            CALL adiab_classicalpath_routines(particles_mix, virial_mix, results_mix,   &
@@ -1138,13 +1119,11 @@ CONTAINS
     END SELECT
     !Simply deallocate and loose the pointer references..
     DO iforce_eval = 1, nforce_eval
-!       DEALLOCATE(global_positions%forces) !CHANGE_AC
        DEALLOCATE(global_forces(iforce_eval)%forces)
        CALL virial_release(virials(iforce_eval)%virial)
        CALL cp_result_release(results(iforce_eval)%results)
     END DO
     DEALLOCATE(global_forces)
-!    DEALLOCATE(global_positions) !CHANGE_AC
     DEALLOCATE(subsystems)
     DEALLOCATE(particles)
     DEALLOCATE(energies)
@@ -1167,226 +1146,5 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(unit_nr,logger,mixed_section,"PRINT%DIPOLE")
   END SUBROUTINE mixed_energy_forces
-
-
-! *****************************************************************************
-!> CHANGE_AC
-!> \brief print the forces calculated by the multiple force method
-!> \param force_env ...
-!> \param calculate_force ...
-!> \par History
-!>       15.12.11  creation
-!> \author Antoine Carof
-! *****************************************************************************
-  SUBROUTINE mixed_energy_forces_print(force_env, calculate_forces)
-
-    TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN)                      :: calculate_forces
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mixed_energy_forces_print', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length)     :: description
-    CHARACTER(len=default_string_length)     :: my_middle_name
-    INTEGER :: iforce_eval, iparticle, jparticle, my_group, &
-      natom, nforce_eval, source, unit_nr
-    INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
-    LOGICAL                                  :: dip_exists
-    REAL(KIND=dp) ::  energy 
-    REAL(KIND=dp), DIMENSION(3)              :: dip_mix
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: energies
-    TYPE(cell_type), POINTER                 :: cell_mix
-    TYPE(cp_logger_type), POINTER            :: logger, my_logger
-    TYPE(cp_result_p_type), DIMENSION(:), &
-      POINTER                                :: results
-    TYPE(cp_result_type), POINTER            :: loc_results, results_mix
-    TYPE(cp_subsys_p_type), DIMENSION(:), &
-      POINTER                                :: subsystems
-    TYPE(cp_subsys_type), POINTER            :: subsys_mix
-    TYPE(mixed_force_type), DIMENSION(:), &
-      POINTER                                :: global_forces
-    TYPE(particle_list_p_type), &
-      DIMENSION(:), POINTER                  :: particles
-    TYPE(particle_list_type), POINTER        :: particles_mix
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                mapping_section, &
-                                                mixed_section, root_section
-    TYPE(virial_p_type), DIMENSION(:), &
-      POINTER                                :: virials
-    TYPE(virial_type), POINTER               :: loc_virial, virial_mix
-
-
-
-
-    logger => cp_get_default_logger()
-    CPASSERT(ASSOCIATED(force_env))
-    ! Get infos about the mixed subsys
-    CALL force_env_get(force_env=force_env,&
-                       subsys=subsys_mix,&
-                       force_env_section=force_env_section,&
-                       root_section=root_section,&
-                       cell=cell_mix)
-    CALL cp_subsys_get(subsys=subsys_mix,&
-                       particles=particles_mix,&
-                       virial=virial_mix,&
-                       results=results_mix)
-    !NULLIFY(map_index, glob_natoms, global_forces)
-!> CHANGE_AC
-!> 15-12-11
-!> To create a new way to combine the force
-!> To get the adiabatic force 
-    NULLIFY(map_index, glob_natoms, global_forces)
-!> End CHANGE_AC
-
-    nforce_eval = SIZE(force_env%sub_force_env)
-    mixed_section => section_vals_get_subs_vals(force_env_section,"MIXED")
-    mapping_section => section_vals_get_subs_vals(mixed_section,"MAPPING")
-    ! Global Info
-    ALLOCATE(subsystems(nforce_eval))
-    ALLOCATE(particles(nforce_eval))
-    ! Local Info to sync
-    ALLOCATE(global_forces(nforce_eval))
-    ALLOCATE(energies(nforce_eval))
-    ALLOCATE(glob_natoms(nforce_eval))
-    ALLOCATE(virials(nforce_eval))
-    ALLOCATE(results(nforce_eval))
-    energies    = 0.0_dp
-    glob_natoms = 0
-    DO iforce_eval = 1, nforce_eval
-       NULLIFY(subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
-       NULLIFY(results(iforce_eval)%results, virials(iforce_eval)%virial)
-       CALL virial_create (virials(iforce_eval)%virial)
-       CALL cp_result_create (results(iforce_eval)%results)
-       IF (.NOT.ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
-       ! From this point on the error is the sub_error
-       my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
-       my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
-       ! Copy iterations info (they are updated only in the main mixed_env)
-       CALL cp_iteration_info_copy_iter(logger%iter_info, my_logger%iter_info)
-       CALL cp_add_default_logger(my_logger)
-
-       ! Get all available subsys
-       CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env,&
-                          subsys=subsystems(iforce_eval)%subsys)
-
-       ! all force_env share the same cell
-       CALL cp_subsys_set(subsystems(iforce_eval)%subsys, cell=cell_mix)
-
-       ! Get available particles
-       CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys,&
-                          particles=particles(iforce_eval)%list)
-
-
-       ! Get Mapping index array
-       natom = SIZE(particles(iforce_eval)%list%els)
-       CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, &
-            map_index)
-
-       ! Calculate energy and forces for each sub_force_env
-       CALL force_env_calc_energy_force(force_env%sub_force_env(iforce_eval)%force_env,&
-                                        calc_force=calculate_forces,&
-                                        skip_external_control=.TRUE.)
-       ! Only the rank 0 process collect info for each computation
-       IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
-            force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
-          CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env,&
-                             potential_energy=energy)
-          CALL cp_subsys_get(subsystems(iforce_eval)%subsys,&
-                             virial=loc_virial, results=loc_results)
-          energies(iforce_eval)    = energy
-          glob_natoms(iforce_eval) = natom
-          CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
-          CALL cp_result_copy(loc_results, results(iforce_eval)%results)
-       END IF
-
-       ! Deallocate map_index array
-       IF (ASSOCIATED(map_index)) THEN
-          DEALLOCATE(map_index)
-       END IF
-       CALL cp_rm_default_logger()
-    END DO
-
-    ! Handling Parallel execution
-    CALL mp_sync(force_env%para_env%group)
-    ! Let's transfer energy, natom, forces, virials
-    CALL mp_sum(energies, force_env%para_env%group)
-    CALL mp_sum(glob_natoms, force_env%para_env%group)
-    ! Transfer forces
-    DO iforce_eval = 1, nforce_eval
-       ALLOCATE(global_forces(iforce_eval)%forces(3,glob_natoms(iforce_eval)))
-       global_forces(iforce_eval)%forces = 0.0_dp
-       IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
-          IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
-               force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
-             ! Forces
-             DO iparticle = 1, glob_natoms(iforce_eval)
-                global_forces(iforce_eval)%forces(:,iparticle) = &
-                     particles(iforce_eval)%list%els(iparticle)%f
-             END DO
-          END IF
-       END IF
-       CALL mp_sum(global_forces(iforce_eval)%forces, force_env%para_env%group)
-       !Transfer only the relevant part of the virial..
-       CALL mp_sum(virials(iforce_eval)%virial%pv_total, force_env%para_env%group)
-       CALL mp_sum(virials(iforce_eval)%virial%pv_kinetic, force_env%para_env%group)
-       CALL mp_sum(virials(iforce_eval)%virial%pv_virial, force_env%para_env%group)
-       CALL mp_sum(virials(iforce_eval)%virial%pv_xc, force_env%para_env%group)
-       CALL mp_sum(virials(iforce_eval)%virial%pv_fock_4c, force_env%para_env%group)
-       CALL mp_sum(virials(iforce_eval)%virial%pv_constraint, force_env%para_env%group)
-       !Transfer results
-       source = 0
-       IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
-          IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
-               force_env%sub_force_env(iforce_eval)%force_env%para_env%source)&
-                source=force_env%para_env%mepos
-       ENDIF
-       CALL mp_sum(source, force_env%para_env%group)
-       CALL cp_results_mp_bcast(results(iforce_eval)%results, source, force_env%para_env)
-    END DO
-
-    force_env%mixed_env%energies = energies
-
-    DO iforce_eval = 1, nforce_eval
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-       WRITE(my_middle_name, "(A3,I5.5)" ) "mff",iforce_eval
-       unit_nr=cp_print_key_unit_nr(logger,mixed_section,"PRINT%FORCES",&
-               extension=".xyz",middle_name=my_middle_name,  &
-               log_filename=.FALSE.)
-       IF (unit_nr>0) THEN
-           WRITE ( unit_nr, '(I8)' ) natom
-           WRITE ( unit_nr, '(A)' ) '# FMT fx, fy, fz'
-
-           DO jparticle=1,natom
-              !CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-              !        name=atm_name)
-              !my_format="(A4,"
-              !name = TRIM(atm_name)
-
-             !WRITE(unit_nr,TRIM(my_format)//"1X,6F20.10)") TRIM(name), &
-             !     particles(iforce_eval)%list%els(jparticle)%f
-             WRITE(unit_nr,"(3F20.10)") &
-                  particles(iforce_eval)%list%els(jparticle)%f
-          ENDDO
-       END IF
-       CALL cp_print_key_finished_output(unit_nr,logger,mixed_section, & 
-               "PRINT%FORCES")
-    END DO
-
-    ! Print Section
-    unit_nr=cp_print_key_unit_nr(logger,mixed_section,"PRINT%DIPOLE",&
-         extension=".data",middle_name="MIXED_DIPOLE",log_filename=.FALSE.)
-    IF (unit_nr>0) THEN
-       description ='[DIPOLE]'
-       dip_exists = test_for_result(results=results_mix,description=description)
-       IF (dip_exists) THEN
-         CALL get_results(results=results_mix,description=description,values=dip_mix)
-         WRITE(unit_nr,'(/,1X,A,T48,3F11.6)')"MIXED ENV| DIPOLE  ( A.U.)|",dip_mix
-         WRITE(unit_nr,'(  1X,A,T48,3F11.6)')"MIXED ENV| DIPOLE  (Debye)|",dip_mix*debye
-       ELSE
-         WRITE(unit_nr,*) "NO FORCE_EVAL section calculated the dipole"
-       END IF
-    END IF
-    CALL cp_print_key_finished_output(unit_nr,logger,mixed_section,"PRINT%DIPOLE")
-  END SUBROUTINE mixed_energy_forces_print
 
 END MODULE force_env_methods

@@ -59,12 +59,18 @@ IMPLICIT NONE
      REAL(KIND = dp), DIMENSION(:), POINTER :: energies   
      INTEGER                                :: state
      LOGICAL                                :: inrun
+!> To store the previous overlap matrix
      REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Stmt, Sttm, Stmtm
      integer, dimension(:,:), POINTER       :: connlist1, connlist2, bneighbour
+!> To store the previous coefficients
      COMPLEX(KIND=dp), DIMENSION(:),POINTER              :: ctin
+!> To print the populations
      REAL(KIND=dp), DIMENSION(:), POINTER                :: population
-     INTEGER, DIMENSION(:,:,:), POINTER         :: neighbourlist
+     INTEGER, DIMENSION(:,:,:), POINTER                  :: neighbourlist
+!> To print the Hamiltonian
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: hamiltonian
+!> To print the NACVs
+     REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER          :: nacv
    END TYPE aom_basket_type
 
    PUBLIC :: aom_basket_type

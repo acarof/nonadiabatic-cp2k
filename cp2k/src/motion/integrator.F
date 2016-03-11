@@ -542,6 +542,8 @@ CONTAINS
 !       CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.)
 !> CHANGE_AC
 !> 1-01-25
+!> Transfer the itimes information to force_env_calc_energy_force
+!> Require for Non Adiabatic Molecular Dynamics 
        CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
             itimes = itimes)
 !> END CHANGE_AC

@@ -276,10 +276,11 @@ CONTAINS
        ALLOCATE(aom_basket%Stmt(mat,mat))
        ALLOCATE(aom_basket%Sttm(mat,mat))
        ALLOCATE(aom_basket%Stmtm(mat,mat))
-           ALLOCATE(aom_basket%rm1(c,3))
-           ALLOCATE(aom_basket%rm2(c,3))
-           ALLOCATE(aom_basket%energies(mol))
-     allocate(aom_basket%bneighbour(3,0:atoms))
+       ALLOCATE(aom_basket%rm1(c,3))
+       ALLOCATE(aom_basket%rm2(c,3))
+       ALLOCATE(aom_basket%energies(mol))
+       ALLOCATE(aom_basket%bneighbour(3,0:atoms))
+       ALLOCATE(aom_basket%nacv(3,mat,mat,2*mat*atoms))
     endif
 
      !calculate timestep from femtoseconds in atomic units
@@ -1485,6 +1486,7 @@ t =2
 !PREPARE THE PRINT
        !aom_basket%hamiltonian(i,i) = siteenergies(t+1,i)
        aom_basket%hamiltonian = AIMAG(H2)
+       aom_basket%nacv        = nacv
 
 !END CHANGE_AC
 !PRINT     print *, "All done!",itimes

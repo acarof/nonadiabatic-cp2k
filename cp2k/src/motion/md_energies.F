@@ -457,14 +457,6 @@ CONTAINS
        ! Print Force-Mixing labels
        CALL write_trajectory(force_env, root_section, itimes, time*femtoseconds, dt*femtoseconds, md_ener%epot,&
             "FORCE_MIXING_LABELS", my_pos, my_act, middle_name="fmlabels", extended_xmol_title=.TRUE.)
-!> CHANGE_AC
-!> 15-12-08
-!> To print the different forces in a multiple force field simulation, add a new
-!> case : "MULTIPLE_FF"
-       ! Print Multiple Force 
-       CALL write_trajectory(force_env, root_section, itimes, time*femtoseconds, dt*femtoseconds, md_ener%epot,&
-            "MULTIPLE_FF", my_pos, my_act, middle_name="mff", extended_xmol_title=.TRUE.)
-!> End CHANGE_AC
 
 
 

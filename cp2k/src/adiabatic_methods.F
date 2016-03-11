@@ -140,6 +140,7 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:),  POINTER :: coefficients
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
     REAL(KIND=dp), DIMENSION(:),POINTER      :: populations
+    REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
 !    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER, POINTER                         :: itimes
 
@@ -157,10 +158,13 @@ CONTAINS
 !    ALLOCATE(velocities(natom,3))
     factor = 1
 
+!> Find the method to calculate the off-diagonal elements
     CALL section_vals_val_get(adiab_section,"METHOD_COUPLING",c_val=coupling_keyword)
     CALL get_subsys_map_index(mapping_section, natom, 1, nforce_eval, map_index)
+!> Choose the method to calculate the off-diagonal elements
     SELECT CASE(coupling_keyword)
     CASE("AOM")
+!> Get the information for the previous timesteps
         aom_basket = mixed_env%aom_basket
         DO iparticle = 1, natom
            jparticle = map_index(iparticle)
@@ -169,6 +173,7 @@ CONTAINS
 !           positions_m2(jparticle,:)  = particles_mix%els(jparticle)%rm2(:)
         END DO
 !        energies_plus(:) = particles_mix%els(1)%energies(:)
+!> Get the coupling section and all the information 
         coupling_section => section_vals_get_subs_vals(adiab_section, "AOM")
         CALL section_vals_val_get(coupling_section,"_DEFAULT_KEYWORD_",&
              n_rep_val=aom_natom)
@@ -200,6 +205,7 @@ CONTAINS
           ! print*, "ASSOCIATED 1"
           ! print*, "itimes", itimes
         !endif
+!> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH_full_degen_classicalpath(nadiab=nadiab, &
              ext_atoms=ext_atoms, norbitals=norbitals, &
              ext_cutoff = ext_cutoff, ext_scaling = ext_scaling, &
@@ -217,32 +223,35 @@ CONTAINS
         ALLOCATE(coefficients(norbitals*nadiab))
         ALLOCATE(populations(norbitals*nadiab))
         ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
+        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,2*norbitals*nadiab*ext_atoms))
 
+!> Get the renewed information from aom_basket
         coefficients = aom_basket%ctin
         populations  = aom_basket%population
         hamiltonian  = aom_basket%hamiltonian
+        nacv         = aom_basket%nacv
 !print*, hamiltonian, "mmmm"
+!> Print the coefficients, the populations, the Hamiltonian, the density matrix
+!> and the NACV
         CALL adiab_print_coeff(adiab_section, coefficients, nadiab,norbitals)
         CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals)
         CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
-        
+        CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals)
+        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms)        
+
+!> IMPORTANT: store all aom_basket for the future timesteps
         mixed_env%aom_basket=aom_basket
     CASE DEFAULT
         CPABORT("There is no method to calculate the coupling")
     END SELECT
 
-!GIVE BACK THE FORCES TO FIST
+!> IMPORTANT : GIVE BACK THE FORCES TO FIST
     DO iparticle = 1, natom
       jparticle = map_index(iparticle)
       particles_mix%els(jparticle)%f(:)= global_forces(1)%forces(:,iparticle)
 !      positions(jparticle,:)  = particles_mix%els(jparticle)%r(:)
     END DO
 
-!Move coordinates minus 1 to coordinates minus 2 and coordinates to coordinate
-!minus 1
-!Beware of the order !
-!    particles_mix%els(jparticle)%rm2(:) = particles_mix%els(jparticle)%rm1(:) 
-!    particles_mix%els(jparticle)%rm1(:) = particles_mix%els(jparticle)%r(:) 
 
     iforce_eval = nforce_eval
     ! Mixing Virial
@@ -511,8 +520,6 @@ CONTAINS
                extension=".xyz",middle_name="hamilt", log_filename=.FALSE.,&
                is_new_file=new_file)
 
-print*, "unit_nr", unit_nr, new_file
-!print*, hamiltonian, "nnnn"
 
     IF (unit_nr>0) THEN
 
@@ -544,4 +551,131 @@ print*, "unit_nr", unit_nr, new_file
    END SUBROUTINE adiab_print_hamiltonian
 
 
+   SUBROUTINE adiab_print_matrix_density(adiab_section, coefficients, nadiab, &
+              norbitals)
+    TYPE(section_vals_type), POINTER         :: adiab_section
+    COMPLEX(KIND=dp), DIMENSION(:),  POINTER :: coefficients
+    !REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
+    INTEGER                                  :: nadiab, norbitals
+!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_matrix_density', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), DIMENSION(:,:),  POINTER :: matrix
+    INTEGER                                  :: unit_nr
+!    INTEGER                                  :: i
+    INTEGER                                  :: iadiab, iorbitals
+    INTEGER                                  :: jadiab, jorbitals
+!    TYPE(particle_type), POINTER             :: particle_set(:)
+!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    CHARACTER(LEN=default_string_length)     ::  my_format, my_format2
+    TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL                                  :: new_file
+
+    ALLOCATE(matrix(nadiab*norbitals, nadiab*norbitals))
+
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
+
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%DENSITY_MATRIX",&
+               extension=".xyz",middle_name="mat", log_filename=.FALSE.,&
+               is_new_file=new_file)
+
+
+    IF (unit_nr>0) THEN
+
+!       ncoeff = SIZE(coefficients)
+
+       WRITE ( unit_nr, "(2I8)" ) nadiab, norbitals
+       WRITE ( unit_nr, '(A)' ) 'Matrix Density: (nadiab*norbitals)^2'
+
+       DO iadiab=1, nadiab
+          DO iorbitals=1,norbitals
+             DO jadiab=1, nadiab
+                DO jorbitals=1, norbitals
+                   matrix( (iadiab-1)*norbitals + iorbitals, (jadiab-1)*norbitals + jorbitals ) = &
+                   coefficients( (iadiab-1)*norbitals + iorbitals)* &
+                   CONJG(coefficients( (jadiab-1)*norbitals + jorbitals)) 
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDDO
+
+       DO iadiab=1, nadiab
+          DO iorbitals=1,norbitals
+!            DO jadiab=1, nadiab
+!               DO jorbitals=1,norbitals 
+!          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+!                  name=atm_name)
+!          my_format="(A4,"
+         my_format="(I4,1X,I4,"
+         write(my_format2,"(I8)") 2*nadiab*norbitals
+!          name = TRIM(atm_name)
+         WRITE(unit_nr,TRIM(my_format)//"1X,"//TRIM(my_format2)//"F20.10)") iadiab, iorbitals, &
+                           matrix( (iadiab-1)*norbitals + iorbitals,:)
+!print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
+!              ENDDO
+!            ENDDO
+          ENDDO
+       ENDDO
+
+    END IF
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
+   END SUBROUTINE adiab_print_matrix_density
+
+
+   SUBROUTINE adiab_print_nacv(adiab_section, nacv, nadiab, &
+              norbitals,ext_atoms)
+    TYPE(section_vals_type), POINTER         :: adiab_section
+    REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
+    INTEGER                                  :: nadiab, norbitals, ext_atoms
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_nacv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: unit_nr
+    INTEGER                                  :: iatom
+    INTEGER                                  :: iadiab, iorbitals
+    INTEGER                                  :: jadiab, jorbitals
+    CHARACTER(LEN=default_string_length)     ::  my_format
+    TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL                                  :: new_file
+
+
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
+
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%NACV",&
+               extension=".xyz",middle_name="nacv", log_filename=.FALSE.,&
+               is_new_file=new_file)
+
+
+    IF (unit_nr>0) THEN
+
+       WRITE ( unit_nr, "(2I8)" ) ext_atoms, nadiab, norbitals
+       WRITE ( unit_nr, '(A)' ) 'Atoms, Adiab., Orb.,NACV'
+
+       DO iatom=1,ext_atoms
+          DO iadiab=1, nadiab
+             DO iorbitals=1,norbitals
+                DO jadiab=1, nadiab
+                   DO jorbitals=1, norbitals
+                      my_format="(I4,1X,I4,1X,I4,1X,I4,1X,I4,1X,3F20.10)"
+                      WRITE(unit_nr,TRIM(my_format)) &
+                             iatom, iadiab, iorbitals, jadiab, jorbitals,   &
+                             nacv(:, (iadiab-1)*norbitals+iorbitals,        & 
+                             (jadiab-1)*norbitals+jorbitals, iatom)
+                   ENDDO
+                ENDDO 
+             ENDDO
+          ENDDO
+       ENDDO
+
+    END IF
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
+   END SUBROUTINE adiab_print_nacv
+
+
 END MODULE adiabatic_methods
+

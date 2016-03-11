@@ -49,6 +49,8 @@ MODULE mixed_environment_types
   USE particle_types,                  ONLY: particle_type
 !> CHANGE_AC
 !> 15-12-11
+!> Add a new object into the mixed_environment_type
+!> Require for Non Adiabatic Molecular Dynamics
   USE jacob_types,                     ONLY: aom_basket_type
 !> End CHANGE_AC
 
@@ -83,6 +85,8 @@ MODULE mixed_environment_types
      CHARACTER(default_path_length)                   :: coupling_function
 !> CHANGE_AC
 !> 15-12-11
+!> Add a new object into the mixed_environment_type
+!> Require for Non Adiabatic Molecular Dynamics
      TYPE (aom_basket_type)                           :: aom_basket
 !> End CHANGE_AC
 

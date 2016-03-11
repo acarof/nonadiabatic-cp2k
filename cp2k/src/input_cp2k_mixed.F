@@ -173,8 +173,7 @@ CONTAINS
     ! Adiabatic force eval
 !> CHANGE_AC
 !> 15-12-11
-!> To create a new way to combine the force
-!> To get the adiabatic force 
+!> Create the input part for the Non Adiabatic Molecular Dynamics
 
     CALL section_create(subsection,name="ADIABATIC",&
          description="Defines the methods to obtain the adiabatic forces.",&
@@ -186,8 +185,6 @@ CONTAINS
          n_var=-1)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
-!    CALL section_add_subsection(section,subsection)
-!    CALL section_release(subsection)
 
 
 !> 15-12-11
@@ -298,7 +295,23 @@ CONTAINS
 
      CALL cp_print_key_section_create(print_key_section=print_key,&
           name="HAMILTONIAN",&
-          description="Print the hamiltonian",&
+          description="Print the Hamiltonian",&
+          common_iter_levels=1,&
+          filename="")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
+     CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="NACV",&
+          description="Print the NACV",&
+          common_iter_levels=1,&
+          filename="")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
+     CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="DENSITY_MATRIX",&
+          description="Print the density matrix",&
           common_iter_levels=1,&
           filename="")
      CALL section_add_subsection(sub2section,print_key)
@@ -308,8 +321,6 @@ CONTAINS
     CALL section_release(sub2section)
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
-!    CALL section_add_subsection(section,subsection)
-!    CALL section_release(subsection)
 !> End CHANGE_AC
 
 
@@ -495,17 +506,6 @@ CONTAINS
          print_level=medium_print_level,filename="__STD_OUT__")
     CALL section_add_subsection(section,print_key)
     CALL section_release(print_key)
-
-!> CHANGE_AC
-!> 15-12-11
-!> To print the different forces in a multiple force field simulation
-    CALL cp_print_key_section_create(print_key,"FORCES",&
-         description="Controls the printing of forces of multiple FF information.", &
-         print_level=medium_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
-!> End CHANGE_AC
-
 
 
   END SUBROUTINE create_print_mix_section

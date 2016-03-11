@@ -330,14 +330,6 @@ CONTAINS
     CASE("FORCE_MIXING_LABELS")
        id_dcd = "FML "
        id_wpc = "FORCE_MIXING_LABELS"
-!> CHANGE_AC
-!> 15-12-08
-!> To print the different forces in a multiple force field simulation, add a new
-!> case : "MULTIPLE_FF"
-    CASE("MULTIPLE_FF")
-       id_dcd = "MFF"
-       id_wpc = "MULTIPLE_FF"
-!> End CHANGE_AC
     CASE DEFAULT
        CPABORT("")
     END SELECT
