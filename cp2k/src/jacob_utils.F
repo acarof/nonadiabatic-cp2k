@@ -46,6 +46,7 @@ MODULE jacob_utils
    USE kinds,                           ONLY: default_string_length,&
                                                dp
    USE machine,                         ONLY: m_getpid
+!   USE jacob_types,                     ONLY: aom_basket_type
 
 #include "./base/base_uses.f90"
 
@@ -254,7 +255,8 @@ subroutine sitecalc(A, bondslist, atoms, site, F, mat, molno)
 
 end subroutine sitecalc
 
-subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, decohere)
+!subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, decohere)
+subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, decohere, ext_state)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -282,6 +284,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak
         COMPLEX(KIND=dp) :: cstate
         logical, intent(out) :: decohere
+        INTEGER, INTENT(OUT)   :: ext_state
 
         mol = size(Stt,1)
 
@@ -439,13 +442,17 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
                 if (hop <= sumg) then
                         if (i .ne. state) then
 !                                print *, "SURFACE HOP!"
-                                write(24,*) i                        
-                                print *, "New state: ", i
+                                ext_state = i
+                                !aom_basket%state = i
+!                                write(24,*) i                        
+!PRINT                                print *, "New state: ", i
                                 decohere = .FALSE.
                                 return
                         elseif (i == state) then
 !                                print *, "No surface hop."
-                                write(24,*) state
+                                ext_state = state
+                                !aom_basket%state = state
+!                                write(24,*) state
 !                                print *, "State: ", state
                                 
                                 !if there has not been any surfacehop, we need to consider the possibility of the decoherence correction

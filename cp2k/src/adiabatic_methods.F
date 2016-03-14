@@ -326,6 +326,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:),POINTER      :: populations
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
+    LOGICAL                                  :: collapse
 
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_plus(natom,3))
@@ -370,6 +371,7 @@ CONTAINS
         CALL section_vals_list_get(coupling_section,"_DEFAULT_KEYWORD_",list=listcoeff)
         CALL read_listcoeff(listcoeff, ext_elements, ext_pres, & 
                             ext_scoeff, ext_pcoeff, natom)
+        CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
     itimes => my_itimes
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH(nadiab=nadiab, &
@@ -382,7 +384,8 @@ CONTAINS
              energies_plus = energies_plus, &
              aom_basket = aom_basket, ext_elements=ext_elements, &
              ext_pres = ext_pres, ext_scoeff=ext_scoeff, &
-             ext_pcoeff=ext_pcoeff, itimes=itimes)
+             ext_pcoeff=ext_pcoeff, itimes=itimes, &
+             collapse = collapse)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
         ALLOCATE(coefficients(norbitals*nadiab))
