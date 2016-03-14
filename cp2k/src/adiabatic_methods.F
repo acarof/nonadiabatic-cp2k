@@ -327,6 +327,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: collapse
+    INTEGER                                  :: state
 
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_plus(natom,3))
@@ -398,6 +399,7 @@ CONTAINS
         populations  = aom_basket%population
         hamiltonian  = aom_basket%hamiltonian
         nacv         = aom_basket%nacv
+        state        = aom_basket%state
 
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
@@ -406,6 +408,7 @@ CONTAINS
         CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
         CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals)
         CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms)        
+        CALL adiab_print_stateno(adiab_section, state, ext_atoms)
 
 !> IMPORTANT: store all aom_basket for the future timesteps
         mixed_env%aom_basket=aom_basket
@@ -842,6 +845,37 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
    END SUBROUTINE adiab_print_nacv
+
+
+   SUBROUTINE adiab_print_stateno(adiab_section, state, ext_atoms)
+    TYPE(section_vals_type), POINTER         :: adiab_section
+    INTEGER                                  :: state
+    INTEGER                                  :: ext_atoms
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_stateno', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: unit_nr
+    TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL                                  :: new_file
+
+
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
+
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%STATE",&
+               extension=".xyz",middle_name="state", log_filename=.FALSE.,&
+               is_new_file=new_file)
+
+    IF (unit_nr>0) THEN
+
+       WRITE ( unit_nr, "(2I8)" ) ext_atoms
+       WRITE ( unit_nr, '(A)' ) 'State'
+       WRITE ( unit_nr, "(I8)"  )  state
+
+    END IF
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
+   END SUBROUTINE adiab_print_stateno
 
 
 END MODULE adiabatic_methods

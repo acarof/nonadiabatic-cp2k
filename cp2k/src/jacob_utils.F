@@ -58,14 +58,16 @@ IMPLICIT NONE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'jacob_utils'
 
+   !PUBLIC :: makeX, &
    PUBLIC :: makeX, &
-             sitecalc, &
+   !          sitecalc, &
              surfacehop, &
-             init_random_seed, &
-             matinvsqrt, &
+   !          init_random_seed, &
+   !          matinvsqrt, &
              adiabaticity, &
-             forces, &
-             calcTDT
+             !forces, &
+             forces
+   !          calcTDT
 
 CONTAINS
   

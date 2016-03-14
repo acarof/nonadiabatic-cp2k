@@ -38,10 +38,18 @@
 ! *****************************************************************************
 
 MODULE jacob_classicalpath 
+     USE kinds,                           ONLY: default_string_length,&
+                                               dp
 
-     USE jacob_overlapfinal
-        USE jacob_utils
-        USE jacob_types,                     ONLY: aom_basket_type
+
+     USE jacob_overlapfinal,                 ONLY:  connect_list2, &
+                                             calc_sab, &
+                                             sab_screen_new, &
+                                             calc_dRSab
+                                   
+     USE jacob_utils,                        ONLY: makeX
+
+     USE jacob_types,                     ONLY: aom_basket_type
 
 #include "./base/base_uses.f90"
 
