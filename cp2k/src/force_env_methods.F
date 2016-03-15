@@ -849,6 +849,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: adiab_section
     CHARACTER(LEN=default_string_length)     :: adiab_keyword
     TYPE(mixed_environment_type), POINTER    :: mixed_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: kinetic_energies
 !    INTEGER, POINTER                         :: my_itimes !CHANGE_AC
 !> End CHANGE_AC
 
@@ -875,6 +876,7 @@ CONTAINS
     ! Local Info to sync
     ALLOCATE(global_forces(nforce_eval))
     ALLOCATE(energies(nforce_eval))
+    ALLOCATE(kinetic_energies(nforce_eval)) !CHANGE_AC
     ALLOCATE(glob_natoms(nforce_eval))
     ALLOCATE(virials(nforce_eval))
     ALLOCATE(results(nforce_eval))
@@ -927,6 +929,12 @@ CONTAINS
           CALL cp_subsys_get(subsystems(iforce_eval)%subsys,&
                              virial=loc_virial, results=loc_results)
           energies(iforce_eval)    = energy
+!> CHANGE_AC
+!> 16-03-15
+          CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env,&
+                             kinetic_energy=energy)
+          kinetic_energies(iforce_eval)    = energy
+!> END CHANGE_AC
           glob_natoms(iforce_eval) = natom
           CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
           CALL cp_result_copy(loc_results, results(iforce_eval)%results)
@@ -942,6 +950,7 @@ CONTAINS
     CALL mp_sync(force_env%para_env%group)
     ! Let's transfer energy, natom, forces, virials
     CALL mp_sum(energies, force_env%para_env%group)
+    CALL mp_sum(kinetic_energies, force_env%para_env%group) !CHANGE_AC
     CALL mp_sum(glob_natoms, force_env%para_env%group)
     ! Transfer forces
     DO iforce_eval = 1, nforce_eval
@@ -1109,7 +1118,8 @@ CONTAINS
            ENDDO 
            CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
                 global_forces, energies, virials, results, nforce_eval,&
-                map_index, mapping_section,adiab_section,mixed_env,my_itimes) 
+                map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
+                kinetic_energies) 
         CASE DEFAULT
            CPABORT("There is no method to calculate the adiabatic force")
         END SELECT

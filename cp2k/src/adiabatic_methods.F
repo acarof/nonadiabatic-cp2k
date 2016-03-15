@@ -281,15 +281,17 @@ CONTAINS
 
 
 
-    SUBROUTINE  adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
-                global_forces, energies_plus, virials, results, nforce_eval,&
-                map_index, mapping_section, adiab_section, mixed_env, my_itimes)
+    SUBROUTINE  adiab_fssh_routines(particles_mix, virial_mix, results_mix,      &
+                global_forces, energies_plus, virials, results, nforce_eval,     &
+                map_index, mapping_section, adiab_section, mixed_env, my_itimes, &
+                kinetic_energies)
 
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(virial_type), POINTER               :: virial_mix
     TYPE(cp_result_type), POINTER            :: results_mix
     TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energies_plus
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: kinetic_energies
     TYPE(virial_p_type), DIMENSION(:), &
       POINTER                                :: virials
     TYPE(cp_result_p_type), DIMENSION(:), &
@@ -327,11 +329,16 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: collapse
-    INTEGER                                  :: state
+    INTEGER                                  :: old_state, new_state
+    REAL(KIND=dp)                            :: scalefactor
+    LOGICAL                                  :: is_hop
 
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_plus(natom,3))
     factor = 1
+!> Save the previous state
+    old_state = aom_basket%state
+
 
 !> Find the method to calculate the off-diagonal elements
     CALL section_vals_val_get(adiab_section,"METHOD_COUPLING",c_val=coupling_keyword)
@@ -386,7 +393,7 @@ CONTAINS
              aom_basket = aom_basket, ext_elements=ext_elements, &
              ext_pres = ext_pres, ext_scoeff=ext_scoeff, &
              ext_pcoeff=ext_pcoeff, itimes=itimes, &
-             collapse = collapse)
+             collapse = collapse, is_hop=is_hop)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
         ALLOCATE(coefficients(norbitals*nadiab))
@@ -399,7 +406,7 @@ CONTAINS
         populations  = aom_basket%population
         hamiltonian  = aom_basket%hamiltonian
         nacv         = aom_basket%nacv
-        state        = aom_basket%state
+        new_state        = aom_basket%state
 
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
@@ -408,7 +415,27 @@ CONTAINS
         CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
         CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals)
         CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms)        
-        CALL adiab_print_stateno(adiab_section, state, ext_atoms)
+        CALL adiab_print_stateno(adiab_section, new_state, ext_atoms)
+
+!> Do the velocities rescaling if required
+        IF (old_state.NE.new_state) THEN
+           CPASSERT(is_hop) !Be sure there is indeed a hop
+!> Check that all the kinetic energies are the same for the different force
+!> fields
+          DO iforce_eval = 2, nforce_eval
+             IF (kinetic_energies(iforce_eval).NE.kinetic_energies(1)) THEN
+                CPABORT("The different diabatic FF don't share the same kinetic energies")
+             END IF
+          ENDDO
+!Factor to rescale the velocities (Eq. 49 of PAPER_1)
+          scalefactor = SQRT( ( kinetic_energies(1) - (energies_plus(new_state) - &
+                        energies_plus(old_state) ) ) / kinetic_energies(1) ) 
+           DO iparticle = 1, natom
+              jparticle = map_index(iparticle)
+              particles_mix%els(jparticle)%v(:)   = &
+              scalefactor*particles_mix%els(jparticle)%v(:)
+           END DO
+        ENDIF
 
 !> IMPORTANT: store all aom_basket for the future timesteps
         mixed_env%aom_basket=aom_basket

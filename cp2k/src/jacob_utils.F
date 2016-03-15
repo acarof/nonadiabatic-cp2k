@@ -258,7 +258,7 @@ subroutine sitecalc(A, bondslist, atoms, site, F, mat, molno)
 end subroutine sitecalc
 
 !subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, decohere)
-subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, decohere, ext_state)
+subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, decohere, ext_state, is_hop)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -287,6 +287,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
         COMPLEX(KIND=dp) :: cstate
         logical, intent(out) :: decohere
         INTEGER, INTENT(OUT)   :: ext_state
+        LOGICAL, INTENT(OUT)    :: is_hop
 
         mol = size(Stt,1)
 
@@ -449,10 +450,12 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
 !                                write(24,*) i                        
 !PRINT                                print *, "New state: ", i
                                 decohere = .FALSE.
+                                is_hop = .TRUE.
                                 return
                         elseif (i == state) then
 !                                print *, "No surface hop."
                                 ext_state = state
+                                is_hop = .FALSE.
                                 !aom_basket%state = state
 !                                write(24,*) state
 !                                print *, "State: ", state
@@ -675,7 +678,8 @@ subroutine adiabaticity(H, mol, C, E, print)
 
 end subroutine adiabaticity
 
-subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S)
+!subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S)
+subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_forces)
 
         !per our full force expression derivation, this calculates the adiabatic forces
         !on each atom
@@ -702,6 +706,8 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S)
         REAL(KIND=dp), dimension(:,:,:,:), allocatable :: DH, DT, my_DP
         REAL(KIND=dp), dimension(:,:,:), allocatable :: F
         REAL(KIND=dp), dimension(:,:), allocatable :: H, T, nsave, DHtemp
+
+        REAL(KIND=dp), dimension(:,:), allocatable, INTENT(OUT) :: ext_forces
 
         mat = size(Hin,1)
 
@@ -846,6 +852,7 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S)
 !        open(unit=52,file='Fz',action='write')
 !        do i=1,mat
 !                do j=1,atoms
+                         ext_forces(:,(i-1)*mat+j) = F(:,i,j)
 !                        write(50,*) kcal*bohrang*F(1,i,j)
 !                        write(51,*) kcal*bohrang*F(2,i,j)
 !                        write(52,*) kcal*bohrang*F(3,i,j)
@@ -856,6 +863,7 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S)
 !        close(52)
 
         deallocate(H, T, DHtemp, DH, DT, my_DP, F, nsave)
+        deallocate(ext_forces)
                 
 end subroutine forces
 
