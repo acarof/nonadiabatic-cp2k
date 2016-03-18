@@ -451,6 +451,7 @@ CONTAINS
           CPABORT("Error: array 'H2' not allocated correctly.")
           !stop "Error: array 'H2' not allocated correctly."
      end if
+     H2 = 0.0D0
      allocate(H12(mat,mat))
      if (.not. allocated(H12)) then
           CPABORT("Error: array 'H12' not allocated correctly.")
@@ -719,6 +720,7 @@ CONTAINS
 !WRITE          write(12,*) abs(ctotal(1:mat))
                 aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
      end if
+print*, "www", itimes, ctin
 
 !     open(unit=13,file='./hab',action='write')
 !     open(unit=15,file='./habfull',position='append',action='write')
@@ -1002,8 +1004,8 @@ t =2
 !               call sitecalc(At, bonds, atoms, siteenergies(t,i))
                         siteenergies(t,i)   = aom_basket%energies(i) ! CHANGE_AC
                         siteenergies(t+1,i) = energies_plus(i) ! CHANGE_AC
-!print*, energies_plus(i), "koko"
-!print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
+print*, energies_plus(i), "koko"
+print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
 
                !then one timestep ahead: also calculate diagonal forces at this timestep
 !               call sitecalc(Atp, bonds, atoms, siteenergies(t+1,i), F(:,:,i), mol, i)
@@ -1108,6 +1110,7 @@ t =2
                                         H1(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t,k)/kcal), dp)
                                         !H2(orb*(i-1)+d,orb*(k-1)+d) = dcmplx(0.0D0, (-siteenergies(t+1,k)/kcal))
                                         H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t+1,k)/kcal),dp)
+                                    print*, "print", cmplx(0.0D0, (-siteenergies(t+1,k)/kcal),dp)
                                         call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                         Sttp(orb*(i-1)+d,orb*(k-1)+m) = S
@@ -1116,14 +1119,14 @@ t =2
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = S
 !print*, "WAAHAA"
-!print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
+print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                         call calc_dRSab(At, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
                                         &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
                                         &neighbourlist(i,:,:), neighbourlist(k,:,:))
-!print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
+print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                    end do
                               end do
 
@@ -1160,6 +1163,7 @@ t =2
                                         do d=1,orb
                                              H1(orb*(i-1)+d,orb*(k-1)+m) = H1(orb*(k-1)+m,orb*(i-1)+d)
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = H2(orb*(k-1)+m,orb*(i-1)+d)
+                                       print*, "print", H2(orb*(k-1)+m,orb*(i-1)+d)
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = Stt(orb*(k-1)+m,orb*(i-1)+d)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
                                              Stmtm(orb*(i-1)+d,orb*(k-1)+m) = Stmtm(orb*(k-1)+m,orb*(i-1)+d)
@@ -1177,6 +1181,7 @@ t =2
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              ! H2(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, -scaling*S)
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
+                                     print*, "print", cmplx(0.0D0, -scaling*S,dp)
                                              call calc_dRSab(At, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                              &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
@@ -1247,6 +1252,7 @@ t =2
                                    H1(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, 0.0D0,dp)
                                    !H2(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, 0.0D0)
                                    H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, 0.0D0,dp)
+                       print*, "print",  cmplx(0.0D0, 0.0D0,dp)
                                    Stt(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
                                    Sttp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
                                    Stptp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
@@ -1488,8 +1494,7 @@ t =2
 !               end if
 !          end if
 !WRITE          write(18,*) ctin(1:mat)
-!print*, itimes, ctin, "tttt"
-                aom_basket%ctin(1:mat) = ctin(1:mat)
+print*, itimes, ctin, "tttt"
 !print*, itimes, aom_basket%ctin, "tttt"
 
 !          close(unit=24)
@@ -1526,6 +1531,8 @@ t =2
 
 !PREPARE THE PRINT
        !aom_basket%hamiltonian(i,i) = siteenergies(t+1,i)
+       aom_basket%ctin(1:mat) = ctin(1:mat)
+       print*, "AIMAG", AIMAG(H2)
        aom_basket%hamiltonian = AIMAG(H2)
        aom_basket%nacv        = nacv
 

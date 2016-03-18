@@ -1326,15 +1326,19 @@ contains
       !Updating rvecs for pass
 
       do i=1,size(linecol)
-!print*, "minipre", minipre(:,linecol(i))
+print*, "minipre", minipre(:,linecol(i))
            prervecsa(:,linecol(i))=minipre(:,linecol(i))
 
            !print*, (prervecsa(k,linecol(i)), k=1,size(prervecsa,1))         
 
       end do
 
-
-      deallocate(minipre, minicon)
+print*, minipre
+print*, "hey"
+print*, minicon
+     ! SIZE(minipre)
+      deallocate(minipre)
+      deallocate(minicon)
       !Selecting only relevant atoms
 
       xyza=prexyza

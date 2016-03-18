@@ -230,10 +230,11 @@ CONTAINS
 
 !> Get the renewed information from aom_basket
         coefficients = aom_basket%ctin
+print*, coefficients, "mmmm"
         populations  = aom_basket%population
         hamiltonian  = aom_basket%hamiltonian
         nacv         = aom_basket%nacv
-!print*, hamiltonian, "mmmm"
+print*, hamiltonian, "mmmm"
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
         CALL adiab_print_coeff(adiab_section, coefficients, nadiab,norbitals)
@@ -737,7 +738,7 @@ CONTAINS
 !          name = TRIM(atm_name)
          WRITE(unit_nr,TRIM(my_format)//"1X,"//TRIM(my_format2)//"F20.10)") iadiab, iorbitals, &
                            hamiltonian( (iadiab-1)*norbitals + iorbitals,:) 
-!print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
+print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
 !              ENDDO
 !            ENDDO
           ENDDO
@@ -794,6 +795,8 @@ CONTAINS
                    matrix( (iadiab-1)*norbitals + iorbitals, (jadiab-1)*norbitals + jorbitals ) = &
                    coefficients( (iadiab-1)*norbitals + iorbitals)* &
                    CONJG(coefficients( (jadiab-1)*norbitals + jorbitals)) 
+ print*, "hwre", coefficients( (iadiab-1)*norbitals + iorbitals)
+ print*, "here", matrix( (iadiab-1)*norbitals + iorbitals, (jadiab-1)*norbitals + jorbitals ) 
                 ENDDO
              ENDDO
           ENDDO
