@@ -38,18 +38,10 @@
 ! *****************************************************************************
 
 MODULE jacob_classicalpath 
-     USE kinds,                           ONLY: default_string_length,&
-                                               dp
 
-
-     USE jacob_overlapfinal,                 ONLY:  connect_list2, &
-                                             calc_sab, &
-                                             sab_screen_new, &
-                                             calc_dRSab
-                                   
-     USE jacob_utils,                        ONLY: makeX
-
-     USE jacob_types,                     ONLY: aom_basket_type
+     USE jacob_overlapfinal
+        USE jacob_utils
+        USE jacob_types,                     ONLY: aom_basket_type
 
 #include "./base/base_uses.f90"
 
@@ -124,8 +116,7 @@ CONTAINS
      !COMPLEX(KIND=dp) :: alpha, beta, ctcomp, DH11, DH22, DH12
      COMPLEX(KIND=dp) :: alpha, beta, ctcomp
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin, ctout, ctotal
-     !COMPLEX(KIND=dp), dimension(:,:), allocatable :: H1, H2, H12, Hdiff, Hsave, X1, X2, X12, deltaA
-     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H1, H2, H12, Hdiff, Hsave, X1, X2, X12
+     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H1, H2, H12, Hdiff, Hsave, X1, X2, X12, deltaA
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: Ktot, K2, K3, K4
      !REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Atpp, Bt, Btm, Btp, coms, siteenergies, Atal
      REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
@@ -163,11 +154,9 @@ CONTAINS
 !     end if
      !number of molecules
 !     mol = 10
-!> Number of sites
      mol = nadiab ! CHANGE_AC
      !atoms per molecule
 !     atoms = 6
-!> Number of atoms per site
         atoms = ext_atoms ! CHANGE_AC
      !for Classical Path Approximation, this is the number of timesteps in pre-computed trajectory
      !otherwise, 2
@@ -185,26 +174,20 @@ CONTAINS
 !     elementfile = './atomnolist'
      !orbitals per molecule
      !orb = 1
-!> Number of orbitals per atom
      orb = norbitals ! CHANGE_AC
      !name of s-coefficient file
 !     scoefficients = './coeffjhomos'
      !intermolecular cutoff
      !cutoff = 6.0D0
-!> cutoff to define the neighborough list
-!> In angstrom
      cutoff = ext_cutoff ! CHANGE_AC
      !scaling factor, Hab = scaling*Sab
      !scaling = 0.5D0*0.06519D0
-!> Scaling factor Hab = scaling*Sab_bar
      scaling = ext_scaling ! CHANGE_AC
      !starting molecule number
      !init = 1
-!> Starting site number
      init = ext_init ! CHANGE_AC
      !Sab constant factor
      !cbar = 0.5082
-!> cbar factor : Sab = cbar*Sab_bar
      cbar = ext_cbar ! CHANGE_AC
      !minao is an atomic overlap cutoff
      !a value of 1E-17 means all atoms are included
@@ -279,18 +262,15 @@ CONTAINS
 !OPEN     open(unit=17,file=scoefficients,action='read')
 !     open(unit=23,file=bondlistfile,action='read')
      !relatively self-explanatory
-!> Size of the vectorial space where the wavefunctions are projected
      mat = orb*mol
-!> Numbers of active atoms 
      c = mol*atoms
 
     !if (itimes.le.1) then
-!> ALLOCATE aom_basket at timestep = 0
     if (itimes.eq.0) then
        ALLOCATE(aom_basket%population(mat))
        ALLOCATE(aom_basket%ctin(mat))
        ALLOCATE(aom_basket%hamiltonian(mat,mat))
-       ALLOCATE(aom_basket%connlist1(4,atoms))
+       allocate(aom_basket%connlist1(4,atoms))
        ALLOCATE(aom_basket%neighbourlist(mol,3,0:atoms))
        ALLOCATE(aom_basket%Stt(mat,mat))
        ALLOCATE(aom_basket%Stmt(mat,mat))
@@ -306,11 +286,9 @@ CONTAINS
      !calculate timestep from femtoseconds in atomic units
      !molecular timestep is generally 0.5fs to improve energy conservation
 !     deltatMD = (5.0D-16)/(2.4188843265D-17)
-!> Find deltaMD, nuclear timestep, in atomic units
      deltatMD = (ext_timestep*1.0D-15)/(2.4188843265D-17) !CHANGE_AC
      !electronic timestep is a fraction of the molecular timestep
 !     deltatE = deltatMD/5.0D0
-!> Find deltaE, electronic timestep, in atomic units
      deltatE = deltatMD/ext_el_steps !CHANGE_AC
 
      !here are some useful conversion factors
@@ -326,20 +304,21 @@ CONTAINS
      !this option may be useful if you experience inexplicable discontinuities in your electron coefficients
      !offset = 2.433840754D0
 
-!     !deltaA is a diagonal matrix which allows arbitrary free energy difference between diabatic states
-!     allocate(deltaA(mat,mat))     if (.not. allocated(deltaA)) then
-!          CPABORT("Error: array 'deltaA' not allocated correctly.")
-!          !stop "Error: array 'deltaA' not allocated correctly."
-!     end if
-!     do i=1,mat
-!          do j=1,mat
+     !deltaA is a diagonal matrix which allows arbitrary free energy difference between diabatic states
+     allocate(deltaA(mat,mat))
+     if (.not. allocated(deltaA)) then
+          CPABORT("Error: array 'deltaA' not allocated correctly.")
+          !stop "Error: array 'deltaA' not allocated correctly."
+     end if
+     do i=1,mat
+          do j=1,mat
 !               deltaA(i,j) = dcmplx(0.0D0, 0.0D0)
-!               deltaA(i,j) = cmplx(0.0D0, 0.0D0,dp)
-!          end do
-!     end do
-!     !change deltaA(k,k) to add a trap to site k
-!     !e.g. "deltaA(2,2) = dcmplx(0.0D0, 50.0D0/mev)" -> a 50meV 'trap' in orbital 2
-!     !e.g. "deltaA(2,2) = cmplx(0.0D0, 50.0D0/mev,dp)" -> a 50meV 'trap' in orbital 2
+               deltaA(i,j) = cmplx(0.0D0, 0.0D0,dp)
+          end do
+     end do
+     !change deltaA(k,k) to add a trap to site k
+     !e.g. "deltaA(2,2) = dcmplx(0.0D0, 50.0D0/mev)" -> a 50meV 'trap' in orbital 2
+     !e.g. "deltaA(2,2) = cmplx(0.0D0, 50.0D0/mev,dp)" -> a 50meV 'trap' in orbital 2
 
      !ct are the electron coefficients
      !ctin goes into the subroutine ZGEMV; ctout comes out of it (so essentially ctin = c(t), ctout = c(t+1))
@@ -358,6 +337,74 @@ CONTAINS
      if (.not. allocated(ctotal)) then
           CPABORT("Error: array 'ctotal' not allocated correctly.")
           !stop "Error: array 'ctotal' not allocated correctly."
+     end if
+
+     !the stateno file contains a numeric representation of the adiabatic electronic state
+     !open(unit=24,file='./stateno',action='read')
+     !read(24,*) state
+     !close(unit=24)
+        if (itimes.gt.1) then
+           state = aom_basket%state
+        else
+           state = 1
+        endif
+
+     !if the program has been previously called, a bunch of data will have been saved
+
+     if (itimes.ge.3) then
+!          !such as electronic coefficients from last time step
+!          open(unit=12,file='./C.txt',position='append',action='write')
+!          open(unit=18,file='./Cin_temp.txt',action='read')
+!          read(18,*) ctin(1:mat)
+          ctin(:) = aom_basket%ctin(:)
+!          close(unit=18)
+!          !and the overlaps we already calculated
+!          open(unit=21,file='./stt',action='read')
+!          open(unit=26,file='./sttm',action='read')
+!          open(unit=27,file='./stmt',action='read')
+!          open(unit=28,file='./stmtm',action='read')
+     !if not, it may need to be initialised/calculated for the first time
+     else if (itimes.eq.2) then
+!OPEN          open(unit=12,file='./C.txt',action='write')
+          !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
+          do i=1,mat
+               ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
+               ctotal(i) = CMPLX(0.0D0, 0.0D0,dp)
+          end do
+          ctin(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+          ctotal(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+!WRITE          write(12,*) abs(ctotal(1:mat))
+                aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
+     else
+!OPEN          open(unit=12,file='./C.txt',action='write')
+          !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
+          do i=1,mat
+               ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
+               ctotal(i) = CMPLX(0.0D0, 0.0D0,dp)
+          end do
+          ctin(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+          ctotal(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+!WRITE          write(12,*) abs(ctotal(1:mat))
+                aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
+     end if
+
+!     open(unit=13,file='./hab',action='write')
+!     open(unit=15,file='./habfull',position='append',action='write')
+!     open(unit=18,file='./Cin_temp.txt',action='write')
+!     open(unit=24,file='./stateno',action='write')
+!     open(unit=30,file='sites',action='write',position='append')
+!     open(unit=34,file='./forces',action='read')
+
+     !this file is optional but may be useful if you want to get timing data on the program
+     !you will need to insert timing statements into the program and have them write to this file
+     !open(unit=19,file='./timings.txt',position='append',action='write')
+
+     !c tells you how many atoms you will have per timestep
+     !allocate(crds(3,c,times+1))
+     allocate(crds(3,c,3))
+     if (.not. allocated(crds)) then
+          CPABORT("Error: array 'crds' not allocated correctly.")
+          !stop "Error: array 'crds' not allocated correctly."
      end if
 
      !need to allocate these square matrices
@@ -413,16 +460,6 @@ CONTAINS
           !stop "Error: array 'Stptpdiff' not allocated correctly."
      end if
      allocate(Sttpdiff(mat,mat))
-
-
-     !c tells you how many atoms you will have per timestep
-     !allocate(crds(3,c,times+1))
-     allocate(crds(3,c,3))
-     if (.not. allocated(crds)) then
-          CPABORT("Error: array 'crds' not allocated correctly.")
-          !stop "Error: array 'crds' not allocated correctly."
-     end if
-
      if (.not. allocated(Sttpdiff)) then
           CPABORT("Error: array 'Sttpdiff' not allocated correctly.")
           !stop "Error: array 'Sttpdiff' not allocated correctly."
@@ -451,7 +488,6 @@ CONTAINS
           CPABORT("Error: array 'H2' not allocated correctly.")
           !stop "Error: array 'H2' not allocated correctly."
      end if
-     H2 = 0.0D0
      allocate(H12(mat,mat))
      if (.not. allocated(H12)) then
           CPABORT("Error: array 'H12' not allocated correctly.")
@@ -568,178 +604,6 @@ CONTAINS
           !stop "Error: array 'scoeffs' not allocated correctly."
      end if
 
-        ALLOCATE(pcoefftot(c))
-        ALLOCATE(scoefftot(c))
-     allocate(coms(3,mol))
-     allocate(NN(mat,mat))
-     if (.not. allocated(NN)) then
-          CPABORT("Error: array 'NN' not allocated correctly.")
-          !stop "Error: neighbour list not allocated correctly."
-     end if
-     allocate(dist(mol,mol))
-     if (.not. allocated(dist)) then
-          CPABORT("Error: array 'dist' not allocated correctly.")
-          !stop "Error: distance list not allocated correctly."
-     end if
-
-     !allocate the arrays that will contain atomic coordinates for the overlap routine
-     !first column is now atomic number of atom (e.g. 6 for carbon)
-     !Naming convention: At = A(t), Atp = A(t+1), Atm = A(t-1), etc
-     allocate(At(4,atoms))
-     if (.not. allocated(At)) then
-          CPABORT("Error: array 'At' not allocated correctly.")
-          !stop "Error: array 'At' not allocated correctly."
-     end if
-     allocate(Atp(4,atoms))
-     if (.not. allocated(Atp)) then
-          CPABORT("Error: array 'Atp' not allocated correctly.")
-          !stop "Error: array 'Atp' not allocated correctly."
-     end if
-     allocate(Atm(4,atoms))
-     if (.not. allocated(Atm)) then
-          CPABORT("Error: array 'Atm' not allocated correctly.")
-          !stop "Error: array 'Atm' not allocated correctly."
-     end if
-     allocate(Bt(4,atoms))
-     if (.not. allocated(Bt)) then
-          CPABORT("Error: array 'Bt' not allocated correctly.")
-          !stop "Error: array 'Bt' not allocated correctly."
-     end if
-     allocate(Btp(4,atoms))
-     if (.not. allocated(Btp)) then
-          CPABORT("Error: array 'Btp' not allocated correctly.")
-          !stop "Error: array 'Btp' not allocated correctly."
-     end if
-     allocate(Btm(4,atoms))
-     if (.not. allocated(Btm)) then
-          CPABORT("Error: array 'Btm' not allocated correctly.")
-          !stop "Error: array 'Btm' not allocated correctly."
-     end if
-
-     !array of diagonal atomic forces
-!     allocate(F(3,mol*atoms,mol))
-!     if (.not. allocated(F)) then
-!          stop "Error: array 'F' not allocated correctly."
-!     end if
-
-     !print *, "All done!",itimes,715
-     !elements contains the atomic number of each atom (this goes into At, Bt etc)
-     !it is user-defined input
-     allocate(elements(atoms))
-     if (.not. allocated(elements)) then
-          CPABORT("Error: array 'elements' not allocated correctly.")
-          !stop "Error: array 'elements' not allocated correctly."
-     end if
-!OPEN     open(unit=44,file=elementfile,action='read')
-!CHANGE_AC
-     ALLOCATE(elementtot(c))
-     elementtot = PACK(ext_elements, ext_pres)
-!END CHANGE_AC
-        allocate(atomlist_mask(c))
-        allocate(atomlist(COUNT(atomlist_mask(1:atoms))))
-    if (itimes.eq.0) then
-       allocate(aom_basket%connlist2(4,size(atomlist)))
-    endif
-
-     !print *, "All done!",itimes,768
-     !these arrays are data for the non-adiabatic coupling calculation
-     !they help efficiency by telling the program which atoms are connected
-     !and thus which pairs to carry out the calculation for
-     allocate(connlist1(4,atoms))
-     if (.not. allocated(connlist1)) then
-          CPABORT("Error: array 'connlist1' not allocated correctly.")
-          !stop "Error: array 'connlist1' not allocated correctly."
-     end if
-     allocate(connlist2(4,size(atomlist)))
-     if (.not. allocated(connlist2)) then
-          CPABORT("Error: array 'connlist2' not allocated correctly.")
-          !stop "Error: array 'connlist2' not allocated correctly."
-     end if
-     allocate(aneighbour(3,0:atoms))
-     if (.not. allocated(aneighbour)) then
-          CPABORT("Error: array 'aneighbour' not allocated correctly.")
-          !stop "Error: array 'aneighbour' not allocated correctly."
-     end if
-     allocate(bneighbour(3,0:atoms))
-     if (.not. allocated(bneighbour)) then
-          CPABORT("Error: array 'bneighbour' not allocated correctly.")
-          !stop "Error: array 'bneighbour' not allocated correctly."
-     end if
-     allocate(neighbourlist(mol,3,0:atoms))
-     if (.not. allocated(neighbourlist)) then
-          CPABORT("Error: array 'neighbourlist' not allocated correctly.")
-          !stop "Error: array 'neighbourlist' not allocated correctly."
-     end if
-
-
-     !the stateno file contains a numeric representation of the adiabatic electronic state
-     !open(unit=24,file='./stateno',action='read')
-     !read(24,*) state
-     !close(unit=24)
-        if (itimes.gt.1) then
-           state = aom_basket%state
-        else
-           state = 1
-        endif
-
-     !if the program has been previously called, a bunch of data will have been saved
-
-     if (itimes.ge.3) then
-!          !such as electronic coefficients from last time step
-!          open(unit=12,file='./C.txt',position='append',action='write')
-!          open(unit=18,file='./Cin_temp.txt',action='read')
-!          read(18,*) ctin(1:mat)
-          ctin(:) = aom_basket%ctin(:)
-!          close(unit=18)
-!          !and the overlaps we already calculated
-!          open(unit=21,file='./stt',action='read')
-!          open(unit=26,file='./sttm',action='read')
-!          open(unit=27,file='./stmt',action='read')
-!          open(unit=28,file='./stmtm',action='read')
-     !if not, it may need to be initialised/calculated for the first time
-     else if (itimes.eq.2) then
-!OPEN          open(unit=12,file='./C.txt',action='write')
-          !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
-          do i=1,mat
-               ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
-               ctotal(i) = CMPLX(0.0D0, 0.0D0,dp)
-          end do
-          ctin(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-          ctotal(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-!WRITE          write(12,*) abs(ctotal(1:mat))
-                aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
-     else
-!OPEN          open(unit=12,file='./C.txt',action='write')
-          !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
-          do i=1,mat
-               ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
-               ctotal(i) = CMPLX(0.0D0, 0.0D0,dp)
-          end do
-          ctin(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-          ctotal(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-!WRITE          write(12,*) abs(ctotal(1:mat))
-                aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
-     end if
-print*, "www", itimes, ctin
-
-!     open(unit=13,file='./hab',action='write')
-!     open(unit=15,file='./habfull',position='append',action='write')
-!     open(unit=18,file='./Cin_temp.txt',action='write')
-!     open(unit=24,file='./stateno',action='write')
-!     open(unit=30,file='sites',action='write',position='append')
-!     open(unit=34,file='./forces',action='read')
-
-     !this file is optional but may be useful if you want to get timing data on the program
-     !you will need to insert timing statements into the program and have them write to this file
-     !open(unit=19,file='./timings.txt',position='append',action='write')
-
-
-
-
-
-
-
-
 !PRINT     print *, "Reading in coordinates..."
      !read in coordinates
      !this section of code probably needs to be updated depending on coordinate input format
@@ -806,6 +670,8 @@ print*, "www", itimes, ctin
 !CHANGE_AC
 !READ THE COORDINATES
      !now we also read in the atomic coefficients
+        ALLOCATE(pcoefftot(c))
+        ALLOCATE(scoefftot(c))
         pcoefftot = ext_pcoeff
         scoefftot = ext_scoeff
 !        pcoefftot = PACK(ext_pcoeff, ext_pres)
@@ -824,6 +690,7 @@ print*, "www", itimes, ctin
 
      !calculate CoMs at first timestep
      !coms(1 to 3,i) are the x, y and z coordinates of CoM of i
+     allocate(coms(3,mol))
      do i=1,mol
           !initialise CoMs to 0
           do d=1,3
@@ -840,6 +707,16 @@ print*, "www", itimes, ctin
 !print*, coms
      !construct neigbours list: 1 if close enough, 0 if not
 !PRINT     print *, "Constructing nearest neighbours list..."
+     allocate(NN(mat,mat))
+     if (.not. allocated(NN)) then
+          CPABORT("Error: array 'NN' not allocated correctly.")
+          !stop "Error: neighbour list not allocated correctly."
+     end if
+     allocate(dist(mol,mol))
+     if (.not. allocated(dist)) then
+          CPABORT("Error: array 'dist' not allocated correctly.")
+          !stop "Error: distance list not allocated correctly."
+     end if
      do i=1,mol
           do j=1,mol
                dist(i,j) = ((coms(1,i) - coms(1,j))*(coms(1,i) - coms(1,j)) + (coms(2,i) - coms(2,j))*&
@@ -864,11 +741,59 @@ print*, "www", itimes, ctin
 !print*, NN
 !PRINT     print *, "Nearest neighbours found."
 
+     !allocate the arrays that will contain atomic coordinates for the overlap routine
+     !first column is now atomic number of atom (e.g. 6 for carbon)
+     !Naming convention: At = A(t), Atp = A(t+1), Atm = A(t-1), etc
+     allocate(At(4,atoms))
+     if (.not. allocated(At)) then
+          CPABORT("Error: array 'At' not allocated correctly.")
+          !stop "Error: array 'At' not allocated correctly."
+     end if
+     allocate(Atp(4,atoms))
+     if (.not. allocated(Atp)) then
+          CPABORT("Error: array 'Atp' not allocated correctly.")
+          !stop "Error: array 'Atp' not allocated correctly."
+     end if
+     allocate(Atm(4,atoms))
+     if (.not. allocated(Atm)) then
+          CPABORT("Error: array 'Atm' not allocated correctly.")
+          !stop "Error: array 'Atm' not allocated correctly."
+     end if
+     allocate(Bt(4,atoms))
+     if (.not. allocated(Bt)) then
+          CPABORT("Error: array 'Bt' not allocated correctly.")
+          !stop "Error: array 'Bt' not allocated correctly."
+     end if
+     allocate(Btp(4,atoms))
+     if (.not. allocated(Btp)) then
+          CPABORT("Error: array 'Btp' not allocated correctly.")
+          !stop "Error: array 'Btp' not allocated correctly."
+     end if
+     allocate(Btm(4,atoms))
+     if (.not. allocated(Btm)) then
+          CPABORT("Error: array 'Btm' not allocated correctly.")
+          !stop "Error: array 'Btm' not allocated correctly."
+     end if
 
+     !array of diagonal atomic forces
+!     allocate(F(3,mol*atoms,mol))
+!     if (.not. allocated(F)) then
+!          stop "Error: array 'F' not allocated correctly."
+!     end if
 
-
-
-
+     !print *, "All done!",itimes,715
+     !elements contains the atomic number of each atom (this goes into At, Bt etc)
+     !it is user-defined input
+     allocate(elements(atoms))
+     if (.not. allocated(elements)) then
+          CPABORT("Error: array 'elements' not allocated correctly.")
+          !stop "Error: array 'elements' not allocated correctly."
+     end if
+!OPEN     open(unit=44,file=elementfile,action='read')
+!CHANGE_AC
+     ALLOCATE(elementtot(c))
+     elementtot = PACK(ext_elements, ext_pres)
+!END CHANGE_AC
      do i=1,atoms
                 elements(i) = elementtot(i)
 !          read(44,*) elements(i)
@@ -893,8 +818,13 @@ print*, "www", itimes, ctin
 !     close(36)
 
 !CHANGE_AC
-        atomlist = PACK( (/ (i, i=1,atoms) /), atomlist_mask(1:atoms) )
+        allocate(atomlist_mask(c))
         atomlist_mask =.NOT.((scoefftot.eq.0).AND.(pcoefftot.eq.0))
+        allocate(atomlist(COUNT(atomlist_mask(1:atoms))))
+        atomlist = PACK( (/ (i, i=1,atoms) /), atomlist_mask(1:atoms) )
+    if (itimes.eq.0) then
+       allocate(aom_basket%connlist2(4,size(atomlist)))
+    endif
 !END CHANGE_AC
         
 
@@ -908,8 +838,35 @@ print*, "www", itimes, ctin
 !     end do
 !     close(36)
 
-
-
+     !print *, "All done!",itimes,768
+     !these arrays are data for the non-adiabatic coupling calculation
+     !they help efficiency by telling the program which atoms are connected
+     !and thus which pairs to carry out the calculation for
+     allocate(connlist1(4,atoms))
+     if (.not. allocated(connlist1)) then
+          CPABORT("Error: array 'connlist1' not allocated correctly.")
+          !stop "Error: array 'connlist1' not allocated correctly."
+     end if
+     allocate(connlist2(4,size(atomlist)))
+     if (.not. allocated(connlist2)) then
+          CPABORT("Error: array 'connlist2' not allocated correctly.")
+          !stop "Error: array 'connlist2' not allocated correctly."
+     end if
+     allocate(aneighbour(3,0:atoms))
+     if (.not. allocated(aneighbour)) then
+          CPABORT("Error: array 'aneighbour' not allocated correctly.")
+          !stop "Error: array 'aneighbour' not allocated correctly."
+     end if
+     allocate(bneighbour(3,0:atoms))
+     if (.not. allocated(bneighbour)) then
+          CPABORT("Error: array 'bneighbour' not allocated correctly.")
+          !stop "Error: array 'bneighbour' not allocated correctly."
+     end if
+     allocate(neighbourlist(mol,3,0:atoms))
+     if (.not. allocated(neighbourlist)) then
+          CPABORT("Error: array 'neighbourlist' not allocated correctly.")
+          !stop "Error: array 'neighbourlist' not allocated correctly."
+     end if
      !we fill out the connlist arrays before calculating the nacv
      do i=1,atoms
           do j=1,3
@@ -1004,8 +961,8 @@ t =2
 !               call sitecalc(At, bonds, atoms, siteenergies(t,i))
                         siteenergies(t,i)   = aom_basket%energies(i) ! CHANGE_AC
                         siteenergies(t+1,i) = energies_plus(i) ! CHANGE_AC
-print*, energies_plus(i), "koko"
-print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
+!print*, energies_plus(i), "koko"
+!print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
 
                !then one timestep ahead: also calculate diagonal forces at this timestep
 !               call sitecalc(Atp, bonds, atoms, siteenergies(t+1,i), F(:,:,i), mol, i)
@@ -1110,7 +1067,6 @@ print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
                                         H1(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t,k)/kcal), dp)
                                         !H2(orb*(i-1)+d,orb*(k-1)+d) = dcmplx(0.0D0, (-siteenergies(t+1,k)/kcal))
                                         H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t+1,k)/kcal),dp)
-                                    print*, "print", cmplx(0.0D0, (-siteenergies(t+1,k)/kcal),dp)
                                         call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                         Sttp(orb*(i-1)+d,orb*(k-1)+m) = S
@@ -1119,14 +1075,14 @@ print*, siteenergies(t,i), siteenergies(t+1,i), "koko"
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = S
 !print*, "WAAHAA"
-print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
+!print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                         call calc_dRSab(At, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
                                         &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
                                         &neighbourlist(i,:,:), neighbourlist(k,:,:))
-print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
+!print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                    end do
                               end do
 
@@ -1163,7 +1119,6 @@ print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                         do d=1,orb
                                              H1(orb*(i-1)+d,orb*(k-1)+m) = H1(orb*(k-1)+m,orb*(i-1)+d)
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = H2(orb*(k-1)+m,orb*(i-1)+d)
-                                       print*, "print", H2(orb*(k-1)+m,orb*(i-1)+d)
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = Stt(orb*(k-1)+m,orb*(i-1)+d)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
                                              Stmtm(orb*(i-1)+d,orb*(k-1)+m) = Stmtm(orb*(k-1)+m,orb*(i-1)+d)
@@ -1181,7 +1136,6 @@ print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              ! H2(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, -scaling*S)
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
-                                     print*, "print", cmplx(0.0D0, -scaling*S,dp)
                                              call calc_dRSab(At, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                              &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
@@ -1252,7 +1206,6 @@ print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                    H1(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, 0.0D0,dp)
                                    !H2(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, 0.0D0)
                                    H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, 0.0D0,dp)
-                       print*, "print",  cmplx(0.0D0, 0.0D0,dp)
                                    Stt(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
                                    Sttp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
                                    Stptp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
@@ -1494,7 +1447,8 @@ print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
 !               end if
 !          end if
 !WRITE          write(18,*) ctin(1:mat)
-print*, itimes, ctin, "tttt"
+!print*, itimes, ctin, "tttt"
+                aom_basket%ctin(1:mat) = ctin(1:mat)
 !print*, itimes, aom_basket%ctin, "tttt"
 
 !          close(unit=24)
@@ -1531,8 +1485,6 @@ print*, itimes, ctin, "tttt"
 
 !PREPARE THE PRINT
        !aom_basket%hamiltonian(i,i) = siteenergies(t+1,i)
-       aom_basket%ctin(1:mat) = ctin(1:mat)
-       print*, "AIMAG", AIMAG(H2)
        aom_basket%hamiltonian = AIMAG(H2)
        aom_basket%nacv        = nacv
 
