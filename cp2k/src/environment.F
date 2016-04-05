@@ -210,6 +210,7 @@ CONTAINS
             ADJUSTR(TRIM(input_file_name))
        CALL m_flush_internal(my_output_unit)
     END IF
+print*, "here here"
 
   END SUBROUTINE cp2k_init
 
@@ -374,6 +375,7 @@ CONTAINS
     logger%iter_info%project_name=c_val
     CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",i_val=logger%iter_info%print_level)
 
+print*, "here here here here"
     !   *** Read the CP2K section ***
     CALL read_cp2k_section(root_section,para_env,globenv)
 
@@ -510,6 +512,8 @@ CONTAINS
                                                 subsys_section
 
     NULLIFY(dft_section,global_section, i_force_eval)
+
+print*, "here"
 
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL")
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout)
@@ -817,6 +821,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: global_section
 
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL")
+print*, "here here here"
     CALL read_global_section(root_section,para_env,globenv)
     logger => cp_get_default_logger()
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&

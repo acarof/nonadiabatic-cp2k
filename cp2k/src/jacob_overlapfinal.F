@@ -1326,16 +1326,16 @@ contains
       !Updating rvecs for pass
 
       do i=1,size(linecol)
-print*, "minipre", minipre(:,linecol(i))
+!print*, "minipre", minipre(:,linecol(i))
            prervecsa(:,linecol(i))=minipre(:,linecol(i))
 
            !print*, (prervecsa(k,linecol(i)), k=1,size(prervecsa,1))         
 
       end do
 
-print*, minipre
-print*, "hey"
-print*, minicon
+!print*, minipre
+!print*, "hey"
+!print*, minicon
      ! SIZE(minipre)
       deallocate(minipre)
       deallocate(minicon)
@@ -1582,7 +1582,8 @@ print*, minicon
 
       subroutine calc_dRSab(xyza, atomlista, connlistal, coeffap, coeffas, &
 &                       nacva, nacvb, xyzb, atomlistb, connlistbl, coeffbp, coeffbs, &
-&                       aneighbour, bneighbour)
+!&                       aneighbour, bneighbour)
+&                       aneighbour, bneighbour, dR)
 
 !     The aim of this subroutine is to calculate the non adiabatic coupling vector 
 !     using a 2 point scheme of numerical derivation (f(R+dR)-f(R))/dR. 3-point scheme
@@ -1604,6 +1605,7 @@ print*, minicon
       integer, dimension(:,:), intent(in) ::  aneighbour
       integer, dimension(:,:), intent(in) ::  bneighbour
 
+      REAL(KIND=dp), INTENT(IN) :: dR
 
       REAL(KIND=dp), dimension(:,:), allocatable ::   sarrayn, sarrayo
       REAL(KIND=dp), dimension(:,:), allocatable ::   sarrayndr, sarrayodr
@@ -1612,7 +1614,7 @@ print*, minicon
       integer, dimension(5) :: dummylinecol 
       integer, dimension(:), allocatable :: linecol
  
-      REAL(KIND=dp) :: dR
+      !REAL(KIND=dp) :: dR
       !REAL(KIND=dp) :: dR, start, finish
       REAL(KIND=dp), dimension(:,:), allocatable :: xyzadr, xyzbdr
       !REAL(KIND=dp) :: sabRDRR, sabRR, sabRRDR  
@@ -1668,7 +1670,7 @@ print*, minicon
       rvecsb=0.0d0
 
 
-      dR=0.0001D0*1.889725989D0 ! in  Bohr
+!      dR=0.0001D0*1.889725989D0 ! in  Bohr
 
 !     Initialising the atomic overlap matrices
 

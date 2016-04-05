@@ -71,6 +71,7 @@ IMPLICIT NONE
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: hamiltonian
 !> To print the NACVs
      REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER          :: nacv
+     LOGICAL                                             :: futur_decohere
    END TYPE aom_basket_type
 
    PUBLIC :: aom_basket_type

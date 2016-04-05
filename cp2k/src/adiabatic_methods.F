@@ -226,7 +226,7 @@ CONTAINS
         ALLOCATE(coefficients(norbitals*nadiab))
         ALLOCATE(populations(norbitals*nadiab))
         ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
-        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,2*norbitals*nadiab*ext_atoms))
+        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*ext_atoms))
 
 !> Get the renewed information from aom_basket
         coefficients = aom_basket%ctin
@@ -316,6 +316,7 @@ print*, hamiltonian, "mmmm"
     REAL(KIND=dp)                            :: ext_timestep
     REAL(kind=dp)                            :: ext_cbar, ext_minao
     REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions_plus
+    REAL(kind=dp), DIMENSION(:,:),POINTER    :: forces_adiab
     REAL(kind=dp)                            :: factor
     TYPE(section_vals_type), POINTER         :: coupling_section
     CHARACTER(LEN=default_string_length)     :: coupling_keyword
@@ -333,9 +334,13 @@ print*, hamiltonian, "mmmm"
     INTEGER                                  :: old_state, new_state
     REAL(KIND=dp)                            :: scalefactor
     LOGICAL                                  :: is_hop
+    LOGICAL                                  :: shortcut
+    CHARACTER(LEN=default_string_length)     :: rescale_keyword
+    REAL(kind=dp)                            :: ext_dR
 
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_plus(natom,3))
+    ALLOCATE(forces_adiab(natom,3))
     factor = 1
 !> Save the previous state
     old_state = aom_basket%state
@@ -381,6 +386,10 @@ print*, hamiltonian, "mmmm"
         CALL read_listcoeff(listcoeff, ext_elements, ext_pres, & 
                             ext_scoeff, ext_pcoeff, natom)
         CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
+        CALL section_vals_val_get(coupling_section,"SHORTCUT", l_val=shortcut)
+        CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
+        CALL section_vals_val_get(coupling_section,"NACV_INCREMENT",&
+             r_val=ext_dR)
     itimes => my_itimes
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH(nadiab=nadiab, &
@@ -394,13 +403,16 @@ print*, hamiltonian, "mmmm"
              aom_basket = aom_basket, ext_elements=ext_elements, &
              ext_pres = ext_pres, ext_scoeff=ext_scoeff, &
              ext_pcoeff=ext_pcoeff, itimes=itimes, &
-             collapse = collapse, is_hop=is_hop)
+             collapse = collapse, is_hop=is_hop,   &
+             shortcut = shortcut, rescale_keyword = rescale_keyword, &
+             ext_dR = ext_dR, forces_adiab = forces_adiab, &
+             global_forces = global_forces)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
         ALLOCATE(coefficients(norbitals*nadiab))
         ALLOCATE(populations(norbitals*nadiab))
         ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
-        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,2*norbitals*nadiab*ext_atoms))
+        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*ext_atoms))
 
 !> Get the renewed information from aom_basket
         coefficients = aom_basket%ctin
@@ -447,7 +459,7 @@ print*, hamiltonian, "mmmm"
 !> IMPORTANT : GIVE BACK THE FORCES TO FIST
     DO iparticle = 1, natom
       jparticle = map_index(iparticle)
-      particles_mix%els(jparticle)%f(:)= global_forces(1)%forces(:,iparticle)
+      particles_mix%els(jparticle)%f(:)= forces_adiab(:,iparticle)
     END DO
 
 
@@ -611,7 +623,7 @@ print*, hamiltonian, "mmmm"
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
-
+print*, "here"
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%COEFFICIENTS",&
                extension=".xyz", middle_name="coeff", log_filename=.FALSE.)
    
@@ -835,13 +847,13 @@ print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-    INTEGER                                  :: iatom
-    INTEGER                                  :: iadiab, iorbitals
-    INTEGER                                  :: jadiab, jorbitals
-    CHARACTER(LEN=default_string_length)     ::  my_format
+    !INTEGER                                  :: iatom
+    !INTEGER                                  :: iadiab, iorbitals
+    !INTEGER                                  :: jadiab, jorbitals
+    !CHARACTER(LEN=default_string_length)     ::  my_format
     TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL                                  :: new_file
-
+    INTEGER                                  :: i,j,k
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -853,24 +865,33 @@ print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
 
     IF (unit_nr>0) THEN
 
-       WRITE ( unit_nr, "(2I8)" ) ext_atoms, nadiab, norbitals
-       WRITE ( unit_nr, '(A)' ) 'Atoms, Adiab., Orb.,NACV'
+        DO i=1,nadiab*norbitals*ext_atoms
+           DO j=1,3
+              WRITE( unit_nr, *) "Atom = ",i,"Dimension = ", j
+              DO k=1,norbitals*nadiab
+                 WRITE( unit_nr, *) nacv(j, k, 1:(norbitals*nadiab), i)
+              ENDDO
+           ENDDO
+        ENDDO
+           
+!       WRITE ( unit_nr, "(2I8)" ) ext_atoms, nadiab, norbitals
+!       WRITE ( unit_nr, '(A)' ) 'Atoms, Adiab., Orb.,NACV'
 
-       DO iatom=1,ext_atoms
-          DO iadiab=1, nadiab
-             DO iorbitals=1,norbitals
-                DO jadiab=1, nadiab
-                   DO jorbitals=1, norbitals
-                      my_format="(I4,1X,I4,1X,I4,1X,I4,1X,I4,1X,3F20.10)"
-                      WRITE(unit_nr,TRIM(my_format)) &
-                             iatom, iadiab, iorbitals, jadiab, jorbitals,   &
-                             nacv(:, (iadiab-1)*norbitals+iorbitals,        & 
-                             (jadiab-1)*norbitals+jorbitals, iatom)
-                   ENDDO
-                ENDDO 
-             ENDDO
-          ENDDO
-       ENDDO
+!       DO iatom=1,ext_atoms
+!          DO iadiab=1, nadiab
+!             DO iorbitals=1,norbitals
+!                DO jadiab=1, nadiab
+!                   DO jorbitals=1, norbitals
+!                      my_format="(I4,1X,I4,1X,I4,1X,I4,1X,I4,1X,3F20.10)"
+!                      WRITE(unit_nr,TRIM(my_format)) &
+!                             iatom, iadiab, iorbitals, jadiab, jorbitals,   &
+!                             nacv(:, (iadiab-1)*norbitals+iorbitals,        & 
+!                             (jadiab-1)*norbitals+jorbitals, iatom)
+!                   ENDDO
+!                ENDDO 
+!             ENDDO
+!          ENDDO
+!       ENDDO
 
     END IF
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")

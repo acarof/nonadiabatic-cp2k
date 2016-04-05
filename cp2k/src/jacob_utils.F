@@ -679,7 +679,8 @@ subroutine adiabaticity(H, mol, C, E, print)
 end subroutine adiabaticity
 
 !subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S)
-subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_forces)
+!subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_forces)
+subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_adiab, shortcut, ext_pres)
 
         !per our full force expression derivation, this calculates the adiabatic forces
         !on each atom
@@ -694,8 +695,9 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_for
 !                end subroutine calcTDT
 !        end interface        
 
-        !integer :: i, j, k, m, n, mat, d
         integer :: i, j, k, m, mat, d
+        !integer :: i, j, k, m, n, mat, d
+!        integer :: i, j, k, m, mat, d
         integer, intent(in) :: state, atoms
         integer, intent(in), dimension(:,:) :: NN
         REAL(KIND=dp) :: bohrang, kcal
@@ -704,11 +706,17 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_for
         REAL(KIND=dp), intent(in), dimension(:,:,:) :: Fin
         REAL(KIND=dp), intent(in), dimension(:,:,:,:) :: nacv
         REAL(KIND=dp), dimension(:,:,:,:), allocatable :: DH, DT, my_DP
-        REAL(KIND=dp), dimension(:,:,:), allocatable :: F
+        !REAL(KIND=dp), dimension(:,:,:), allocatable :: F
+        REAL(KIND=dp), dimension(:,:), allocatable :: F
         REAL(KIND=dp), dimension(:,:), allocatable :: H, T, nsave, DHtemp
 
-        REAL(KIND=dp), dimension(:,:), allocatable, INTENT(OUT) :: ext_forces
+        REAL(KIND=dp), dimension(:,:), POINTER                  :: forces_adiab
+        LOGICAL, INTENT(IN)                                     :: shortcut
+        INTEGER                                                 :: natom
+        LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
+        INTEGER                                                 :: aom_iatom, iatom
 
+        natom = SIZE(F,2)
         mat = size(Hin,1)
 
         !1 Angstrom = bohrang Bohr
@@ -717,49 +725,48 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_for
         kcal = 627.509D0
 
         allocate(H(mat,mat))
-        if (.not. allocated(H)) then
-                CPABORT("Error: array 'H' not allocated correctly.")
-                !stop "Error: array 'H' not allocated correctly."
-        end if
+        if (.not. allocated(H)) CPABORT("Error: array 'H' not allocated correctly.")
         allocate(T(mat,mat))
-        if (.not. allocated(T)) then
-                !stop "Error: array 'T' not allocated correctly."
-                CPABORT("Error: array 'T' not allocated correctly.")
-        end if
+        if (.not. allocated(T)) CPABORT("Error: array 'T' not allocated correctly.")
         allocate(DHtemp(mat,mat))
-        if (.not. allocated(DHtemp)) then
-                !stop "Error: array 'DHtemp' not allocated correctly."
-                CPABORT("Error: array 'DHtemp' not allocated correctly.")
-        end if
-        allocate(DH(mat,mat,mat*atoms,3))
-        if (.not. allocated(DH)) then
-                !stop "Error: array 'DH' not allocated correctly."
-                CPABORT("Error: array 'DH' not allocated correctly.")
-        end if
+        if (.not. allocated(DHtemp)) CPABORT("Error: array 'DHtemp' not allocated correctly.")
+        !allocate(DH(mat,mat,mat*atoms,3))
+        allocate(DH(mat,mat,natom,3))
+        if (.not. allocated(DH)) CPABORT("Error: array 'DH' not allocated correctly.")
         allocate(DT(mat,mat,mat*atoms,3))
-        if (.not. allocated(DT)) then
-                !stop "Error: array 'DT' not allocated correctly."
-                CPABORT("Error: array 'DT' not allocated correctly.")
-        end if
-        allocate(my_DP(mat,mat,2*mat*atoms,3))
-        if (.not. allocated(my_DP)) then
-                !stop "Error: array 'my_DP' not allocated correctly."
-                CPABORT("Error: array 'my_DP' not allocated correctly.")
-        end if
-        allocate(F(3,mat,atoms))
-        if (.not. allocated(F)) then
-                !stop "Error: array 'F' not allocated correctly."
-                CPABORT("Error: array 'F' not allocated correctly.")
-        end if
-        allocate(nsave(mat*atoms,3))
-        if (.not. allocated(nsave)) then
-                !stop "Error: array 'nsave' not allocated correctly."
-                CPABORT("Error: array 'nsave' not allocated correctly.")
-        end if
+        if (.not. allocated(DT)) CPABORT("Error: array 'DT' not allocated correctly.")
+        !allocate(my_DP(mat,mat,2*mat*atoms,3))
+        !allocate(my_DP(mat,mat,mat*atoms,3)) CPABORT("Error: array 'my_DP' not allocated correctly.")
+        allocate(my_DP(mat,mat,natom,3)) 
+        if (.not. allocated(my_DP)) CPABORT("Error: array 'my_DP' not allocated correctly.")
+        !allocate(F(3,mat,atoms))
+        !allocate(F(3,mat,natom))
+        allocate(F(3,natom))
+        if (.not. allocated(F)) CPABORT("Error: array 'F' not allocated correctly.")
+        !allocate(nsave(mat*atoms,3))
+        allocate(nsave(natom,3))
+        if (.not. allocated(nsave)) CPABORT("Error: array 'nsave' not allocated correctly.")
 
+!        do d=1,3
+!                my_DP(:,:,:,d) = nacv(d,:,:,:)
+!        end do
+        aom_iatom = 1
         do d=1,3
-                my_DP(:,:,:,d) = nacv(d,:,:,:)
-        end do
+           do i=1,mat
+              do j=1, mat
+                 do iatom=1, natom
+                    if (ext_pres(iatom)) then
+                       my_DP(i,j,iatom,d) = nacv(d,i,j,aom_iatom)
+                       aom_iatom = aom_iatom +1
+                    else 
+                       my_DP(i,j,iatom,d) = 0.0D0
+                    endif
+                 enddo
+              enddo
+           enddo
+        enddo
+        CPASSERT(aom_iatom.EQ.SIZE(nacv,4))
+
         do i=1,mat
                 do j=1,mat
                         if (j > i) then
@@ -773,7 +780,8 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_for
         !i is over each site
         do i=1,mat
                 do j=1,mat
-                        do k=1,mat*atoms
+!                        do k=1,mat*atoms
+                        do k=1, natom
                                 do d=1,3
                                         if (NN(i,j) == 1) then
                                                 if (i == j) then
@@ -792,18 +800,23 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_for
         !You can calculate the forces with a "shortcut formula"
         !This should take advantage of the sparsity of H for large systems
 
+!if (shortcut) then
         !begin shortcut formula 
 
         !conjugates and realpart commands have been omitted, as everything should be real
         !remember to change this if it ever becomes not the case!
-        do i=1,mat
-                do j=1,atoms
-                        do d=1,3
-                                F(d,i,j) = 0.0D0
+        do d=1,3
+                do j=1,natom
+                   F(d,j) = 0.0D0
+                         do i=1,mat
+                !do j=1,atoms
+                                !F(d,i,j) = 0.0D0
                                 do m=1,mat
-                                        F(d,i,j) = F(d,i,j) + (abs(C(m,state))**2)*DH(m,m,(i-1)*atoms+j,d)
+                                        !F(d,i,j) = F(d,i,j) + (abs(C(m,state))**2)*DH(m,m,(i-1)*atoms+j,d)
+                                        F(d,j) = F(d,j) + (abs(C(m,state))**2)*DH(m,m,j,d)
                                         if (i .ne. m) then
-                                                F(d,i,j) = F(d,i,j) + 2.0D0*((C(i,state))*DH(m,i,(i-1)*atoms+j,d)*C(m,state))
+                                                !F(d,i,j) = F(d,i,j) + 2.0D0*((C(i,state))*DH(m,i,(i-1)*atoms+j,d)*C(m,state))
+                                                F(d,j) = F(d,j) + 2.0D0*((C(i,state))*DH(m,i,j,d)*C(m,state))
                                         end if
                                                 !These terms are here for 'historical interest'
                                                 !We have shown that they should come out as exactly 0.
@@ -816,6 +829,7 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_for
                 end do
         end do
 
+!else
         !end shortcut formula
 
         !Alternatively you can just directly multiply the matrices, which works fine for small systems
@@ -823,47 +837,47 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_for
 
         !begin matrix multiplication
 
-        !do i=1,mat
-        !        do j=1,atoms
-        !                do d=1,3
-        !                        do m=1,mat
-        !                                do n=1,mat
-        !                                        DHtemp(m,n) = DH(m,n,(i-1)*atoms+j,d)
-        !                                end do
-        !                        end do
-        !                        if (i == 1 .and. j == 1 .and. d == 1) then
-        !                                print *, "DH", DHtemp
-        !                        end if
-        !                        DHtemp = matmul(DHtemp,C)
-        !                        DHtemp = matmul(transpose(C),DHtemp)
-        !                        F(d,i,j) = DHtemp(state,state)
-        !                        if (i == 1 .and. j == 1 .and. d == 1) then
-        !                                print *, "DH", DHtemp
-        !                        end if
-        !                end do
-        !        end do
-        !end do
-        
+!        do i=1,mat
+!                do j=1,atoms
+!                        do d=1,3
+!                                do m=1,mat
+!                                        do n=1,mat
+!                                                DHtemp(m,n) = DH(m,n,(i-1)*atoms+j,d)
+!                                        end do
+!                                end do
+!                                if (i == 1 .and. j == 1 .and. d == 1) then
+!                                        print *, "DH", DHtemp
+!                                end if
+!                                DHtemp = matmul(DHtemp,C)
+!                                DHtemp = matmul(transpose(C),DHtemp)
+!                                F(d,i,j) = DHtemp(state,state)
+!                                if (i == 1 .and. j == 1 .and. d == 1) then
+!                                        print *, "DH", DHtemp
+!                                end if
+!                        end do
+!                end do
+!        end do
+!endif        
         !end matrix multiplication        
         
         !Remember to re-add force conversion
 !        open(unit=50,file='Fx',action='write')
 !        open(unit=51,file='Fy',action='write')
 !        open(unit=52,file='Fz',action='write')
-!        do i=1,mat
-!                do j=1,atoms
-                         ext_forces(:,(i-1)*mat+j) = F(:,i,j)
+        forces_adiab = F
+        !do i=1,mat
+        !        do j=1,natom
 !                        write(50,*) kcal*bohrang*F(1,i,j)
 !                        write(51,*) kcal*bohrang*F(2,i,j)
 !                        write(52,*) kcal*bohrang*F(3,i,j)
-!                end do
-!        end do
+        !        end do
+        !end do
 !        close(50)
 !        close(51)
 !        close(52)
 
         deallocate(H, T, DHtemp, DH, DT, my_DP, F, nsave)
-        deallocate(ext_forces)
+        !deallocat(ext_forces)
                 
 end subroutine forces
 

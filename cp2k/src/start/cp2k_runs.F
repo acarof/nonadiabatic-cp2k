@@ -241,7 +241,9 @@ CONTAINS
        ! XXXXXXXXX
        CALL section_vals_retain(input_file)
        CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)
+print*, "test"
        CALL cp2k_read(root_section,para_env,globenv)
+print*, "test test"
        CALL cp2k_setup(root_section,para_env, globenv)
     END IF
 

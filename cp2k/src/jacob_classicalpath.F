@@ -38,10 +38,24 @@
 ! *****************************************************************************
 
 MODULE jacob_classicalpath 
+ 
+     USE  kinds,                           ONLY: default_string_length,&
+                                               dp
 
-     USE jacob_overlapfinal
-        USE jacob_utils
-        USE jacob_types,                     ONLY: aom_basket_type
+
+     USE jacob_overlapfinal,                 ONLY:  connect_list2, &
+                                             calc_sab, &
+                                             sab_screen_new, &
+                                             calc_dRSab
+
+     USE jacob_utils,                        ONLY: makeX
+
+     USE jacob_types,                     ONLY: aom_basket_type
+
+     !USE jacob_types,                     ONLY: aom_basket_type
+
+     !   USE jacob_utils
+     !   USE jacob_types,                     ONLY: aom_basket_type
 
 #include "./base/base_uses.f90"
 
@@ -116,7 +130,8 @@ CONTAINS
      !COMPLEX(KIND=dp) :: alpha, beta, ctcomp, DH11, DH22, DH12
      COMPLEX(KIND=dp) :: alpha, beta, ctcomp
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin, ctout, ctotal
-     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H1, H2, H12, Hdiff, Hsave, X1, X2, X12, deltaA
+     !COMPLEX(KIND=dp), dimension(:,:), allocatable :: H1, H2, H12, Hdiff, Hsave, X1, X2, X12, deltaA
+     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H1, H2, H12, Hdiff, Hsave, X1, X2, X12, deltaA, H2save
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: Ktot, K2, K3, K4
      !REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Atpp, Bt, Btm, Btp, coms, siteenergies, Atal
      REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
@@ -127,6 +142,7 @@ CONTAINS
      LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask
 !     INTEGER                            :: my_itimes
 
+     REAL(KIND=dp)                      :: dR
 
 !print*, energies_plus(:), "kkkk"
 
@@ -193,6 +209,10 @@ CONTAINS
      !a value of 1E-17 means all atoms are included
      !minao = 1.0D-17
      minao = ext_minao ! CHANGE_AC
+
+!> dR is the finite difference to calculate the NACV
+     dR = 0.0001D0*1.889725989D0
+
 
      !With surface-hopping, the program needs information about where in the simulation it is
      !i.e. if this is the first timestep, or if certain once-in-a-while actions need to be done
@@ -483,6 +503,7 @@ CONTAINS
           CPABORT("Error: array 'H1' not allocated correctly.")
           !stop "Error: array 'H1' not allocated correctly."
      end if
+     allocate(H2save(mat,mat))
      allocate(H2(mat,mat))
      if (.not. allocated(H2)) then
           CPABORT("Error: array 'H2' not allocated correctly.")
@@ -573,7 +594,8 @@ CONTAINS
 !     end do
 
      !non-adiabatic coupling vectors
-     allocate(nacv(3,mat,mat,2*mat*atoms))
+     !allocate(nacv(3,mat,mat,2*mat*atoms))
+     allocate(nacv(3,mat,mat,mat*atoms))
      if (.not. allocated(nacv))then
           CPABORT("Error: array 'nacv' not allocated correctly.")
           !stop "Error: array 'nacv' not allocated correctly."
@@ -852,17 +874,20 @@ CONTAINS
           CPABORT("Error: array 'connlist2' not allocated correctly.")
           !stop "Error: array 'connlist2' not allocated correctly."
      end if
-     allocate(aneighbour(3,0:atoms))
+     !allocate(aneighbour(3,0:atoms))
+     allocate(aneighbour(4,0:atoms))
      if (.not. allocated(aneighbour)) then
           CPABORT("Error: array 'aneighbour' not allocated correctly.")
           !stop "Error: array 'aneighbour' not allocated correctly."
      end if
-     allocate(bneighbour(3,0:atoms))
+     !allocate(bneighbour(3,0:atoms))
+     allocate(bneighbour(4,0:atoms))
      if (.not. allocated(bneighbour)) then
           CPABORT("Error: array 'bneighbour' not allocated correctly.")
           !stop "Error: array 'bneighbour' not allocated correctly."
      end if
-     allocate(neighbourlist(mol,3,0:atoms))
+     !allocate(neighbourlist(mol,3,0:atoms))
+     allocate(neighbourlist(mol,4,0:atoms))
      if (.not. allocated(neighbourlist)) then
           CPABORT("Error: array 'neighbourlist' not allocated correctly.")
           !stop "Error: array 'neighbourlist' not allocated correctly."
@@ -1081,7 +1106,8 @@ t =2
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
                                         &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
-                                        &neighbourlist(i,:,:), neighbourlist(k,:,:))
+                                        !&neighbourlist(i,:,:), neighbourlist(k,:,:))
+                                        &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
 !print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
                                    end do
                               end do
@@ -1122,10 +1148,10 @@ t =2
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = Stt(orb*(k-1)+m,orb*(i-1)+d)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
                                              Stmtm(orb*(i-1)+d,orb*(k-1)+m) = Stmtm(orb*(k-1)+m,orb*(i-1)+d)
-                                             nacv(:,i,k,1:atoms) = nacv(:,k,i,atoms+1:2*atoms)
-                                             nacv(:,i,k,1:atoms) = 0.0D0
-                                             nacv(:,i,k,atoms+1:2*atoms) = nacv(:,k,i,1:atoms)
-                                             nacv(:,i,k,atoms+1:2*atoms) = 0.0D0
+                                             !nacv(:,i,k,1:atoms) = nacv(:,k,i,atoms+1:2*atoms)
+                                             !nacv(:,i,k,1:atoms) = 0.0D0
+                                             !nacv(:,i,k,atoms+1:2*atoms) = nacv(:,k,i,1:atoms)
+                                             !nacv(:,i,k,atoms+1:2*atoms) = 0.0D0
                                         end do
                                    end do
                               else
@@ -1141,7 +1167,8 @@ t =2
                                              &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
                                              &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:2*(i-1)*atoms), &
                                              &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
-                                             &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:))
+                                             !&scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:))
+                                             &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                         end do
                                    end do
 
@@ -1284,6 +1311,7 @@ t =2
                Stptpdiff = Sttdiff
                Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
                Hsave = H1
+               H2save=H2
 !PRINT               print *, "Propagating the electron for one molecular timestep..."
                do t2=1,int(deltatMD/deltatE)
 
@@ -1395,11 +1423,11 @@ t =2
                     do i=1,mat
                          ctotal(i) = conjg(ctout(i))*ctout(i)
                     end do
-                    if (t2 == int(deltatMD/deltatE)) then
+                    !if (t2 == int(deltatMD/deltatE)) then
 !WRITE                         write(12,*) abs(ctotal(1:mat))
                                         aom_basket%population(1:mat) =&
                                             abs(ctotal(1:mat)) 
-                    end if
+                    !end if
                     !update
                     H1 = H2
                     ctin = ctout
@@ -1485,7 +1513,9 @@ t =2
 
 !PREPARE THE PRINT
        !aom_basket%hamiltonian(i,i) = siteenergies(t+1,i)
-       aom_basket%hamiltonian = AIMAG(H2)
+!> H2 is in fact -i*Hamiltonian
+!> TO_CHECK 16-03-19
+       aom_basket%hamiltonian = - AIMAG(H2save)
        aom_basket%nacv        = nacv
 
 !END CHANGE_AC

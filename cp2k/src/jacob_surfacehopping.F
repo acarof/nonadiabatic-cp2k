@@ -53,6 +53,7 @@ MODULE jacob_surfacehopping
                                              surfacehop
 
      USE jacob_types,                     ONLY: aom_basket_type
+     USE mixed_energy_types,              ONLY: mixed_force_type
 
 
 #include "./base/base_uses.f90"
@@ -73,7 +74,8 @@ CONTAINS
                    ext_atoms, norbitals, ext_cutoff, ext_scaling, &
                    ext_init, ext_cbar, ext_minao, ext_timestep, ext_el_steps, &
                    positions_plus, energies_plus, aom_basket, ext_elements, &
-                   ext_pres, ext_scoeff, ext_pcoeff, itimes, collapse, is_hop)
+                   ext_pres, ext_scoeff, ext_pcoeff, itimes, collapse, is_hop, &
+                   shortcut, rescale_keyword, ext_dR, forces_adiab, global_forces)
 
         integer          :: nadiab,  norbitals, ext_init
         integer          :: ext_atoms, ext_el_steps
@@ -81,18 +83,23 @@ CONTAINS
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions_plus
         REAL(kind=dp), DIMENSION(:),  POINTER    :: energies_plus
         TYPE(aom_basket_type)                    :: aom_basket
-        integer, dimension(:), ALLOCATABLE, INTENT(IN)        :: ext_elements
-        LOGICAL, dimension(:), ALLOCATABLE,  INTENT(IN)       :: ext_pres
+        integer, dimension(:),  INTENT(IN)        :: ext_elements
+        LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
         REAL(KIND=dp), dimension(:), ALLOCATABLE, INTENT(IN)  :: ext_scoeff,ext_pcoeff
         INTEGER, POINTER                                       :: itimes
-        LOGICAL                                      :: collapse
         LOGICAL, INTENT(OUT)                         :: is_hop
+        LOGICAL, INTENT(IN)                          :: collapse
+        LOGICAL, INTENT(IN)                          :: shortcut
+        CHARACTER(LEN=default_string_length)         :: rescale_keyword
+        REAL(KIND=dp), INTENT(IN), OPTIONAL          :: ext_dR
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: forces_adiab
+        TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
 
 
         CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
         routineP = moduleN//':'//routineN
 
-        integer :: coord
+     integer :: coord
      integer :: mol, i, j, k, l, m, d, atoms, c, t, t2, init, inc, state, mat, orb
      integer, dimension(:), allocatable :: atomlist, elements
      integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
@@ -124,7 +131,9 @@ CONTAINS
      !LOGICAL                                      :: collapse, decohere
      LOGICAL                                      :: decohere
      INTEGER                                      :: ext_state    
- 
+     REAL(KIND=dp)                                :: dR 
+     INTEGER                                      :: imol, iatom, natom
+
      !We begin by reading in the input parameters
      !There are currently two modes this program can run in
      !In Classical Path Approximation mode, the program reads in a pre-computed trajectory
@@ -163,6 +172,13 @@ CONTAINS
      !minao = 1.0D-17
      minao = ext_minao ! CHANGE_AC
 
+!> dR is the finite difference to calculate the NACV
+     if (PRESENT(ext_dR)) then 
+        dR = ext_dR
+     else
+        dR = 0.0001D0*1.889725989D0
+     endif
+
      !With surface-hopping, the program needs information about where in the simulation it is
      !i.e. if this is the first timestep, or if certain once-in-a-while actions need to be done
      !The file "inputget" contains this information
@@ -171,6 +187,8 @@ CONTAINS
      mat = orb*mol
 !> Numbers of active atoms 
      c = mol*atoms
+!> Numbers of atoms
+     natom = SIZE(global_forces(1)%forces,2)
 
 !> ALLOCATE aom_basket at timestep = 0
     if (itimes.eq.0) then
@@ -187,7 +205,7 @@ CONTAINS
        ALLOCATE(aom_basket%rm2(c,3))
        ALLOCATE(aom_basket%energies(mol))
        ALLOCATE(aom_basket%bneighbour(3,0:atoms))
-       ALLOCATE(aom_basket%nacv(3,mat,mat,2*mat*atoms))
+       ALLOCATE(aom_basket%nacv(3,mat,mat,mat*atoms))
     endif
 
      !calculate timestep from femtoseconds in atomic units
@@ -281,7 +299,7 @@ CONTAINS
 
 
      !non-adiabatic coupling vectors
-     allocate(nacv(3,mat,mat,2*mat*atoms))
+     allocate(nacv(3,mat,mat,mat*atoms))
      !diagonals of the Hamiltonian
      allocate(siteenergies(3,mat))
 
@@ -308,7 +326,8 @@ CONTAINS
      allocate(Btm(4,atoms))
 
      !array of diagonal atomic forces
-     allocate(F(3,mol*atoms,mol))
+     !allocate(F(3,mol*atoms,mol))
+     allocate(F(3,natom,mol))
 
      !elements contains the atomic number of each atom (this goes into At, Bt etc)
      !it is user-defined input
@@ -580,7 +599,8 @@ t =2
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
                                         &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
-                                        &neighbourlist(i,:,:), neighbourlist(k,:,:))
+                                        !&neighbourlist(i,:,:), neighbourlist(k,:,:))
+                                        &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                    end do
                               end do
 
@@ -614,10 +634,10 @@ t =2
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = Stt(orb*(k-1)+m,orb*(i-1)+d)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
                                              Stmtm(orb*(i-1)+d,orb*(k-1)+m) = Stmtm(orb*(k-1)+m,orb*(i-1)+d)
-                                             nacv(:,i,k,1:atoms) = nacv(:,k,i,atoms+1:2*atoms)
-                                             nacv(:,i,k,1:atoms) = 0.0D0
-                                             nacv(:,i,k,atoms+1:2*atoms) = nacv(:,k,i,1:atoms)
-                                             nacv(:,i,k,atoms+1:2*atoms) = 0.0D0
+                                             !nacv(:,i,k,1:atoms) = nacv(:,k,i,atoms+1:2*atoms)
+                                             !nacv(:,i,k,1:atoms) = 0.0D0
+                                             !nacv(:,i,k,atoms+1:2*atoms) = nacv(:,k,i,1:atoms)
+                                             !nacv(:,i,k,atoms+1:2*atoms) = 0.0D0
                                         end do
                                    end do
                               else
@@ -632,7 +652,8 @@ t =2
                                              &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
                                              &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:2*(i-1)*atoms), &
                                              &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
-                                             &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:))
+                                             !&scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:))
+                                             &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                         end do
                                    end do
 
@@ -866,25 +887,41 @@ t =2
 !               end if
 
                !The forces subroutine then calculates the adiabatic forces and prints them out
-               F = F/(kcal*bohrang)
+               !F = F/(kcal*bohrang)
 !               call forces(state, -imagpart(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt)
-               call forces(state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt)
+               !call forces(state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt)
+!CALCULATE THE FORCES IN THE NEW ADIABATIC STATE!
+               !call forces(ext_state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt)
+               DO imol=1,mol
+                  DO iatom=1, natom
+                     F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
+                  ENDDO
+               ENDDO
+               call forces(ext_state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt, forces_adiab, &
+                           shortcut, ext_pres)
                !call forces(state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt, ext_forces)
 
                !Finally, collapse the wavefunction if called for
-               if (decohere) then
+               !if (decohere) then
+               if (is_hop) aom_basket%futur_decohere = .TRUE.
+!> Check if the collapse key word is TRUE in the input
+               if (collapse) then
 !                    open(unit=37,file='decohere',action='read')
 !                    read(37,*), collapse
 !                    close(37)
 
-                    if (collapse) then
-                         do i=1,mat
-                              ctin(i) = C2(state,i)
-                         end do
-                         
-!                         write(37,*), 'f'
-!                         close(37)
-                    end if
+                    !if (collapse) then
+!> Check if the surface_hop subroutine asks us to do the decoherence
+                    if (aom_basket%futur_decohere) then 
+                       if (decohere) then
+                             do i=1,mat
+                                 ctin(i) = C2(state,i)
+                             end do
+                             aom_basket%futur_decohere = .FALSE. 
+!                            write(37,*), 'f'
+!                            close(37)
+                       end if
+                    endif
                end if
 !          end if
 !END DO THE HOPPING TEST AND CALCULATE THE FORCES
