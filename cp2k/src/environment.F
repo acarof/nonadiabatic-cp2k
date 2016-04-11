@@ -511,7 +511,6 @@ CONTAINS
 
     NULLIFY(dft_section,global_section, i_force_eval)
 
-
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL")
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout)
     CALL section_vals_val_get(global_section,"BLACS_REPEATABLE",l_val=globenv%blacs_repeatable)

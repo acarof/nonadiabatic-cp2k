@@ -251,6 +251,7 @@ CONTAINS
        CALL cp_dbcsr_print_config (unit_nr=output_unit)
        WRITE (UNIT=output_unit,FMT='()')
     ENDIF
+
     SELECT CASE (prog_name_id)
     CASE (do_atom)
        globenv%run_type_id = none_run
@@ -296,6 +297,7 @@ CONTAINS
        CPABORT("")
     END SELECT
     CALL section_vals_release(input_file)
+
     SELECT CASE (globenv%run_type_id)
     CASE (pint_run)
        CALL do_pint_run( para_env, root_section, input_declaration, globenv)

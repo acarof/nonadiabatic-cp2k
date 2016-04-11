@@ -622,7 +622,7 @@ print*, hamiltonian, "mmmm"
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
-    unit_nr = 1
+!    unit_nr = 1
 !open(1001,file="test",position='append',action='write')
 !write(1001, *) "HERE"
 !close(1001)
@@ -896,7 +896,8 @@ print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
 !       ENDDO
 
     END IF
-    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
+!    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%NACV")
    END SUBROUTINE adiab_print_nacv
 
 

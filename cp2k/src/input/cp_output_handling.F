@@ -858,9 +858,9 @@ print*, ival
 
 print*, "CPPRINT"
 print*, "CPPRINT 2"
-print*, "logger name", logger%global_filename
-print*, "logger name", logger%local_filename
-print*, "logger i", logger%default_global_unit_nr, logger%default_local_unit_nr
+!print*, "logger name", logger%global_filename
+!print*, "logger name", logger%local_filename
+!print*, "logger i", logger%default_global_unit_nr, logger%default_local_unit_nr
     my_local     = .FALSE.
     my_do_backup = .FALSE.
     found        = .FALSE.
