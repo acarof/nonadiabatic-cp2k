@@ -680,7 +680,7 @@ end subroutine adiabaticity
 
 !subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S)
 !subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_forces)
-subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_adiab, shortcut, ext_pres)
+subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_adiab, ext_pres)
 
         !per our full force expression derivation, this calculates the adiabatic forces
         !on each atom
@@ -711,7 +711,6 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
         REAL(KIND=dp), dimension(:,:), allocatable :: H, T, nsave, DHtemp
 
         REAL(KIND=dp), dimension(:,:), POINTER                  :: forces_adiab
-        LOGICAL, INTENT(IN)                                     :: shortcut
         INTEGER                                                 :: natom
         LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
         INTEGER                                                 :: aom_iatom, iatom

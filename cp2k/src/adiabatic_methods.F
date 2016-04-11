@@ -237,11 +237,11 @@ print*, coefficients, "mmmm"
 print*, hamiltonian, "mmmm"
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
-        CALL adiab_print_coeff(adiab_section, coefficients, nadiab,norbitals)
-        CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals)
-        CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
-        CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals)
-        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms)        
+        !CALL adiab_print_coeff(adiab_section, coefficients, nadiab,norbitals)
+        !CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals)
+        !CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
+        !CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals)
+        !CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms)        
 
 !> IMPORTANT: store all aom_basket for the future timesteps
         mixed_env%aom_basket=aom_basket
@@ -334,7 +334,6 @@ print*, hamiltonian, "mmmm"
     INTEGER                                  :: old_state, new_state
     REAL(KIND=dp)                            :: scalefactor
     LOGICAL                                  :: is_hop
-    LOGICAL                                  :: shortcut
     CHARACTER(LEN=default_string_length)     :: rescale_keyword
     REAL(kind=dp)                            :: ext_dR
 
@@ -386,7 +385,6 @@ print*, hamiltonian, "mmmm"
         CALL read_listcoeff(listcoeff, ext_elements, ext_pres, & 
                             ext_scoeff, ext_pcoeff, natom)
         CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
-        CALL section_vals_val_get(coupling_section,"SHORTCUT", l_val=shortcut)
         CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
         CALL section_vals_val_get(coupling_section,"NACV_INCREMENT",&
              r_val=ext_dR)
@@ -404,7 +402,7 @@ print*, hamiltonian, "mmmm"
              ext_pres = ext_pres, ext_scoeff=ext_scoeff, &
              ext_pcoeff=ext_pcoeff, itimes=itimes, &
              collapse = collapse, is_hop=is_hop,   &
-             shortcut = shortcut, rescale_keyword = rescale_keyword, &
+             rescale_keyword = rescale_keyword, &
              ext_dR = ext_dR, forces_adiab = forces_adiab, &
              global_forces = global_forces)
             
@@ -623,7 +621,11 @@ print*, hamiltonian, "mmmm"
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
-print*, "here"
+
+    unit_nr = 1
+!open(1001,file="test",position='append',action='write')
+!write(1001, *) "HERE"
+!close(1001)
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%COEFFICIENTS",&
                extension=".xyz", middle_name="coeff", log_filename=.FALSE.)
    
@@ -925,7 +927,7 @@ print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
        WRITE ( unit_nr, "(I8)"  )  state
 
     END IF
-    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%STATE")
    END SUBROUTINE adiab_print_stateno
 
 

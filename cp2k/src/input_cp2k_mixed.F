@@ -497,6 +497,7 @@ CONTAINS
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
 
+print*, "KKKK"
     CALL create_print_mix_section(subsection)
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)

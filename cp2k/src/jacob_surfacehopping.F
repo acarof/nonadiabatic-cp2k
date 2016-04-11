@@ -75,7 +75,7 @@ CONTAINS
                    ext_init, ext_cbar, ext_minao, ext_timestep, ext_el_steps, &
                    positions_plus, energies_plus, aom_basket, ext_elements, &
                    ext_pres, ext_scoeff, ext_pcoeff, itimes, collapse, is_hop, &
-                   shortcut, rescale_keyword, ext_dR, forces_adiab, global_forces)
+                   rescale_keyword, ext_dR, forces_adiab, global_forces)
 
         integer          :: nadiab,  norbitals, ext_init
         integer          :: ext_atoms, ext_el_steps
@@ -88,8 +88,7 @@ CONTAINS
         REAL(KIND=dp), dimension(:), ALLOCATABLE, INTENT(IN)  :: ext_scoeff,ext_pcoeff
         INTEGER, POINTER                                       :: itimes
         LOGICAL, INTENT(OUT)                         :: is_hop
-        LOGICAL, INTENT(IN)                          :: collapse
-        LOGICAL, INTENT(IN)                          :: shortcut
+        LOGICAL, INTENT(IN)                          :: collapse           
         CHARACTER(LEN=default_string_length)         :: rescale_keyword
         REAL(KIND=dp), INTENT(IN), OPTIONAL          :: ext_dR
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: forces_adiab
@@ -898,7 +897,7 @@ t =2
                   ENDDO
                ENDDO
                call forces(ext_state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt, forces_adiab, &
-                           shortcut, ext_pres)
+                           ext_pres)
                !call forces(state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt, ext_forces)
 
                !Finally, collapse the wavefunction if called for

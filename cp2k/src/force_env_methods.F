@@ -211,12 +211,15 @@ CONTAINS
 !> Require for the Non Adiabatic Molecular Dynamics
     INTEGER, POINTER               :: my_itimes ! CHANGE_AC
     INTEGER, TARGET                :: zero 
+
+print*, "HUHU"
    IF (PRESENT(itimes)) then
       my_itimes => itimes
    ELSE
       zero = 0
       my_itimes => zero
    ENDIF
+print*, "HUHU 2"
 !> END CHANGE_AC
 
     NULLIFY (logger, virial, subsys, atprop_env, cell)
@@ -244,6 +247,7 @@ CONTAINS
     CALL cp_subsys_get(subsys, virial=virial, atprop=atprop_env, cell=cell)
     IF (virial%pv_availability) CALL zero_virial(virial,reset=.FALSE.)
 
+print*, "HUHU 3"
     nat=force_env_get_natom(force_env)
     CALL atprop_init(atprop_env,nat)
     IF (eval_ef) THEN
@@ -290,6 +294,7 @@ CONTAINS
           END IF
        END IF
     END IF
+print*, "HUHU 4"
 
     !sample peak memory
     CALL m_memory()
@@ -325,9 +330,11 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                       "PRINT%PROGRAM_RUN_INFO")
 
+print*, "HUHU 4"
     ! Print forces, if requested
     print_forces = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%FORCES",&
                                         extension=".xyz")
+print*, "HUHU 4001"
     IF ((print_forces > 0).AND.calculate_forces) THEN
        CALL force_env_get(force_env,subsys=subsys)
        CALL cp_subsys_get(subsys,&
@@ -335,6 +342,7 @@ CONTAINS
                           particles=particles,&
                           shell_particles=shell_particles)
        ! Variable precision output of the forces
+print*, "HUHU 401"
        CALL section_vals_val_get(force_env%force_env_section,"PRINT%FORCES%NDIGITS",&
                                  i_val=ndigits)
        CALL write_forces(particles,print_forces,"ATOMIC",ndigits,total_force)
@@ -348,8 +356,10 @@ CONTAINS
                             grand_total_force)
        END IF
     END IF
+print*, "HUHU 4002"
     CALL cp_print_key_finished_output(print_forces,logger,force_env%force_env_section,"PRINT%FORCES")
 
+print*, "HUHU 41"
 
     ! Write stress tensor
     IF (virial%pv_availability) THEN
@@ -369,20 +379,29 @@ CONTAINS
           CALL zero_virial(virial,reset=.FALSE.)
        END IF
     ELSE
+print*, "HUHU 42"
        output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%STRESS_TENSOR",&
                                           extension=".stress_tensor")
+print*, "HUHU 421"
        IF (output_unit > 0) THEN
           CALL cp_warn(__LOCATION__,"To print the stress tensor switch on the "//&
                        "virial evaluation with the keyword: STRESS_TENSOR")
        END IF
+print*, "HUHU 43"
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                          "PRINT%STRESS_TENSOR")
+print*, "HUHU 44"
     END IF
 
+print*, "HUHU 5"
+print*, "logger name", logger%global_filename
+print*, "logger name", logger%local_filename
     ! Atomic energy      
     output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".Log")
+print*, "HUHU 50"
     IF (atprop_env%energy) THEN
+print*, "HUHU 51"
        CALL mp_sum(atprop_env%atener, force_env%para_env%group)
        CALL force_env_get(force_env, potential_energy=e_pot)
        IF (output_unit > 0) THEN
@@ -399,15 +418,30 @@ CONTAINS
            "Difference               :",checksum
           CPASSERT((checksum < ateps*ABS(e_pot)))
        END IF
+print*, "HUHU 52"
+       CALL mp_sum(atprop_env%atener, force_env%para_env%group)
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                          "PRINT%PROGRAM_RUN_INFO")
+print*, "HUHU 53"
     END IF
-
-    ! Atomic stress    
+!       CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
+!                                         "PRINT%PROGRAM_RUN_INFO")
+print*, "HUHU 6"
+print*, "logger name", logger%global_filename
+print*, "logger name", logger%local_filename
+print*, "HUHU 60"
+    ! Atomic stress   
+print*, "bbbb", output_unit 
+IF (ASSOCIATED(logger)) print*, "ASS!"
     output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".Log")
+print*, "bbbb", output_unit 
+print*, "HUHU 601"
+print*, "output_unit", output_unit
+print*, "HUHU 61"
 
     IF (atprop_env%stress) THEN
+print*, "HUHU 7"
        CALL mp_sum(atprop_env%atstress,force_env%para_env%group)
        ! symmetrize (same as pv_virial)
        DO i=1,SIZE(atprop_env%atstress,3)
@@ -441,6 +475,7 @@ CONTAINS
            (atomic_stress_tensor(1,1) + atomic_stress_tensor(2,2) + atomic_stress_tensor(3,3))/3.0_dp
           sum_stress_tensor = accurate_sum(atomic_stress_tensor(:,:))
           IF (virial%pv_availability.AND.calculate_forces) THEN
+print*, "HUHU 8"
              WRITE (UNIT=output_unit,FMT="(/,T2,A,T16,A1,2(19X,A1))") "Total","X","Y","Z"
              WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "X",(virial%pv_virial(1,i),i=1,3)
              WRITE (UNIT=output_unit,FMT="(A3,3F20.13)") "Y",(virial%pv_virial(2,i),i=1,3)
@@ -466,6 +501,9 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                          "PRINT%PROGRAM_RUN_INFO")
     END IF
+!    CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
+!                                         "PRINT%PROGRAM_RUN_INFO")
+!print*, "HUHU FIN "
 
   END SUBROUTINE force_env_calc_energy_force
 
@@ -853,7 +891,7 @@ CONTAINS
 !    INTEGER, POINTER                         :: my_itimes !CHANGE_AC
 !> End CHANGE_AC
 
-
+print*, "HEHO"
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(force_env))
     ! Get infos about the mixed subsys
@@ -883,6 +921,7 @@ CONTAINS
     energies    = 0.0_dp
     glob_natoms = 0
     DO iforce_eval = 1, nforce_eval
+print*, "HEHO",nforce_eval
        NULLIFY(subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
        NULLIFY(results(iforce_eval)%results, virials(iforce_eval)%virial)
        CALL virial_create (virials(iforce_eval)%virial)
@@ -906,21 +945,25 @@ CONTAINS
        CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys,&
                           particles=particles(iforce_eval)%list)
 
+print*, "HEHO MAP"
        ! Get Mapping index array
        natom = SIZE(particles(iforce_eval)%list%els)
        CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, &
             map_index)
 
+print*, "HEHO MAP 1"
        ! Mapping particles from iforce_eval environment to the mixed env
        DO iparticle = 1, natom
           jparticle = map_index(iparticle)
           particles(iforce_eval)%list%els(iparticle)%r= particles_mix%els(jparticle)%r
        END DO
 
+print*, "HEHO MAP 2"
        ! Calculate energy and forces for each sub_force_env
        CALL force_env_calc_energy_force(force_env%sub_force_env(iforce_eval)%force_env,&
                                         calc_force=calculate_forces,&
                                         skip_external_control=.TRUE.)
+print*, "HEHO MAP 3"
        ! Only the rank 0 process collect info for each computation
        IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
             force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
@@ -929,8 +972,10 @@ CONTAINS
           CALL cp_subsys_get(subsystems(iforce_eval)%subsys,&
                              virial=loc_virial, results=loc_results)
           energies(iforce_eval)    = energy
+print*, "HEHO MAP 4"
 !> CHANGE_AC
 !> 16-03-15
+print*, "HEHO KIN"
           CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env,&
                              kinetic_energy=energy)
           kinetic_energies(iforce_eval)    = energy
@@ -946,6 +991,7 @@ CONTAINS
        CALL cp_rm_default_logger()
     END DO
 
+print*, "HEHO handling"
     ! Handling Parallel execution
     CALL mp_sync(force_env%para_env%group)
     ! Let's transfer energy, natom, forces, virials
@@ -997,6 +1043,7 @@ CONTAINS
        particles_mix%els(iparticle)%f(:) = 0.0_dp
     END DO
 
+print*, "HEHO CP 1"
     CALL section_vals_val_get(mixed_section,"MIXING_TYPE",i_val=mixing_type)
     SELECT CASE(mixing_type)
     CASE(mix_linear_combination)
@@ -1091,11 +1138,13 @@ CONTAINS
 !> To create a new way to combine the force
 !> To get the adiabatic force 
     CASE(mix_adiab)
+print*, "HEHO CP"
         adiab_section => section_vals_get_subs_vals(mixed_section, "ADIABATIC")
         CALL section_vals_val_get(adiab_section,"METHOD_PROPAGATION",c_val=adiab_keyword)
         mixed_env => force_env%mixed_env
         SELECT CASE(adiab_keyword)
         CASE("CLASSICAL_PATH")
+print*, "HEHO CP"
            !Check that all the FF have the same number of atoms than the 1st FF
            !because in the subroutine the number of atoms will be the one of 1st
            !FF
@@ -1129,6 +1178,7 @@ CONTAINS
     END SELECT
     !Simply deallocate and loose the pointer references..
     DO iforce_eval = 1, nforce_eval
+print*, "GLOBAL"
        DEALLOCATE(global_forces(iforce_eval)%forces)
        CALL virial_release(virials(iforce_eval)%virial)
        CALL cp_result_release(results(iforce_eval)%results)

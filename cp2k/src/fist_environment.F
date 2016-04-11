@@ -144,6 +144,8 @@ CONTAINS
 
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_BANNER",&
          extension=".mmLog")
+print*, "banner iw", iw
+print*, "banner iw 2", iw
     CALL fist_header(iw)
     CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%PROGRAM_BANNER")
 

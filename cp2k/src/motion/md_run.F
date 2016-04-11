@@ -153,6 +153,7 @@ CONTAINS
        CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, &
             hmc_e_initial=hmc_e_initial,hmc_e_final=hmc_e_final)
     ELSE
+print*, "hoy"
        CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, mdctrl=mdctrl)
     ENDIF
     CALL md_env_release(md_env)
@@ -301,6 +302,7 @@ CONTAINS
     ! Initialize velocities possibly applying constraints at the zeroth MD step
     CALL section_vals_val_get(motion_section,"PRINT%RESTART%SPLIT_RESTART_FILE",&
                               l_val=write_binary_restart_file)
+print*, "hoy hoy"
     CALL setup_velocities(force_env,simpar,globenv,md_env,md_section,constraint_section, &
                           write_binary_restart_file)
 

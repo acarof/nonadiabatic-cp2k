@@ -591,6 +591,7 @@ CONTAINS
       qmmmx_section, root_section, subsys_section, wrk_section
     TYPE(timer_env_type), POINTER            :: timer_env
 
+print*, "klm"
     CPASSERT(ASSOCIATED(input_declaration))
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
             fp_env,eip_env,mixed_env,qs_env,qmmm_env)
@@ -601,6 +602,7 @@ CONTAINS
        para_env => default_para_env
        CALL cp_para_env_retain(para_env)
     END IF
+print*, "klm klm"
 
     CALL timeset(routineN,handle)
 
@@ -616,6 +618,7 @@ CONTAINS
             wdir = work_dir
         END IF
     END IF
+print*, "klm klm klm"
 
     IF (PRESENT(output_unit)) THEN
        unit_nr=output_unit
@@ -632,14 +635,20 @@ CONTAINS
           unit_nr=-1
        END IF
     END IF
+print*, "klm klm klm klm"
     my_owns_out_unit=unit_nr/=default_output_unit
+print*, "klm klm klm klm"
     IF (PRESENT(owns_out_unit)) my_owns_out_unit=owns_out_unit
+print*, "klm klm klm klm"
     CALL globenv_create(globenv)
+print*, "klm klm klm klm"
     CALL cp2k_init(para_env, output_unit=unit_nr, globenv=globenv, input_file_name=input_path,&
                    wdir=wdir)
+print*, "klm klm klm klm"
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
     ! support it, the program might crash upon error
+print*, "klm"
 
     NULLIFY(input_file)
     IF (PRESENT(input)) input_file => input
@@ -758,6 +767,7 @@ CONTAINS
              method_name_id = do_qmmmx ! QMMM Force-Mixing has its own (hidden) method_id
        ENDIF
 
+print*, "klm"
        SELECT CASE (method_name_id)
        CASE (do_fist)
           CALL fist_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
@@ -795,6 +805,7 @@ CONTAINS
                globenv=globenv, force_env_section=force_env_section)
           CALL eip_env_release(eip_env)
 
+print*, "klm"
        CASE (do_mixed)
           CALL mixed_create_force_env(mixed_env, root_section, my_para_env,&
                force_env_section=force_env_section, n_subforce_eval=nsubforce_size,&

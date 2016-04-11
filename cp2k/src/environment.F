@@ -146,6 +146,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
 ! create a timer_env
+print*, "here here here here here here"
 
     CALL add_timer_env()
 
@@ -168,14 +169,18 @@ CONTAINS
          close_global_unit_on_dealloc=.FALSE.)
     CALL cp_add_default_logger(logger)
     CALL cp_logger_release(logger)
+print*, "here here here here here"
 
     ! Initialize timing
     CALL timeset ("CP2K",globenv%handle)
 
+print*, "here here here"
     ! Print header
     CALL cp2k_header(my_output_unit,wdir)
 
+print*, "here here here"
     IF (my_output_unit>0) THEN
+print*, "here here"
        WRITE (UNIT=my_output_unit,FMT="(/,T2,A,T31,A50)")&
             "CP2K| version string: ",&
             ADJUSTR(TRIM(cp2k_version)//TRIM(dev_flag))
@@ -189,6 +194,7 @@ CONTAINS
        IF(ilen>73) THEN
           WRITE (UNIT=my_output_unit,FMT="(T2,A)")&
             "CP2K|            "//TRIM(cp_flags(74:))
+print*, "here here ilen"
        END IF
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
             "CP2K| is freely available from ",&
@@ -208,7 +214,9 @@ CONTAINS
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
             "CP2K| Input file name",&
             ADJUSTR(TRIM(input_file_name))
+print*, "here here 0", my_output_unit
        CALL m_flush_internal(my_output_unit)
+print*, "here here 1"
     END IF
 print*, "here here"
 
