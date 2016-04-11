@@ -262,8 +262,10 @@ CONTAINS
 
     CALL keyword_create(keyword, name="COLLAPSE",&
          description="Decide if we use the decoherence procedure",&
+         !usage="True", & 
+         !default_l_val=.TRUE., &
          usage="True", & 
-         default_l_val=.TRUE., &
+         default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
@@ -306,6 +308,14 @@ CONTAINS
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
     NULLIFY(print_key)
+
+    CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+         description="Controls the printing of information during the evaluation of "//&
+         "the mixed environment. ",&
+         print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__")
+    CALL section_add_subsection(section,print_key)
+    CALL section_release(print_key)
+
     CALL cp_print_key_section_create(print_key_section=print_key,&
           name="COEFFICIENTS",&
           description="Print the coefficients",&

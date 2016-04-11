@@ -192,7 +192,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: glob_section, input_file, &
                                                 root_section
 
-print*, "hyy hyy"
     cp2k_run_OK = .FALSE.
     was_present = .FALSE.
     NULLIFY(para_env, f_env, dft_control)
@@ -242,9 +241,7 @@ print*, "hyy hyy"
        ! XXXXXXXXX
        CALL section_vals_retain(input_file)
        CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)
-print*, "test"
        CALL cp2k_read(root_section,para_env,globenv)
-print*, "test test"
        CALL cp2k_setup(root_section,para_env, globenv)
     END IF
 
@@ -254,8 +251,6 @@ print*, "test test"
        CALL cp_dbcsr_print_config (unit_nr=output_unit)
        WRITE (UNIT=output_unit,FMT='()')
     ENDIF
-print*, "hyy"
-print*, "yyh", prog_name_id
     SELECT CASE (prog_name_id)
     CASE (do_atom)
        globenv%run_type_id = none_run
@@ -277,7 +272,6 @@ print*, "yyh", prog_name_id
        CALL run_optimize_basis (input_declaration, root_section, para_env)
        globenv%run_type_id = none_run
     CASE(do_cp2k)
-print*, "yyh yyh", prog_name_id
        CALL create_force_env(new_env_id,&
             input_declaration=input_declaration,&
             input_path=input_file_name,&
@@ -285,14 +279,12 @@ print*, "yyh yyh", prog_name_id
             output_unit=output_unit,&
             owns_out_unit=.FALSE.,&
             input=input_file,ierr=ierr)
-print*, "yyh yyh yyh", prog_name_id
        CPASSERT(ierr==0)
        CALL f_env_add_defaults(new_env_id,f_env,handle=f_env_handle)
        force_env => f_env%force_env
        CALL force_env_get(force_env,globenv=globenv)
        CALL globenv_retain(globenv)
        CALL section_vals_val_get(force_env%force_env_section,"METHOD",i_val=method_name_id)
-print*, "yyh yyh yyh yyh", prog_name_id
 
     CASE (do_test)
        CALL lib_test(root_section,para_env,globenv)
@@ -304,7 +296,6 @@ print*, "yyh yyh yyh yyh", prog_name_id
        CPABORT("")
     END SELECT
     CALL section_vals_release(input_file)
-print*, "hyy", globenv%run_type_id
     SELECT CASE (globenv%run_type_id)
     CASE (pint_run)
        CALL do_pint_run( para_env, root_section, input_declaration, globenv)
@@ -364,7 +355,6 @@ print*, "hyy", globenv%run_type_id
             CPABORT("Ehrenfest dynamics needs METHOD QS ")
        CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
        dft_control%rtp_control%fixed_ions=.FALSE.
-print*, "huy"
        CALL qs_mol_dyn ( force_env, globenv)
     CASE (bsse_run)
        CALL do_bsse_calculation(force_env, globenv)
@@ -1112,9 +1102,6 @@ print*, "huy"
     ELSE
        unit_nr=-1
     END IF
-print*, "huy huy"
-print*, input_file_path
-print*, unit_nr
     success=cp2k_run(input_declaration,input_file_path,unit_nr,para_env%group)
     IF (.NOT.success) THEN
        ierr=cp_failure_level
