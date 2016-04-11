@@ -276,18 +276,18 @@ CONTAINS
 !    CALL section_add_keyword(sub2section,keyword)
 !    CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="METHOD_RESCALING",&
-         description="Defines the methods to rescale the velocities if required.",&
-         usage="METHOD_RESCALING: BASIC EXACT", type_of_var=char_t,&
-         n_var=-1)
-    CALL section_add_keyword(sub2section,keyword)
-    CALL keyword_release(keyword)
+!    CALL keyword_create(keyword, name="METHOD_RESCALING",&
+!         description="Defines the methods to rescale the velocities if required.",&
+!         usage="METHOD_RESCALING: BASIC EXACT", type_of_var=char_t,&
+!         n_var=-1)
+!    CALL section_add_keyword(sub2section,keyword)
+!    CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="NACV_INCREMENT",&
-         description="Spatial Increment to calculate the NACV with Finite Difference.",&
-         usage="1E-3*1.889725989D0 bohr", type_of_var=real_t)
-    CALL section_add_keyword(sub2section,keyword)
-    CALL keyword_release(keyword)
+!    CALL keyword_create(keyword, name="NACV_INCREMENT",&
+!         description="Spatial Increment to calculate the NACV with Finite Difference.",&
+!         usage="1E-3*1.889725989D0 bohr", type_of_var=real_t)
+!    CALL section_add_keyword(sub2section,keyword)
+!    CALL keyword_release(keyword)
 
 
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&

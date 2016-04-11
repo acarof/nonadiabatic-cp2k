@@ -419,7 +419,7 @@ print*, "HUHU 51"
           CPASSERT((checksum < ateps*ABS(e_pot)))
        END IF
 print*, "HUHU 52"
-       CALL mp_sum(atprop_env%atener, force_env%para_env%group)
+!       CALL mp_sum(atprop_env%atener, force_env%para_env%group)
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                          "PRINT%PROGRAM_RUN_INFO")
 print*, "HUHU 53"

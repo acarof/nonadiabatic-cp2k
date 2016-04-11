@@ -400,9 +400,6 @@ CONTAINS
     ! Real Ouput driven by the PRINT sections
     IF ((.NOT.init).OR.(itimes==0).OR.simpar%ensemble==reftraj_ensemble) THEN
        ! Print Energy
-open(1001,file="test",position="append")
-write(1001,*) "ene", ene
-close(1001)
        ene = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%ENERGY",&
             extension=".ener",file_position=my_pos, file_action=my_act, is_new_file=new_file)
        IF (ene>0) THEN
