@@ -322,6 +322,7 @@ CONTAINS
        CALL force_env_get(force_env, potential_energy=e_pot)
        WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T55,F26.15,/)')&
             ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
+print*, "e_pot", e_pot
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                       "PRINT%PROGRAM_RUN_INFO")
@@ -931,6 +932,7 @@ CONTAINS
           CALL cp_subsys_get(subsystems(iforce_eval)%subsys,&
                              virial=loc_virial, results=loc_results)
           energies(iforce_eval)    = energy
+print*, "energies(iforce_eval)", iforce_eval, energy
 !> CHANGE_AC
 !> 16-03-15
           CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env,&

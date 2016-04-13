@@ -1090,9 +1090,9 @@ t =2
                                         !These diagonals are 1 by definition
                                         Stptp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
                                         !H1(orb*(i-1)+d,orb*(k-1)+d) = dcmplx(0.0D0, (-siteenergies(t,k)/kcal))
-                                        H1(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t,k)/kcal), dp)
+                                        H1(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t,k)), dp)
                                         !H2(orb*(i-1)+d,orb*(k-1)+d) = dcmplx(0.0D0, (-siteenergies(t+1,k)/kcal))
-                                        H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t+1,k)/kcal),dp)
+                                        H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t+1,k)),dp)
                                         call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                         Sttp(orb*(i-1)+d,orb*(k-1)+m) = S
