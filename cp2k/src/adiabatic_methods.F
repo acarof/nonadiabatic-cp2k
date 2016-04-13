@@ -147,7 +147,7 @@ CONTAINS
 !    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER, POINTER                         :: itimes
 
- !   print*, "la", my_itimes
+!    print*, "la", my_itimes
  !   itimes => my_itimes
  !       if (ASSOCIATED(itimes)) then
  !   print*, "ici", itimes
@@ -230,18 +230,18 @@ CONTAINS
 
 !> Get the renewed information from aom_basket
         coefficients = aom_basket%ctin
-print*, coefficients, "mmmm"
+!print*, coefficients, "mmmm"
         populations  = aom_basket%population
         hamiltonian  = aom_basket%hamiltonian
         nacv         = aom_basket%nacv
-print*, hamiltonian, "mmmm"
+!print*, hamiltonian, "mmmm"
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
-        !CALL adiab_print_coeff(adiab_section, coefficients, nadiab,norbitals)
-        !CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals)
-        !CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
-        !CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals)
-        !CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms)        
+        CALL adiab_print_coeff(adiab_section, coefficients, nadiab,norbitals)
+        CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals)
+        CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
+        CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals)
+        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms)        
 
 !> IMPORTANT: store all aom_basket for the future timesteps
         mixed_env%aom_basket=aom_basket
@@ -276,6 +276,7 @@ print*, hamiltonian, "mmmm"
     IF (ASSOCIATED(map_index)) THEN
        DEALLOCATE(map_index)
     END IF
+    DEALLOCATE(coefficients, populations, hamiltonian, nacv)
 
    END SUBROUTINE adiab_classicalpath_routines
 
@@ -622,10 +623,6 @@ print*, hamiltonian, "mmmm"
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
-!    unit_nr = 1
-!open(1001,file="test",position='append',action='write')
-!write(1001, *) "HERE"
-!close(1001)
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%COEFFICIENTS",&
                extension=".xyz", middle_name="coeff", log_filename=.FALSE.)
    
@@ -752,7 +749,7 @@ print*, hamiltonian, "mmmm"
 !          name = TRIM(atm_name)
          WRITE(unit_nr,TRIM(my_format)//"1X,"//TRIM(my_format2)//"F20.10)") iadiab, iorbitals, &
                            hamiltonian( (iadiab-1)*norbitals + iorbitals,:) 
-print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
+!print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
 !              ENDDO
 !            ENDDO
           ENDDO
@@ -809,8 +806,8 @@ print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
                    matrix( (iadiab-1)*norbitals + iorbitals, (jadiab-1)*norbitals + jorbitals ) = &
                    coefficients( (iadiab-1)*norbitals + iorbitals)* &
                    CONJG(coefficients( (jadiab-1)*norbitals + jorbitals)) 
- print*, "hwre", coefficients( (iadiab-1)*norbitals + iorbitals)
- print*, "here", matrix( (iadiab-1)*norbitals + iorbitals, (jadiab-1)*norbitals + jorbitals ) 
+! print*, "hwre", coefficients( (iadiab-1)*norbitals + iorbitals)
+! print*, "here", matrix( (iadiab-1)*norbitals + iorbitals, (jadiab-1)*norbitals + jorbitals ) 
                 ENDDO
              ENDDO
           ENDDO

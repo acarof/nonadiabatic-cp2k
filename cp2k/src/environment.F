@@ -1074,7 +1074,6 @@ CONTAINS
     CALL finalize_fft(para_env,globenv%fftw_wisdom_file_name)
 
     ! Write message passing performance info
-
     iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
          extension=".log")
     CALL describe_mp_perf_env ( iw )

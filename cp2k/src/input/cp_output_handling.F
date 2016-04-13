@@ -398,7 +398,6 @@ CONTAINS
     ! a shortcut for most common case
     IF(my_control_val==cp_out_default .AND. .NOT. is_on) RETURN
 
-    print*, "first_time",first_time
     is_iter=cp_printkey_is_iter(iteration_info,print_key,first_time=first_time)
 
     IF (BTEST(my_control_val,cp_p_store)) THEN
@@ -476,8 +475,6 @@ CONTAINS
     LOGICAL                                  :: first, level_passed
 
 
-!open(1001,file="test",position='append',action='write')
-!write(1001,*)  print_key%section%name
     CPASSERT(ASSOCIATED(iteration_info))
     CPASSERT(iteration_info%ref_count>0)
     IF (.NOT.ASSOCIATED(print_key)) THEN
@@ -491,16 +488,9 @@ CONTAINS
        res  =.TRUE.
        first=.TRUE.
        DO ilevel=1,iteration_info%n_rlevel
-!write(1001,*)  ilevel
-!write(1001,*)  "EACH%"//TRIM(iteration_info%level_name(ilevel))
-!close(1001)
           level_passed=.FALSE.
           CALL section_vals_val_get(print_key,"EACH%"//TRIM(iteration_info%level_name(ilevel)),&
                i_val=ival)
-print*, print_key%section%name
-print*, ilevel
-print*, "EACH%"//TRIM(iteration_info%level_name(ilevel))
-print*, ival
           IF (ival>0) THEN
              iter_nr=iteration_info%iteration(ilevel)
              IF (iter_nr/ival>1) first=.FALSE.
@@ -856,11 +846,6 @@ print*, ival
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
 
-print*, "CPPRINT"
-print*, "CPPRINT 2"
-!print*, "logger name", logger%global_filename
-!print*, "logger name", logger%local_filename
-!print*, "logger i", logger%default_global_unit_nr, logger%default_local_unit_nr
     my_local     = .FALSE.
     my_do_backup = .FALSE.
     found        = .FALSE.

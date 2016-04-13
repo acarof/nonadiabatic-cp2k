@@ -300,7 +300,8 @@ CONTAINS
        ALLOCATE(aom_basket%rm2(c,3))
        ALLOCATE(aom_basket%energies(mol))
        ALLOCATE(aom_basket%bneighbour(3,0:atoms))
-       ALLOCATE(aom_basket%nacv(3,mat,mat,2*mat*atoms))
+       !ALLOCATE(aom_basket%nacv(3,mat,mat,2*mat*atoms))
+       ALLOCATE(aom_basket%nacv(3,mat,mat,mat*atoms))
     endif
 
      !calculate timestep from femtoseconds in atomic units
