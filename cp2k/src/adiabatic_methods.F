@@ -64,6 +64,8 @@ MODULE adiabatic_methods
 
   USE jacob_surfacehopping,            ONLY:  &
                  construct_ham_X_SH
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
+
 
 #include "./base/base_uses.f90"
 
@@ -237,11 +239,11 @@ CONTAINS
 !print*, hamiltonian, "mmmm"
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
-        CALL adiab_print_coeff(adiab_section, coefficients, nadiab,norbitals)
-        CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals)
-        CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
-        CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals)
-        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms)        
+        CALL adiab_print_coeff(adiab_section, coefficients,nadiab,norbitals,itimes)
+        CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals,itimes)
+        CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes)
+        CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals,itimes)
+        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms,itimes)        
 
 !> IMPORTANT: store all aom_basket for the future timesteps
         mixed_env%aom_basket=aom_basket
@@ -422,12 +424,12 @@ CONTAINS
 
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
-        CALL adiab_print_coeff(adiab_section, coefficients, nadiab,norbitals)
-        CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals)
-        CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals)
-        CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals)
-        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms)        
-        CALL adiab_print_stateno(adiab_section, new_state, ext_atoms)
+        CALL adiab_print_coeff(adiab_section, coefficients,nadiab,norbitals,itimes)
+        CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals,itimes)
+        CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes)
+        CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals,itimes)
+        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms,itimes)        
+        CALL adiab_print_stateno(adiab_section, new_state, ext_atoms,itimes)
 
 !> Do the velocities rescaling if required
         IF (old_state.NE.new_state) THEN
@@ -602,10 +604,11 @@ CONTAINS
    END SUBROUTINE read_listcoeff
 
 
-   SUBROUTINE adiab_print_coeff(adiab_section, coefficients, nadiab, norbitals)
+   SUBROUTINE adiab_print_coeff(adiab_section, coefficients, nadiab, norbitals,itimes)
     TYPE(section_vals_type), POINTER         :: adiab_section
     COMPLEX(KIND=dp), DIMENSION(:),  POINTER :: coefficients
     INTEGER                                  :: nadiab, norbitals
+    INTEGER, POINTER                         :: itimes
 !    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_coeff', &
@@ -630,8 +633,9 @@ CONTAINS
 
 !       ncoeff = SIZE(coefficients)
 
-       WRITE ( unit_nr, "(2I8)" ) nadiab, norbitals
-       WRITE ( unit_nr, '(A)' ) 'Diab. State, Orb., Re(C), I(C) '
+       WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Psi", "; nadiab =", nadiab, "; norbitals =",&
+                                   norbitals
+       WRITE ( unit_nr, '(A,I8)' )   " i = ",itimes
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
@@ -652,10 +656,11 @@ CONTAINS
    END SUBROUTINE adiab_print_coeff
 
 
-   SUBROUTINE adiab_print_pop(adiab_section, populations, nadiab, norbitals)
+   SUBROUTINE adiab_print_pop(adiab_section, populations, nadiab, norbitals,itimes)
     TYPE(section_vals_type), POINTER         :: adiab_section
     REAL(KIND=dp), DIMENSION(:),POINTER :: populations
     INTEGER                                  :: nadiab, norbitals
+    INTEGER, POINTER                         :: itimes
 !    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_pop', &
@@ -681,8 +686,9 @@ CONTAINS
 
 !       ncoeff = SIZE(coefficients)
 
-       WRITE ( unit_nr, "(2I8)" ) nadiab, norbitals
-       WRITE ( unit_nr, '(A)' ) 'Diab. State, Orb., Pop. '
+       WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Pop.", "; nadiab =", nadiab, "; norbitals =",&
+                                   norbitals
+       WRITE ( unit_nr, '(A,I8)' )   " i = ",itimes
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
@@ -703,10 +709,11 @@ CONTAINS
 
 
    SUBROUTINE adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab, &
-              norbitals)
+              norbitals, itimes)
     TYPE(section_vals_type), POINTER         :: adiab_section
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
     INTEGER                                  :: nadiab, norbitals
+    INTEGER, POINTER                         :: itimes
 !    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_hamiltonian', &
@@ -721,6 +728,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     ::  my_format, my_format2
     TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL                                  :: new_file
+    REAL(KIND=dp)                            :: unit_conv
+    CHARACTER(LEN=default_string_length)     :: unit_str 
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -733,9 +742,13 @@ CONTAINS
     IF (unit_nr>0) THEN
 
 !       ncoeff = SIZE(coefficients)
+       CALL section_vals_val_get(adiab_section,"PRINT%HAMILTONIAN%UNIT",&
+            c_val=unit_str)
+       unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
 
-       WRITE ( unit_nr, "(2I8)" ) nadiab, norbitals
-       WRITE ( unit_nr, '(A)' ) 'Hamiltonian: (nadiab*norbitals)^2'
+       WRITE ( unit_nr, "( A,A,A,I8,A,I8)" ) "H (",TRIM(unit_str),");  nadiab =", nadiab, "; norbitals =",&
+                                   norbitals
+       WRITE ( unit_nr, '(A,I8)' )   " i = ",itimes
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
@@ -748,7 +761,7 @@ CONTAINS
          write(my_format2,"(I8)") nadiab*norbitals
 !          name = TRIM(atm_name)
          WRITE(unit_nr,TRIM(my_format)//"1X,"//TRIM(my_format2)//"F20.10)") iadiab, iorbitals, &
-                           hamiltonian( (iadiab-1)*norbitals + iorbitals,:) 
+                           unit_conv*hamiltonian( (iadiab-1)*norbitals + iorbitals,:) 
 !print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
 !              ENDDO
 !            ENDDO
@@ -761,11 +774,12 @@ CONTAINS
 
 
    SUBROUTINE adiab_print_matrix_density(adiab_section, coefficients, nadiab, &
-              norbitals)
+              norbitals, itimes)
     TYPE(section_vals_type), POINTER         :: adiab_section
     COMPLEX(KIND=dp), DIMENSION(:),  POINTER :: coefficients
     !REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
     INTEGER                                  :: nadiab, norbitals
+    INTEGER, POINTER                         :: itimes
 !    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_matrix_density', &
@@ -796,8 +810,9 @@ CONTAINS
 
 !       ncoeff = SIZE(coefficients)
 
-       WRITE ( unit_nr, "(2I8)" ) nadiab, norbitals
-       WRITE ( unit_nr, '(A)' ) 'Matrix Density: (nadiab*norbitals)^2'
+       WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Mat. Dens.", "; nadiab =", nadiab, "; norbitals =",&
+                                   norbitals
+       WRITE ( unit_nr, '(A,I8)' )   " i = ",itimes
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
@@ -837,10 +852,11 @@ CONTAINS
 
 
    SUBROUTINE adiab_print_nacv(adiab_section, nacv, nadiab, &
-              norbitals,ext_atoms)
+              norbitals,ext_atoms, itimes)
     TYPE(section_vals_type), POINTER         :: adiab_section
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER                                  :: nadiab, norbitals, ext_atoms
+    INTEGER, POINTER                         :: itimes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_nacv', &
       routineP = moduleN//':'//routineN
@@ -898,10 +914,11 @@ CONTAINS
    END SUBROUTINE adiab_print_nacv
 
 
-   SUBROUTINE adiab_print_stateno(adiab_section, state, ext_atoms)
+   SUBROUTINE adiab_print_stateno(adiab_section, state, ext_atoms,itimes)
     TYPE(section_vals_type), POINTER         :: adiab_section
     INTEGER                                  :: state
     INTEGER                                  :: ext_atoms
+    INTEGER, POINTER                         :: itimes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_stateno', &
       routineP = moduleN//':'//routineN
@@ -920,9 +937,8 @@ CONTAINS
 
     IF (unit_nr>0) THEN
 
-       WRITE ( unit_nr, "(2I8)" ) ext_atoms
-       WRITE ( unit_nr, '(A)' ) 'State'
-       WRITE ( unit_nr, "(I8)"  )  state
+       WRITE ( unit_nr, '(A)' ) 'Present Adiabatic State'
+       WRITE ( unit_nr, '(A,I8)' )   " i = ",itimes
 
     END IF
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%STATE")

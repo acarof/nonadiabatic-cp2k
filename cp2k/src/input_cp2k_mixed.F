@@ -226,7 +226,8 @@ CONTAINS
 
     CALL keyword_create(keyword, name="SCALING_FACTOR",&
          description="Hab = scaling*Sab",&
-         usage="0.50D0*0.065190D0", type_of_var=real_t)
+         usage="0.50D0*0.065190D0, HARTREE", type_of_var=real_t,&
+         unit_str="hartree")
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
@@ -238,7 +239,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="CBAR",&
          description="Sab constant factor",&
-         usage="0.5082", type_of_var=real_t)
+         usage="0.5082 WITHOUT UNITS", type_of_var=real_t)
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
@@ -250,7 +251,8 @@ CONTAINS
 
     CALL keyword_create(keyword, name="NUCLEAR_TIMESTEP",&
          description="Timestep for atomic motion, must be coherent",&
-         usage="in femtosecond", type_of_var=real_t)
+         usage="timestep 0.5", type_of_var=real_t, &
+         unit_str = "fs")
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
@@ -287,7 +289,10 @@ CONTAINS
 
     CALL keyword_create(keyword, name="NACV_INCREMENT",&
          description="Spatial Increment to calculate the NACV with Finite Difference.",&
-         usage="1E-3*1.889725989D0 bohr", type_of_var=real_t)
+         usage="1E-3*1.889725989D0 (bohr)", & 
+         default_r_val=0.00188972598_dp,    &
+         unit_str="bohr",                   &
+         type_of_var=real_t)
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
@@ -318,7 +323,7 @@ CONTAINS
 
     CALL cp_print_key_section_create(print_key_section=print_key,&
           name="COEFFICIENTS",&
-          description="Print the coefficients",&
+          description="Control the output of the wavefunction coefficients (diabatic basis).",&
           common_iter_levels=1,&
           filename="")
      CALL section_add_subsection(sub2section,print_key)
@@ -326,7 +331,7 @@ CONTAINS
 
      CALL cp_print_key_section_create(print_key_section=print_key,&
           name="POPULATIONS",&
-          description="Print the populations",&
+          description="Control the output of the diabatic populations.",&
           common_iter_levels=1,&
           filename="")
      CALL section_add_subsection(sub2section,print_key)
@@ -334,15 +339,16 @@ CONTAINS
 
      CALL cp_print_key_section_create(print_key_section=print_key,&
           name="HAMILTONIAN",&
-          description="Print the Hamiltonian",&
+          description="Control the output of the Hamiltonian.",&
           common_iter_levels=1,&
-          filename="")
+          filename="",         &
+          unit_str = "hartree")
      CALL section_add_subsection(sub2section,print_key)
      CALL section_release(print_key)
 
      CALL cp_print_key_section_create(print_key_section=print_key,&
           name="NACV",&
-          description="Print the NACV",&
+          description="Control the output of the NACV.",&
           common_iter_levels=1,&
           filename="")
      CALL section_add_subsection(sub2section,print_key)
@@ -350,7 +356,7 @@ CONTAINS
 
      CALL cp_print_key_section_create(print_key_section=print_key,&
           name="DENSITY_MATRIX",&
-          description="Print the density matrix",&
+          description="Control the output of the density matrix (diabatic basis).",&
           common_iter_levels=1,&
           filename="")
      CALL section_add_subsection(sub2section,print_key)
