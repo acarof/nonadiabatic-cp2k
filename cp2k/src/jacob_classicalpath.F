@@ -51,6 +51,15 @@ MODULE jacob_classicalpath
      USE jacob_utils,                        ONLY: makeX
 
      USE jacob_types,                     ONLY: aom_basket_type
+     USE input_section_types,             ONLY: section_vals_get,&
+                                                section_vals_get_subs_vals,&
+                                                section_vals_type,&
+                                                section_vals_list_get,&
+                                                section_vals_val_get
+     USE jacob_print,                     ONLY: adiab_print_coeff, &
+                                                adiab_print_pop,   &
+                                                adiab_print_matrix_density
+
 
      !USE jacob_types,                     ONLY: aom_basket_type
 
@@ -75,7 +84,7 @@ CONTAINS
                    ext_atoms, norbitals, ext_cutoff, ext_scaling, &
                    ext_init, ext_cbar, ext_minao, ext_timestep, ext_el_steps, &
                    positions_plus, energies_plus, aom_basket, ext_elements, &
-                   ext_pres, ext_scoeff, ext_pcoeff, itimes)
+                   ext_pres, ext_scoeff, ext_pcoeff, itimes, adiab_section)
 
         integer          :: nadiab,  norbitals, ext_init
         integer          :: ext_atoms, ext_el_steps
@@ -87,6 +96,8 @@ CONTAINS
         LOGICAL, dimension(:), ALLOCATABLE,  INTENT(IN)       :: ext_pres
         REAL(KIND=dp), dimension(:), ALLOCATABLE, INTENT(IN)  :: ext_scoeff,ext_pcoeff
         INTEGER, POINTER                                       :: itimes
+        TYPE(section_vals_type), POINTER         :: adiab_section
+
 
       !  REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions, positions_plus
       !  REAL(kind=dp), DIMENSION(:),  POINTER    :: energies,  energies_plus
@@ -142,7 +153,7 @@ CONTAINS
      LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask
 !     INTEGER                            :: my_itimes
 
-     REAL(KIND=dp)                      :: dR
+     REAL(KIND=dp)                      :: dR,times
 
 !print*, energies_plus(:), "kkkk"
 
@@ -1103,7 +1114,7 @@ t =2
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = S
 !print*, "WAAHAA"
 !print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
-print*, "i==k", i
+!print*, "i==k", i
                                         call calc_dRSab(At, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
@@ -1165,7 +1176,7 @@ print*, "i==k", i
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              ! H2(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, -scaling*S)
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
-print*, "i,k",i,k
+!print*, "i,k",i,k
                                              call calc_dRSab(At, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                              &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
@@ -1438,6 +1449,12 @@ print*, "i,k",i,k
                     ctin = ctout
                     !ctout = dcmplx(0.0D0, 0.0D0)
                     ctout = cmplx(0.0D0, 0.0D0,dp)
+
+                    times = DBLE(itimes) + t2*1/DBLE(ext_el_steps)   
+                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,times)
+                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,times)
+                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,times)
+
                end do
 !PRINT               print *, "Done."     
                H1 = Hsave

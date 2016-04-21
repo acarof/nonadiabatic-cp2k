@@ -351,7 +351,7 @@ CONTAINS
           description="Control the output of the NACV.",&
           common_iter_levels=1,&
           filename="",         &
-          unit_str = "hartree")
+          unit_str = "bohr^-1")
      CALL section_add_subsection(sub2section,print_key)
      CALL section_release(print_key)
 
