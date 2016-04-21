@@ -350,7 +350,8 @@ CONTAINS
           name="NACV",&
           description="Control the output of the NACV.",&
           common_iter_levels=1,&
-          filename="")
+          filename="",         &
+          unit_str = "hartree")
      CALL section_add_subsection(sub2section,print_key)
      CALL section_release(print_key)
 

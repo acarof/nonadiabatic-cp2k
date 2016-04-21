@@ -880,6 +880,9 @@ CONTAINS
 
     IF (unit_nr>0) THEN
 
+        WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "NACV", "; nadiab =", nadiab,"; norbitals =",&
+                                           norbitals
+        WRITE ( unit_nr, '(A,I8)' )   " i = ",itimes
         DO i=1,nadiab*norbitals*ext_atoms
            DO j=1,3
               WRITE( unit_nr, *) "Atom = ",i,"Dimension = ", j

@@ -601,6 +601,7 @@ CONTAINS
           CPABORT("Error: array 'nacv' not allocated correctly.")
           !stop "Error: array 'nacv' not allocated correctly."
      end if
+     nacv = 0.0D0 !CHANGE_AC 160420
      !diagonals of the Hamiltonian
      !allocate(siteenergies(times+1,mat))
      allocate(siteenergies(3,mat))
@@ -1102,6 +1103,7 @@ t =2
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = S
 !print*, "WAAHAA"
 !print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
+print*, "i==k", i
                                         call calc_dRSab(At, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
@@ -1163,6 +1165,7 @@ t =2
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              ! H2(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, -scaling*S)
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
+print*, "i,k",i,k
                                              call calc_dRSab(At, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                              &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
@@ -1297,6 +1300,7 @@ t =2
 !          close(unit=28)
 
           nacv = cbar*nacv
+!TO REMOVE AFTER
 
 !PRINT          print *, "All pairs calculated."
 
