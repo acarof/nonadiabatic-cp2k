@@ -54,6 +54,17 @@ MODULE jacob_surfacehopping
 
      USE jacob_types,                     ONLY: aom_basket_type
      USE mixed_energy_types,              ONLY: mixed_force_type
+     USE input_section_types,             ONLY: section_vals_get,&
+                                                section_vals_get_subs_vals,&
+                                                section_vals_type,&
+                                                section_vals_list_get,&
+                                                section_vals_val_get
+     USE cp_linked_list_val,              ONLY: &
+         cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, &
+         cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
+         cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
+         cp_sll_val_set_el_at, cp_sll_val_type
+
 
 
 #include "./base/base_uses.f90"
@@ -69,30 +80,28 @@ MODULE jacob_surfacehopping
 
 CONTAINS
 
+        SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
+                                      positions_plus, energies_plus, aom_basket, itimes, &
+                                      is_hop, forces_adiab, global_forces, coupling_section)
 
-        SUBROUTINE construct_ham_X_SH(nadiab, &
-                   ext_atoms, norbitals, ext_cutoff, ext_scaling, &
-                   ext_init, ext_cbar, ext_minao, ext_timestep, ext_el_steps, &
-                   positions_plus, energies_plus, aom_basket, ext_elements, &
-                   ext_pres, ext_scoeff, ext_pcoeff, itimes, collapse, is_hop, &
-                   rescale_keyword, ext_dR, forces_adiab, global_forces)
+!        SUBROUTINE construct_ham_X_SH(nadiab, &
+!                   ext_atoms, norbitals,  &
+!                   ext_cbar, ext_minao, ext_timestep, ext_el_steps, &
+!                   positions_plus, energies_plus, aom_basket, ext_elements, &
+!                   ext_pres, ext_scoeff, ext_pcoeff, itimes, collapse, is_hop, &
+!                   rescale_keyword, ext_dR, forces_adiab, global_forces)
 
-        integer          :: nadiab,  norbitals, ext_init
-        integer          :: ext_atoms, ext_el_steps
-        REAL(KIND=dp) :: ext_cutoff, ext_scaling, ext_cbar, ext_minao, ext_timestep
-        REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions_plus
-        REAL(kind=dp), DIMENSION(:),  POINTER    :: energies_plus
-        TYPE(aom_basket_type)                    :: aom_basket
-        integer, dimension(:),  INTENT(IN)        :: ext_elements
-        LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
-        REAL(KIND=dp), dimension(:), ALLOCATABLE, INTENT(IN)  :: ext_scoeff,ext_pcoeff
-        INTEGER, POINTER                                       :: itimes
-        LOGICAL, INTENT(OUT)                         :: is_hop
-        LOGICAL, INTENT(IN)                          :: collapse           
-        CHARACTER(LEN=default_string_length)         :: rescale_keyword
-        REAL(KIND=dp), INTENT(IN), OPTIONAL          :: ext_dR
-        REAL(kind=dp), DIMENSION(:,:),POINTER    :: forces_adiab
+        INTEGER                                        :: nadiab,  norbitals 
+        INTEGER                                        :: aom_atoms
+        REAL(KIND=dp)                                  :: MDtimestep
+        REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_plus
+        REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_plus
+        TYPE(aom_basket_type)                          :: aom_basket
+        INTEGER, POINTER                               :: itimes
+        LOGICAL, INTENT(OUT)                           :: is_hop
+        REAL(kind=dp), DIMENSION(:,:),POINTER          :: forces_adiab
         TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
+        TYPE(section_vals_type), POINTER               :: coupling_section
 
 
         CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
@@ -127,11 +136,39 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C1, C2
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E1, E2
-     !LOGICAL                                      :: collapse, decohere
-     LOGICAL                                      :: decohere
-     INTEGER                                      :: ext_state    
+     LOGICAL                                      :: decohere, collapse
+     INTEGER                                      :: ext_state , ELsteps   
      REAL(KIND=dp)                                :: dR 
      INTEGER                                      :: imol, iatom, natom
+     integer, dimension(:), ALLOCATABLE           :: ext_elements
+     LOGICAL, dimension(:), ALLOCATABLE           :: ext_pres
+     REAL(KIND=dp), dimension(:), ALLOCATABLE     :: ext_scoeff,ext_pcoeff
+     TYPE(cp_sll_val_type), POINTER               :: listcoeff
+
+
+
+!> cutoff to define the neighborough list
+        CALL section_vals_val_get(coupling_section,"CUT_OFF",&
+             r_val=cutoff)
+!> Scaling factor Hab = scaling*Sab_bar
+        CALL section_vals_val_get(coupling_section,"SCALING_FACTOR",&
+             r_val=scaling)
+!> Starting site number
+        CALL section_vals_val_get(coupling_section,"INIT_SITES",&
+             i_val=init)
+!> cbar factor : Sab = cbar*Sab_bar
+        CALL section_vals_val_get(coupling_section,"CBAR",&
+             r_val=cbar)
+     !minao is an atomic overlap cutoff
+        CALL section_vals_val_get(coupling_section,"ATOMIC_OVERLAP_CUTOFF",&
+             r_val=minao)
+        CALL section_vals_val_get(coupling_section,"ELECTRONIC_PARTIAL_STEP",&
+             i_val=ELsteps)
+
+
+     CALL section_vals_val_get(coupling_section,"NACV_INCREMENT",&
+          r_val=dR)
+     CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
 
      !We begin by reading in the input parameters
      !There are currently two modes this program can run in
@@ -149,34 +186,29 @@ CONTAINS
 !> Number of sites
      mol = nadiab ! CHANGE_AC
 !> Number of atoms per site
-        atoms = ext_atoms ! CHANGE_AC
+        atoms = aom_atoms ! CHANGE_AC
      !for Classical Path Approximation, this is the number of timesteps in pre-computed trajectory
      !otherwise, 2
 !> Number of orbitals per atom
      orb = norbitals ! CHANGE_AC
-!> cutoff to define the neighborough list
 !> In angstrom
-     cutoff = ext_cutoff ! CHANGE_AC
+!     cutoff = ext_cutoff ! CHANGE_AC
      !scaling = 0.5D0*0.06519D0
-!> Scaling factor Hab = scaling*Sab_bar
-     scaling = ext_scaling ! CHANGE_AC
+     !scaling = ext_scaling ! CHANGE_AC
      !init = 1
-!> Starting site number
-     init = ext_init ! CHANGE_AC
+!     init = ext_init ! CHANGE_AC
      !cbar = 0.5082
-!> cbar factor : Sab = cbar*Sab_bar
-     cbar = ext_cbar ! CHANGE_AC
-     !minao is an atomic overlap cutoff
+!     cbar = ext_cbar ! CHANGE_AC
      !a value of 1E-17 means all atoms are included
      !minao = 1.0D-17
-     minao = ext_minao ! CHANGE_AC
+ !    minao = ext_minao ! CHANGE_AC
 
 !> dR is the finite difference to calculate the NACV
-     if (PRESENT(ext_dR)) then 
-        dR = ext_dR
-     else
-        dR = 0.0001D0*1.889725989D0
-     endif
+!     if (PRESENT(ext_dR)) then 
+!        dR = ext_dR
+!     else
+!        dR = 0.0001D0*1.889725989D0
+!     endif
 
      !With surface-hopping, the program needs information about where in the simulation it is
      !i.e. if this is the first timestep, or if certain once-in-a-while actions need to be done
@@ -211,11 +243,11 @@ CONTAINS
      !molecular timestep is generally 0.5fs to improve energy conservation
 !     deltatMD = (5.0D-16)/(2.4188843265D-17)
 !> Find deltaMD, nuclear timestep, in atomic units
-     deltatMD = (ext_timestep*1.0D-15)/(2.4188843265D-17) !CHANGE_AC
+     deltatMD = (MDtimestep*1.0D-15)/(2.4188843265D-17) !CHANGE_AC
      !electronic timestep is a fraction of the molecular timestep
 !     deltatE = deltatMD/5.0D0
 !> Find deltaE, electronic timestep, in atomic units
-     deltatE = deltatMD/ext_el_steps !CHANGE_AC
+     deltatE = deltatMD/ELsteps !CHANGE_AC
 
      !here are some useful conversion factors
      !1 Angstrom = bohrang Bohr
@@ -328,6 +360,9 @@ CONTAINS
      !allocate(F(3,mol*atoms,mol))
      allocate(F(3,natom,mol))
 
+     CALL section_vals_list_get(coupling_section,"_DEFAULT_KEYWORD_",list=listcoeff)
+     CALL read_listcoeff(listcoeff, ext_elements, ext_pres, &
+                         ext_scoeff, ext_pcoeff, natom)
      !elements contains the atomic number of each atom (this goes into At, Bt etc)
      !it is user-defined input
      allocate(elements(atoms))

@@ -147,9 +147,9 @@ CONTAINS
     integer, dimension(:), ALLOCATABLE       :: ext_elements
     LOGICAL, dimension(:), ALLOCATABLE       :: ext_pres
     REAL(KIND=dp), dimension(:), ALLOCATABLE :: ext_scoeff, ext_pcoeff
-    COMPLEX(KIND=dp), DIMENSION(:),  POINTER :: coefficients
+    !COMPLEX(KIND=dp), DIMENSION(:),  POINTER :: coefficients
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
-    REAL(KIND=dp), DIMENSION(:),POINTER      :: populations
+    !REAL(KIND=dp), DIMENSION(:),POINTER      :: populations
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
 !    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER, POINTER                         :: itimes
@@ -219,7 +219,7 @@ CONTAINS
         CALL construct_ham_X_SH_full_degen_classicalpath(nadiab=nadiab, &
              ext_atoms=ext_atoms, norbitals=norbitals, &
              ext_cutoff = ext_cutoff, ext_scaling = ext_scaling, &
-             ext_init = ext_init, ext_cbar = ext_cbar, & 
+             ext_init = ext_init, ext_cbar = ext_cbar, &
              ext_minao = ext_minao, ext_timestep = ext_timestep, &
              ext_el_steps = ext_el_steps, &
              positions_plus=positions_plus, &
@@ -230,17 +230,18 @@ CONTAINS
 !print*, 'here we are 02'
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
-        ALLOCATE(coefficients(norbitals*nadiab))
-        ALLOCATE(populations(norbitals*nadiab))
+!        ALLOCATE(coefficients(norbitals*nadiab))
+!        ALLOCATE(populations(norbitals*nadiab))
         ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
         ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*ext_atoms))
 
 !> Get the renewed information from aom_basket
-        coefficients = aom_basket%ctin
+!        coefficients = aom_basket%ctin
 !print*, coefficients, "mmmm"
-        populations  = aom_basket%population
+!        populations  = aom_basket%population
         hamiltonian  = aom_basket%hamiltonian
         nacv         = aom_basket%nacv
+        
 !print*, hamiltonian, "mmmm"
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
@@ -283,7 +284,8 @@ CONTAINS
     IF (ASSOCIATED(map_index)) THEN
        DEALLOCATE(map_index)
     END IF
-    DEALLOCATE(coefficients, populations, hamiltonian, nacv)
+    !DEALLOCATE(coefficients, populations, hamiltonian, nacv)
+    DEALLOCATE(hamiltonian, nacv)
 
    END SUBROUTINE adiab_classicalpath_routines
 
@@ -317,33 +319,25 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iparticle, jparticle, natom,iforce_eval
-    INTEGER                                  :: aom_natom, nadiab
-    INTEGER                                  :: norbitals, ext_init, ext_atoms
-    INTEGER                                  :: ext_el_steps
-    REAL(kind=dp)                            :: ext_cutoff, ext_scaling
-    REAL(KIND=dp)                            :: ext_timestep
-    REAL(kind=dp)                            :: ext_cbar, ext_minao
+    INTEGER                                  :: nadiab
+    INTEGER                                  :: norbitals, aom_atoms
+    REAL(KIND=dp)                            :: MDtimestep
     REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions_plus
     REAL(kind=dp), DIMENSION(:,:),POINTER    :: forces_adiab
     REAL(kind=dp)                            :: factor
     TYPE(section_vals_type), POINTER         :: coupling_section
     CHARACTER(LEN=default_string_length)     :: coupling_keyword
-    TYPE(cp_sll_val_type), POINTER           :: listcoeff
+    CHARACTER(LEN=default_string_length)     :: rescale_keyword
+    !TYPE(cp_sll_val_type), POINTER           :: listcoeff
     TYPE(aom_basket_type)                    :: aom_basket
-    integer, dimension(:), ALLOCATABLE       :: ext_elements
-    LOGICAL, dimension(:), ALLOCATABLE       :: ext_pres
-    REAL(KIND=dp), dimension(:), ALLOCATABLE :: ext_scoeff, ext_pcoeff
-    COMPLEX(KIND=dp), DIMENSION(:),  POINTER :: coefficients
+    !COMPLEX(KIND=dp), DIMENSION(:),  POINTER :: coefficients
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
-    REAL(KIND=dp), DIMENSION(:),POINTER      :: populations
+    !REAL(KIND=dp), DIMENSION(:),POINTER      :: populations
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: collapse
     INTEGER                                  :: old_state, new_state
     REAL(KIND=dp)                            :: scalefactor
     LOGICAL                                  :: is_hop
-    CHARACTER(LEN=default_string_length)     :: rescale_keyword
-    REAL(kind=dp)                            :: ext_dR
 
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_plus(natom,3))
@@ -367,62 +361,31 @@ CONTAINS
         END DO
 !> Get the coupling section and all the information 
         coupling_section => section_vals_get_subs_vals(adiab_section, "AOM")
-        CALL section_vals_val_get(coupling_section,"_DEFAULT_KEYWORD_",&
-             n_rep_val=aom_natom)
+!        CALL section_vals_val_get(coupling_section,"_DEFAULT_KEYWORD_",&
+!             n_rep_val=aom_natom)
         CALL section_vals_val_get(coupling_section,"NUMBER_DIABATIC_STATES",&
              i_val=nadiab)
         CALL section_vals_val_get(coupling_section,"NUMBER_ATOMS_PER_SITE",&
-             i_val=ext_atoms)
+             i_val=aom_atoms)
         CALL section_vals_val_get(coupling_section,"NUMBER_ORBITALS",&
              i_val=norbitals)
-        CALL section_vals_val_get(coupling_section,"CUT_OFF",&
-             r_val=ext_cutoff)
-        CALL section_vals_val_get(coupling_section,"SCALING_FACTOR",&
-             r_val=ext_scaling)
-        CALL section_vals_val_get(coupling_section,"INIT_SITES",&
-             i_val=ext_init)
-        CALL section_vals_val_get(coupling_section,"CBAR",&
-             r_val=ext_cbar)
-        CALL section_vals_val_get(coupling_section,"ATOMIC_OVERLAP_CUTOFF",&
-             r_val=ext_minao)
         CALL section_vals_val_get(coupling_section,"NUCLEAR_TIMESTEP",&
-             r_val=ext_timestep)
-        CALL section_vals_val_get(coupling_section,"ELECTRONIC_PARTIAL_STEP",&
-             i_val=ext_el_steps)
-        CALL section_vals_list_get(coupling_section,"_DEFAULT_KEYWORD_",list=listcoeff)
-        CALL read_listcoeff(listcoeff, ext_elements, ext_pres, & 
-                            ext_scoeff, ext_pcoeff, natom)
-        CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
-        CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
-        CALL section_vals_val_get(coupling_section,"NACV_INCREMENT",&
-             r_val=ext_dR)
-    itimes => my_itimes
+             r_val=MDtimestep)
+        itimes => my_itimes
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
-        CALL construct_ham_X_SH(nadiab=nadiab, &
-             ext_atoms=ext_atoms, norbitals=norbitals, &
-             ext_cutoff = ext_cutoff, ext_scaling = ext_scaling, &
-             ext_init = ext_init, ext_cbar = ext_cbar, & 
-             ext_minao = ext_minao, ext_timestep = ext_timestep, &
-             ext_el_steps = ext_el_steps, &
-             positions_plus=positions_plus, &
-             energies_plus = energies_plus, &
-             aom_basket = aom_basket, ext_elements=ext_elements, &
-             ext_pres = ext_pres, ext_scoeff=ext_scoeff, &
-             ext_pcoeff=ext_pcoeff, itimes=itimes, &
-             collapse = collapse, is_hop=is_hop,   &
-             rescale_keyword = rescale_keyword, &
-             ext_dR = ext_dR, forces_adiab = forces_adiab, &
-             global_forces = global_forces)
+        CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
+             positions_plus, energies_plus, aom_basket, itimes, &
+             is_hop, forces_adiab, global_forces, coupling_section)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
-        ALLOCATE(coefficients(norbitals*nadiab))
-        ALLOCATE(populations(norbitals*nadiab))
+ !       ALLOCATE(coefficients(norbitals*nadiab))
+ !       ALLOCATE(populations(norbitals*nadiab))
         ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
-        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*ext_atoms))
+        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*aom_atoms))
 
 !> Get the renewed information from aom_basket
-        coefficients = aom_basket%ctin
-        populations  = aom_basket%population
+ !       coefficients = aom_basket%ctin
+ !       populations  = aom_basket%population
         hamiltonian  = aom_basket%hamiltonian
         nacv         = aom_basket%nacv
         new_state        = aom_basket%state
@@ -433,14 +396,16 @@ CONTAINS
         !CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals,itimes)
         CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes)
         !CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals,itimes)
-        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms,itimes)        
-        CALL adiab_print_stateno(adiab_section, new_state, ext_atoms,itimes)
+        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes)        
+        CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes)
 
 !> Do the velocities rescaling if required
         IF (old_state.NE.new_state) THEN
            CPASSERT(is_hop) !Be sure there is indeed a hop
 !> Check that all the kinetic energies are the same for the different force
 !> fields
+     CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
+
           DO iforce_eval = 2, nforce_eval
              IF (kinetic_energies(iforce_eval).NE.kinetic_energies(1)) THEN
                 CPABORT("The different diabatic FF don't share the same kinetic energies")
@@ -488,6 +453,8 @@ CONTAINS
     IF (ASSOCIATED(map_index)) THEN
        DEALLOCATE(map_index)
     END IF
+    
+    DEALLOCATE(hamiltonian, nacv)
 
    END SUBROUTINE adiab_fssh_routines
 
