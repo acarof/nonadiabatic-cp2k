@@ -1770,7 +1770,8 @@ contains
              !end if
 
 
-              nacva(j,i)=(abs(sabRDRR)-abs(sabRR))/dR
+              !nacva(j,i)=(abs(sabRDRR)-abs(sabRR))/dR
+              nacva(j,i)=(sabRDRR-sabRR)/dR   !CHANGE_AC 160427 
 
           end do
 

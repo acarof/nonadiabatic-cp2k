@@ -243,7 +243,7 @@ CONTAINS
      !molecular timestep is generally 0.5fs to improve energy conservation
 !     deltatMD = (5.0D-16)/(2.4188843265D-17)
 !> Find deltaMD, nuclear timestep, in atomic units
-     deltatMD = (MDtimestep*1.0D-15)/(2.4188843265D-17) !CHANGE_AC
+     deltatMD = MDtimestep !CHANGE_AC
      !electronic timestep is a fraction of the molecular timestep
 !     deltatE = deltatMD/5.0D0
 !> Find deltaE, electronic timestep, in atomic units
@@ -331,6 +331,7 @@ CONTAINS
 
      !non-adiabatic coupling vectors
      allocate(nacv(3,mat,mat,mat*atoms))
+     nacv = 0.0D0
      !diagonals of the Hamiltonian
      allocate(siteenergies(3,mat))
 
@@ -379,10 +380,10 @@ CONTAINS
      !and thus which pairs to carry out the calculation for
      allocate(connlist1(4,atoms))
      allocate(connlist2(4,size(atomlist)))
-     allocate(aneighbour(3,0:atoms))
-     allocate(bneighbour(3,0:atoms))
-     allocate(neighbourlist(mol,3,0:atoms))
-
+     allocate(aneighbour(0:atoms,0:atoms))
+     allocate(bneighbour(0:atoms,0:atoms))
+     allocate(neighbourlist(mol,0:atoms,0:atoms))
+     neighbourlist = 0
 
      !the stateno file contains a numeric representation of the adiabatic electronic state
         if (itimes.gt.1) then
@@ -506,7 +507,7 @@ CONTAINS
      end do
      !if (.not. inrun) then
      if (itimes.eq.0) then
-          call connect_list2(At, atomlist, connlist1, connlist2)
+          call connect_list2(At(1:3,:), atomlist, connlist1, connlist2)
           do i=1,atoms
                         aom_basket%connlist1(1:4,i) = connlist1(1:4,i)
           end do
@@ -619,9 +620,9 @@ t =2
                                         !These diagonals are 1 by definition
                                         Stptp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
                                         !H1(orb*(i-1)+d,orb*(k-1)+d) = dcmplx(0.0D0, (-siteenergies(t,k)/kcal))
-                                        H1(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t,k)/kcal), dp)
+                                        H1(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t,k)), dp)
                                         !H2(orb*(i-1)+d,orb*(k-1)+d) = dcmplx(0.0D0, (-siteenergies(t+1,k)/kcal))
-                                        H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t+1,k)/kcal),dp)
+                                        H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t+1,k)),dp)
                                         call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                         Sttp(orb*(i-1)+d,orb*(k-1)+m) = S
@@ -630,8 +631,10 @@ t =2
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = S
                                         call calc_dRSab(At, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
-                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
-                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
+                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
+                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
+                                        !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
+                                        !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
                                         &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
                                         !&neighbourlist(i,:,:), neighbourlist(k,:,:))
                                         &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
@@ -683,8 +686,10 @@ t =2
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
                                              call calc_dRSab(At, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
-                                             &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
-                                             &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:2*(i-1)*atoms), &
+                                             &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
+                                             &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:i*atoms), &
+                                             !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
+                                             !&nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:2*(i-1)*atoms), &
                                              &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
                                              !&scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:))
                                              &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)

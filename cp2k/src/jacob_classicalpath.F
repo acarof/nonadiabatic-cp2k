@@ -896,23 +896,27 @@ print*, "ext_el_steps", ext_el_steps
           !stop "Error: array 'connlist2' not allocated correctly."
      end if
      !allocate(aneighbour(3,0:atoms))
-     allocate(aneighbour(4,0:atoms))
+     !allocate(aneighbour(4,0:atoms))
+     allocate(aneighbour(0:atoms,0:atoms))
      if (.not. allocated(aneighbour)) then
           CPABORT("Error: array 'aneighbour' not allocated correctly.")
           !stop "Error: array 'aneighbour' not allocated correctly."
      end if
      !allocate(bneighbour(3,0:atoms))
-     allocate(bneighbour(4,0:atoms))
+     !allocate(bneighbour(4,0:atoms))
+     allocate(bneighbour(0:atoms,0:atoms))
      if (.not. allocated(bneighbour)) then
           CPABORT("Error: array 'bneighbour' not allocated correctly.")
           !stop "Error: array 'bneighbour' not allocated correctly."
      end if
      !allocate(neighbourlist(mol,3,0:atoms))
-     allocate(neighbourlist(mol,4,0:atoms))
+     !allocate(neighbourlist(mol,4,0:atoms))
+     allocate(neighbourlist(mol,0:atoms,0:atoms))
      if (.not. allocated(neighbourlist)) then
           CPABORT("Error: array 'neighbourlist' not allocated correctly.")
           !stop "Error: array 'neighbourlist' not allocated correctly."
      end if
+     neighbourlist =0
      !we fill out the connlist arrays before calculating the nacv
      do i=1,atoms
           do j=1,3
@@ -926,7 +930,8 @@ print*, "ext_el_steps", ext_el_steps
      !print *, "All done!",itimes,800
      !if (.not. inrun) then
      if (itimes.eq.0) then
-          call connect_list2(At, atomlist, connlist1, connlist2)
+          !call connect_list2(At, atomlist, connlist1, connlist2)
+          call connect_list2(At(1:3,:), atomlist, connlist1, connlist2)
 !          open(unit=40,file='./connectlist1',action='write')
 !          open(unit=41,file='./connectlist2',action='write')
 !print*, connlist1(:,1), "connlist1 eq 0"
@@ -1125,8 +1130,10 @@ t =2
 !print*, "i==k", i
                                         call calc_dRSab(At, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
-                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
-                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
+                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
+                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
+                                        !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
+                                        !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
                                         &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
                                         !&neighbourlist(i,:,:), neighbourlist(k,:,:))
                                         &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
@@ -1187,8 +1194,10 @@ t =2
 !print*, "i,k",i,k
                                              call calc_dRSab(At, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
-                                             &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
-                                             &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:2*(i-1)*atoms), &
+                                             &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
+                                             &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:i*atoms), &
+                                             !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
+                                             !&nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:2*(i-1)*atoms), &
                                              &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
                                              !&scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:))
                                              &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
