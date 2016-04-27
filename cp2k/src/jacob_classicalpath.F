@@ -375,7 +375,7 @@ CONTAINS
      !open(unit=24,file='./stateno',action='read')
      !read(24,*) state
      !close(unit=24)
-        if (itimes.gt.1) then
+        if (itimes.gt.2) then
            state = aom_basket%state
         else
            state = 1
@@ -407,6 +407,9 @@ CONTAINS
           ctotal(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
 !WRITE          write(12,*) abs(ctotal(1:mat))
                 aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
+                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,2.0D0)
+                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,2.0D0)
+                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,2.0D0)
      else
 !OPEN          open(unit=12,file='./C.txt',action='write')
           !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')

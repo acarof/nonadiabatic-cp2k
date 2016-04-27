@@ -247,10 +247,12 @@ CONTAINS
 !> and the NACV
 !        CALL adiab_print_coeff(adiab_section, coefficients,nadiab,norbitals,itimes)
 !        CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals,itimes)
-        CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes)
+        if (itimes.ge.2) then
+           CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes)
 !        CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals,itimes)
-        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms,itimes)        
-
+           CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, ext_atoms,itimes)        
+        endif
+ 
 !> IMPORTANT: store all aom_basket for the future timesteps
         mixed_env%aom_basket=aom_basket
     CASE DEFAULT
