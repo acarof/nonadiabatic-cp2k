@@ -318,10 +318,15 @@ CONTAINS
      !calculate timestep from femtoseconds in atomic units
      !molecular timestep is generally 0.5fs to improve energy conservation
 !     deltatMD = (5.0D-16)/(2.4188843265D-17)
-     deltatMD = (ext_timestep*1.0D-15)/(2.4188843265D-17) !CHANGE_AC
+!     deltatMD = (ext_timestep*1.0D-15)/(2.4188843265D-17) !CHANGE_AC
+     deltatMD = ext_timestep !CHANGE_AC
      !electronic timestep is a fraction of the molecular timestep
 !     deltatE = deltatMD/5.0D0
      deltatE = deltatMD/ext_el_steps !CHANGE_AC
+print*, "deltatE", deltatE
+print*, "deltatMD", deltatMD
+print*, "ext_timestep", ext_timestep
+print*, "ext_el_steps", ext_el_steps
 
      !here are some useful conversion factors
      !1 Angstrom = bohrang Bohr
@@ -1324,6 +1329,7 @@ t =2
                !so for each molecular timestep, the program calculates for multiple electronic timesteps
                !during this process, the H and S matrices are found by linear interpolation between the original S1 and S2
                Hdiff = (deltatE/deltatMD)*(H2 - H1)
+!print*, "Hdiff", Hdiff
                Sttdiff = (deltatE/deltatMD)*(Stptp - Stt)
                Sttpdiff = (deltatE/deltatMD)*(Sttp - Stmt)
                Sttmdiff = (deltatE/deltatMD)*(Stpt - Sttm)
@@ -1336,7 +1342,8 @@ t =2
 
 !print*, "Stt",Stt
                     call makeX(mat, H1, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
-!print*, X1
+print*, "H1", H1
+print*, "X1",X1
                     !create timestepped equivalents
                     H12 = H1 + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
@@ -1345,7 +1352,8 @@ t =2
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
                     call makeX(mat, H12, Stt, Sttp, Sttm, Stptp, Stmtm, X12, deltatMD)
-!print*, X12
+print*, "H12", H12
+print*, "X12", X12
      
                     H2 = H12 + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
@@ -1354,6 +1362,8 @@ t =2
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
                     call makeX(mat, H2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD)
+print*, "H2", H2
+print*, "X2", X2
 !print*, "vvvv"
 !print*, mat
 !print*, H2
@@ -1392,21 +1402,23 @@ t =2
                     call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X1, &
                     &mat, beta, K2, mat)
                     K2 = K2 + X12
-                    
+print*, "K2", K2                    
                     !third term
                     call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X2, &
                     &mat, beta, K3, mat)
                     K3 = K3 + X12
-     
+print*, "K3", K3 
                     !fourth term
                     !alpha = dcmplx(deltatE, 0.0D0)
                     alpha = cmplx(deltatE, 0.0D0,dp)
                     call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X2, mat, K3, &
                     &mat, beta, K4, mat)
                     K4 = K4 + X2
-     
+print*, "K4", K4    
+print*, "deltatE", deltatE 
                     !put everything together
                     Ktot = Imat + (deltatE/6.0D0)*(X1 + 2*K2 + 2*K3 + K4)
+print*, "Ktot", Ktot
 !print*, "wwww"
 !print*, Imat
 !print*, (deltatE/6.0D0)
@@ -1421,7 +1433,10 @@ t =2
                     !alpha = dcmplx(1.0D0, 0.0D0)
                     alpha = cmplx(1.0D0, 0.0D0,dp)
                     inc = 1
+print*, "ctin", ctin
                     call ZGEMV(zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc)
+print*, "ctin", ctin
+print*, "ctout", ctout
 !print*, t2, zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc
 !print*, itimes, ctout, "tttt"
 !print*, itimes, ctout, "tttt"
@@ -1435,10 +1450,10 @@ t =2
                     end do
                     ctmag = abs(ctcomp)
                     !rescale to conserve norm = 1
-                    do i=1,mat
+!                    do i=1,mat
                          !ctout(i) = dcmplx((1.0D0/sqrt(ctmag))*realpart(ctout(i)), (1.0D0/sqrt(ctmag))*imagpart(ctout(i)))
-                         ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
-                    end do
+!                         ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
+!                    end do
                     do i=1,mat
                          ctotal(i) = conjg(ctout(i))*ctout(i)
                     end do
@@ -1449,7 +1464,9 @@ t =2
                     !end if
                     !update
                     H1 = H2
+print*, "ctout", ctout
                     ctin = ctout
+print*, "ctin", ctin
                     !ctout = dcmplx(0.0D0, 0.0D0)
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 

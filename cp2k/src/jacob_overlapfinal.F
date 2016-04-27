@@ -1776,8 +1776,8 @@ contains
 
           deallocate(linecol)
 
-          print*, "hoy !"
-              print*, i, nacva(1,i),  nacva(2,i), nacva(3,i)
+!          print*, "hoy !"
+!              print*, i, nacva(1,i),  nacva(2,i), nacva(3,i)
       end do
 
 !     These parameters change if natoma .neq. natomb
@@ -1858,8 +1858,8 @@ contains
 
           deallocate(linecol)
 
-          print*, "hey !"
-          print*, i,nacvb(1,i),  nacvb(2,i), nacvb(3,i)
+!          print*, "hey !"
+!          print*, i,nacvb(1,i),  nacvb(2,i), nacvb(3,i)
 
       end do
 

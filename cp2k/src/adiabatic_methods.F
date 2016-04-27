@@ -106,7 +106,8 @@ CONTAINS
 
     SUBROUTINE  adiab_classicalpath_routines(particles_mix, virial_mix, results_mix,   &
                 global_forces, energies_plus, virials, results, nforce_eval,&
-                map_index, mapping_section, adiab_section, mixed_env, my_itimes)
+                map_index, mapping_section, adiab_section, mixed_env, my_itimes, &
+                frozen_hamil)
 
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(virial_type), POINTER               :: virial_mix
@@ -124,6 +125,7 @@ CONTAINS
     TYPE(mixed_environment_type), OPTIONAL, &
       POINTER                                :: mixed_env
     INTEGER, POINTER                         :: my_itimes
+    LOGICAL, OPTIONAL                        :: frozen_hamil
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_classicalpath_routines', &
       routineP = moduleN//':'//routineN
@@ -153,6 +155,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
 !    TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER, POINTER                         :: itimes
+    LOGICAL                                  :: my_frozen_hamil
+
+    my_frozen_hamil = .FALSE.
+    IF (PRESENT(frozen_hamil)) my_frozen_hamil = frozen_hamil
 
 !    print*, "la", my_itimes
  !   itimes => my_itimes
@@ -262,7 +268,13 @@ CONTAINS
 !> IMPORTANT : GIVE BACK THE FORCES TO FIST
     DO iparticle = 1, natom
       jparticle = map_index(iparticle)
-      particles_mix%els(jparticle)%f(:)= global_forces(1)%forces(:,iparticle)
+!> DEPEND IF WE WORK IN THE FROZEN HAMILTONIAN CASE OR NOT
+      IF (my_frozen_hamil) THEN
+          particles_mix%els(jparticle)%f(:)= 0.0D0
+          particles_mix%els(jparticle)%v(:)= 0.0D0
+      ELSE 
+          particles_mix%els(jparticle)%f(:)= global_forces(1)%forces(:,iparticle)
+      ENDIF
 !      positions(jparticle,:)  = particles_mix%els(jparticle)%r(:)
     END DO
 

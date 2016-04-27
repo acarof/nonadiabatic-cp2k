@@ -914,9 +914,8 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(globenv))
     CALL globenv_retain(globenv)
-    CALL f_env_dealloc(f_env)
-print*, "hey 3"
     CALL cp2k_finalize(root_section,para_env,globenv,f_env%old_path)
+    CALL f_env_dealloc(f_env)
     CALL section_vals_release(root_section)
     CALL globenv_release(globenv)
     DEALLOCATE(f_env)
