@@ -854,6 +854,7 @@ CONTAINS
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: kinetic_energies
     LOGICAL                                  :: frozen_hamil
+    LOGICAL                                  :: bo_keyword
 !    INTEGER, POINTER                         :: my_itimes !CHANGE_AC
 !> End CHANGE_AC
 
@@ -1136,7 +1137,21 @@ CONTAINS
            CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
                 global_forces, energies, virials, results, nforce_eval,&
                 map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
-                kinetic_energies) 
+                kinetic_energies)
+        CASE("BORN_OPPENHEIMER")
+           !Check that all the FF have the same number of atoms than the 1st FF
+           !because in the subroutine the number of atoms wil be the one of 1st
+           !FF
+           DO iforce_eval = 2, nforce_eval
+              IF (glob_natoms(iforce_eval).NE.glob_natoms(1)) THEN
+                 CPABORT("Illegal use of FSSH_ATOMS methods")
+              END IF
+           ENDDO
+           bo_keyword = .TRUE.
+           CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
+                global_forces, energies, virials, results, nforce_eval,&
+                map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
+                kinetic_energies, bo_keyword)
         CASE DEFAULT
            CPABORT("There is no method to calculate the adiabatic force")
         END SELECT

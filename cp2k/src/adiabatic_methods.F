@@ -309,7 +309,7 @@ CONTAINS
     SUBROUTINE  adiab_fssh_routines(particles_mix, virial_mix, results_mix,      &
                 global_forces, energies_plus, virials, results, nforce_eval,     &
                 map_index, mapping_section, adiab_section, mixed_env, my_itimes, &
-                kinetic_energies)
+                kinetic_energies, bo_keyword)
 
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(virial_type), POINTER               :: virial_mix
@@ -328,6 +328,7 @@ CONTAINS
     TYPE(mixed_environment_type), OPTIONAL, &
       POINTER                                :: mixed_env
     INTEGER, POINTER                         :: my_itimes
+    LOGICAL, OPTIONAL                        :: bo_keyword
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_classicalpath_routines', &
       routineP = moduleN//':'//routineN
@@ -352,6 +353,7 @@ CONTAINS
     INTEGER                                  :: old_state, new_state
     REAL(KIND=dp)                            :: scalefactor
     LOGICAL                                  :: is_hop
+    LOGICAL                                  :: my_bo_keyword
 
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_plus(natom,3))
@@ -359,6 +361,9 @@ CONTAINS
     factor = 1
 !> Save the previous state
     old_state = aom_basket%state
+
+    my_bo_keyword = .FALSE.
+    IF (PRESENT(bo_keyword)) my_bo_keyword = bo_keyword
 
 
 !> Find the method to calculate the off-diagonal elements
@@ -389,7 +394,7 @@ CONTAINS
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
              positions_plus, energies_plus, aom_basket, itimes, &
-             is_hop, forces_adiab, global_forces, coupling_section)
+             is_hop, forces_adiab, global_forces, coupling_section, my_bo_keyword)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
  !       ALLOCATE(coefficients(norbitals*nadiab))

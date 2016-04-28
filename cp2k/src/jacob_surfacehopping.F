@@ -82,7 +82,8 @@ CONTAINS
 
         SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
                                       positions_plus, energies_plus, aom_basket, itimes, &
-                                      is_hop, forces_adiab, global_forces, coupling_section)
+                                      is_hop, forces_adiab, global_forces, coupling_section, &
+                                      my_bo_keyword)
 
 !        SUBROUTINE construct_ham_X_SH(nadiab, &
 !                   ext_atoms, norbitals,  &
@@ -102,7 +103,7 @@ CONTAINS
         REAL(kind=dp), DIMENSION(:,:),POINTER          :: forces_adiab
         TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
         TYPE(section_vals_type), POINTER               :: coupling_section
-
+        LOGICAL, INTENT(OUT)                           :: my_bo_keyword
 
         CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
         routineP = moduleN//':'//routineN
@@ -136,7 +137,7 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C1, C2
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E1, E2
-     LOGICAL                                      :: decohere, collapse
+     LOGICAL                                      :: decohere, collapse, analytics
      INTEGER                                      :: ext_state , ELsteps   
      REAL(KIND=dp)                                :: dR 
      INTEGER                                      :: imol, iatom, natom
@@ -144,7 +145,7 @@ CONTAINS
      LOGICAL, dimension(:), ALLOCATABLE           :: ext_pres
      REAL(KIND=dp), dimension(:), ALLOCATABLE     :: ext_scoeff,ext_pcoeff
      TYPE(cp_sll_val_type), POINTER               :: listcoeff
-
+     INTEGER                                      :: my_bo_state
 
 
 !> cutoff to define the neighborough list
@@ -169,6 +170,15 @@ CONTAINS
      CALL section_vals_val_get(coupling_section,"NACV_INCREMENT",&
           r_val=dR)
      CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
+     CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
+     IF (my_bo_keyword) THEN
+        CALL section_vals_val_get(coupling_section,"BO_STATE",&
+             i_val=my_bo_state)
+     ELSE
+        my_bo_state = 0
+     ENDIF
+     
+
 
      !We begin by reading in the input parameters
      !There are currently two modes this program can run in
@@ -629,13 +639,15 @@ t =2
                                         call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3), S, Bt,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = S
-                                        call calc_dRSab(At, atomlist, connlist1, &
+                                        !call calc_dRSab(At, atomlist, connlist1, &
+                                        call calc_dRSab(Atp, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
                                         !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
                                         !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
-                                        &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
+                                        !&Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
+                                        &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
                                         !&neighbourlist(i,:,:), neighbourlist(k,:,:))
                                         &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                    end do
@@ -684,13 +696,15 @@ t =2
                                              & S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
-                                             call calc_dRSab(At, atomlist, connlist1, &
+                                             !call calc_dRSab(At, atomlist, connlist1, &
+                                             call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                              &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
                                              &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:i*atoms), &
                                              !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
                                              !&nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:2*(i-1)*atoms), &
-                                             &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
+                                             !&Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
+                                             &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
                                              !&scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:))
                                              &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                         end do
@@ -920,9 +934,15 @@ t =2
                !new (possibly unchanged) surface for simulation
 !               if (input /= 'n') then
                     !call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, state, decohere)
-                    call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, state, decohere, &
+               IF (my_bo_keyword) THEN
+                    ext_state = my_bo_state
+                    decohere = .FALSE.
+                    is_hop = .FALSE.
+               ELSE    
+                    call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, state, decohere,  &      
                                     ext_state, is_hop)
-                    aom_basket%state = ext_state
+                ENDIF
+                aom_basket%state = ext_state
 !               end if
 
                !The forces subroutine then calculates the adiabatic forces and prints them out
@@ -937,7 +957,7 @@ t =2
                   ENDDO
                ENDDO
                call forces(ext_state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt, forces_adiab, &
-                           ext_pres)
+                           ext_pres, analytics)
                !call forces(state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt, ext_forces)
 
                !Finally, collapse the wavefunction if called for

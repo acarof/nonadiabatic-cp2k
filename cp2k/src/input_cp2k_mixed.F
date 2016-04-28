@@ -237,6 +237,12 @@ CONTAINS
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="BO_STATE",&
+         description="In B.O. case, decide in which state propagates the electrons.",&
+         usage="1", type_of_var=integer_t)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="CBAR",&
          description="Sab constant factor",&
          usage="0.5082 WITHOUT UNITS", type_of_var=real_t)
@@ -271,6 +277,18 @@ CONTAINS
          lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="ANALYTICS",&
+         description="Decide if we use the analytical equation rather than the &
+                      the numerical expression. Only for 2x2 systems.",&
+         !usage="True", & 
+         !default_l_val=.TRUE., &
+         usage="True", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
+
 
 !    CALL keyword_create(keyword, name="SHORTCUT",&
 !         description="Decide if we use the shortcut algorithm to do the matrix products.",&

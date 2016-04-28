@@ -1128,13 +1128,15 @@ t =2
 !print*, "WAAHAA"
 !print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
 !print*, "i==k", i
-                                        call calc_dRSab(At, atomlist, connlist1, &
+                                        !call calc_dRSab(At, atomlist, connlist1, &
+                                        call calc_dRSab(Atp, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
                                         !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
                                         !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
-                                        &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
+                                        !&Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
+                                        &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
                                         !&neighbourlist(i,:,:), neighbourlist(k,:,:))
                                         &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
 !print*, "yellow", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
@@ -1192,13 +1194,15 @@ t =2
                                              ! H2(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, -scaling*S)
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 !print*, "i,k",i,k
-                                             call calc_dRSab(At, atomlist, connlist1, &
+                                             !call calc_dRSab(At, atomlist, connlist1, &
+                                             call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                              &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
                                              &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:i*atoms), &
                                              !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
                                              !&nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:2*(i-1)*atoms), &
-                                             &Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
+                                             &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
+                                             !&Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
                                              !&scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:))
                                              &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                         end do
@@ -1351,8 +1355,8 @@ t =2
 
 !print*, "Stt",Stt
                     call makeX(mat, H1, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
-print*, "H1", H1
-print*, "X1",X1
+!print*, "H1", H1
+!print*, "X1",X1
                     !create timestepped equivalents
                     H12 = H1 + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
@@ -1361,8 +1365,8 @@ print*, "X1",X1
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
                     call makeX(mat, H12, Stt, Sttp, Sttm, Stptp, Stmtm, X12, deltatMD)
-print*, "H12", H12
-print*, "X12", X12
+!print*, "H12", H12
+!print*, "X12", X12
      
                     H2 = H12 + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
@@ -1371,8 +1375,8 @@ print*, "X12", X12
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
                     call makeX(mat, H2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD)
-print*, "H2", H2
-print*, "X2", X2
+!print*, "H2", H2
+!print*, "X2", X2
 !print*, "vvvv"
 !print*, mat
 !print*, H2
@@ -1411,23 +1415,24 @@ print*, "X2", X2
                     call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X1, &
                     &mat, beta, K2, mat)
                     K2 = K2 + X12
-print*, "K2", K2                    
+!print*, "K2", K2                    
                     !third term
-                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X2, &
+                    !call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X2, &
+                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, K2, &
                     &mat, beta, K3, mat)
                     K3 = K3 + X12
-print*, "K3", K3 
+!print*, "K3", K3 
                     !fourth term
                     !alpha = dcmplx(deltatE, 0.0D0)
                     alpha = cmplx(deltatE, 0.0D0,dp)
                     call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X2, mat, K3, &
                     &mat, beta, K4, mat)
                     K4 = K4 + X2
-print*, "K4", K4    
-print*, "deltatE", deltatE 
+!print*, "K4", K4    
+!print*, "deltatE", deltatE 
                     !put everything together
                     Ktot = Imat + (deltatE/6.0D0)*(X1 + 2*K2 + 2*K3 + K4)
-print*, "Ktot", Ktot
+!print*, "Ktot", Ktot
 !print*, "wwww"
 !print*, Imat
 !print*, (deltatE/6.0D0)
@@ -1442,10 +1447,10 @@ print*, "Ktot", Ktot
                     !alpha = dcmplx(1.0D0, 0.0D0)
                     alpha = cmplx(1.0D0, 0.0D0,dp)
                     inc = 1
-print*, "ctin", ctin
+!print*, "ctin", ctin
                     call ZGEMV(zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc)
-print*, "ctin", ctin
-print*, "ctout", ctout
+!print*, "ctin", ctin
+!print*, "ctout", ctout
 !print*, t2, zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc
 !print*, itimes, ctout, "tttt"
 !print*, itimes, ctout, "tttt"
@@ -1459,10 +1464,10 @@ print*, "ctout", ctout
                     end do
                     ctmag = abs(ctcomp)
                     !rescale to conserve norm = 1
-!                    do i=1,mat
+                    do i=1,mat
                          !ctout(i) = dcmplx((1.0D0/sqrt(ctmag))*realpart(ctout(i)), (1.0D0/sqrt(ctmag))*imagpart(ctout(i)))
-!                         ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
-!                    end do
+                         ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
+                    end do
                     do i=1,mat
                          ctotal(i) = conjg(ctout(i))*ctout(i)
                     end do
@@ -1473,9 +1478,9 @@ print*, "ctout", ctout
                     !end if
                     !update
                     H1 = H2
-print*, "ctout", ctout
+!print*, "ctout", ctout
                     ctin = ctout
-print*, "ctin", ctin
+!print*, "ctin", ctin
                     !ctout = dcmplx(0.0D0, 0.0D0)
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 

@@ -680,7 +680,7 @@ end subroutine adiabaticity
 
 !subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S)
 !subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_forces)
-subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_adiab, ext_pres)
+subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_adiab, ext_pres, analytics)
 
         !per our full force expression derivation, this calculates the adiabatic forces
         !on each atom
@@ -695,6 +695,7 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
 !                end subroutine calcTDT
 !        end interface        
 
+        LOGICAL  :: analytics
         integer :: i, j, k, m, mat, d
         !integer :: i, j, k, m, n, mat, d
 !        integer :: i, j, k, m, mat, d
@@ -800,6 +801,24 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
         !This should take advantage of the sparsity of H for large systems
 
 !if (shortcut) then
+        IF (analytics) THEN
+           IF (mat.NE.2) CPABORT("YOU CAN ONLY USE ANALYTICAL EXPRESSION FOR 2x2 SYSTEMS.")
+           DO d=1,3
+              DO j=1,natom
+                 IF (state.EQ.1) THEN
+                    F(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  +  &
+                    ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
+                    2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*H(1,2)**2 )
+                 ELSE 
+                    F(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  -  &
+                    ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
+                    2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*H(1,2)**2 )
+                 ENDIF
+              ENDDO 
+           ENDDO
+        ENDIF
+
+
         !begin shortcut formula 
 
         !conjugates and realpart commands have been omitted, as everything should be real
