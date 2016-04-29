@@ -109,7 +109,7 @@ CONTAINS
 !     logical :: inrun
         integer :: coord
      !integer :: mol, i, j, k, l, m, d, stat, atoms, times, c, t, t2, init, inc, filelength, state, mat, orb, bondsno
-     integer :: mol, i, j, k, l, m, d, atoms, c, t, t2, init, inc, state, mat, orb
+     integer :: mol, i, j, k, l, m, d, atoms, c, t, t2, init, inc, old_state, mat, orb
 !     integer, dimension(:), allocatable :: atomlist, pfiles, elements
      integer, dimension(:), allocatable :: atomlist, elements
      integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
@@ -323,10 +323,10 @@ CONTAINS
      !electronic timestep is a fraction of the molecular timestep
 !     deltatE = deltatMD/5.0D0
      deltatE = deltatMD/ext_el_steps !CHANGE_AC
-print*, "deltatE", deltatE
-print*, "deltatMD", deltatMD
-print*, "ext_timestep", ext_timestep
-print*, "ext_el_steps", ext_el_steps
+!print*, "deltatE", deltatE
+!print*, "deltatMD", deltatMD
+!print*, "ext_timestep", ext_timestep
+!print*, "ext_el_steps", ext_el_steps
 
      !here are some useful conversion factors
      !1 Angstrom = bohrang Bohr
@@ -381,9 +381,9 @@ print*, "ext_el_steps", ext_el_steps
      !read(24,*) state
      !close(unit=24)
         if (itimes.gt.2) then
-           state = aom_basket%state
+           old_state = aom_basket%new_state
         else
-           state = 1
+           old_state = 1
         endif
 
      !if the program has been previously called, a bunch of data will have been saved
@@ -929,6 +929,8 @@ print*, "ext_el_steps", ext_el_steps
      end do
      !print *, "All done!",itimes,800
      !if (.not. inrun) then
+!print*, "atomlist", atomlist
+
      if (itimes.eq.0) then
           !call connect_list2(At, atomlist, connlist1, connlist2)
           call connect_list2(At(1:3,:), atomlist, connlist1, connlist2)
@@ -945,6 +947,9 @@ print*, "ext_el_steps", ext_el_steps
           do i=1,atoms
 !WRITE               write(40,*), connlist1(1:4,i)
                         aom_basket%connlist1(1:4,i) = connlist1(1:4,i)
+!print*, "here"
+!print*, "At", At(:,i)
+!print*, connlist1(:,i)
           end do
           do i=1,size(atomlist)
 !WRITE               write(41,*), connlist2(1:4,i)
@@ -1301,6 +1306,13 @@ t =2
                     end do
                end do
           end if !(inrun)
+!print*, "Stptp", Stptp
+!print*, "Stpt", Stpt
+!print*, "Sttp", Sttp
+!print*, "Stt", Stt
+!print*, "Sttm", Sttm
+!print*, "Stmt", Stmt
+!print*, "Stmtm", Stmtm
 !WRITE          write(13,*) -kcal*imagpart(H2(1,orb+1))
      !print *, "All done!",itimes,1106
 

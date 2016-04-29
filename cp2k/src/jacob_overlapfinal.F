@@ -273,9 +273,12 @@ contains
       REAL(KIND=dp) :: neighbourlist(3,3)
       REAL(KIND=dp) :: veca(3), vecb(3), DNRM2
       
-!print*, "  "
+!print*, "conn  "
 !print*, "xyz", xyz(:,1)
 !print*, "connectlist", connectlist
+!do i=1,size(connectlist,2)
+!print*, connectlist(:,i)
+!enddo
 
       rvecs=0
 

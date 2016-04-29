@@ -59,9 +59,6 @@ MODULE jacob_print
   USE jacob_types,                     ONLY: aom_basket_type 
 !  USE timings,                         ONLY: timeset,&
 !                                             timestop
-
-  USE jacob_surfacehopping,            ONLY:  &
-                 construct_ham_X_SH
   USE cp_units,                        ONLY: cp_unit_from_cp2k
 
 
@@ -78,7 +75,8 @@ IMPLICIT NONE
              adiab_print_matrix_density, &
              adiab_print_hamiltonian,    &
              adiab_print_nacv,           &
-             adiab_print_stateno
+             adiab_print_stateno,        &
+             adiab_print_exact_forces
 
 CONTAINS
 
@@ -133,6 +131,49 @@ CONTAINS
 
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%COEFFICIENTS")
    END SUBROUTINE adiab_print_coeff
+
+
+   SUBROUTINE adiab_print_exact_forces(adiab_section, exact_forces,natom,times)
+    TYPE(section_vals_type), POINTER         :: adiab_section
+    REAL(KIND=dp), DIMENSION(:,:),INTENT(OUT) :: exact_forces
+    INTEGER, INTENT(OUT)                      :: natom
+    REAL(KIND=dp), INTENT(OUT)                :: times
+!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_exact_forces', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: unit_nr, iatom
+!    INTEGER                                  :: i
+!    INTEGER                                  :: iadiab, iorbitals
+!    TYPE(particle_type), POINTER             :: particle_set(:)
+!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+!    CHARACTER(LEN=4)                         :: name
+!    CHARACTER(LEN=default_string_length)     :: my_format
+    TYPE(cp_logger_type), POINTER            :: logger
+
+
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
+
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%EXACT_FORCES",&
+               extension=".xyz", middle_name="exfrc",log_filename=.FALSE.)
+
+    IF (unit_nr>0) THEN
+
+!       ncoeff = SIZE(coefficients)
+
+       WRITE ( unit_nr, "(I8)" )          natom
+       WRITE ( unit_nr, '(A,F10.1)' )   " i = ",times
+       DO iatom=1,natom 
+          WRITE(unit_nr,"(3F20.10)")  exact_forces(:,iatom)
+       ENDDO
+
+    END IF
+
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%EXACT_FORCES")
+   END SUBROUTINE adiab_print_exact_forces
+
 
 
    SUBROUTINE adiab_print_pop(adiab_section, populations, nadiab, norbitals,times)
@@ -428,6 +469,7 @@ CONTAINS
 
        WRITE ( unit_nr, '(A)' ) 'Present Adiabatic State'
        WRITE ( unit_nr, '(A,I8)' )   " i = ",itimes
+       WRITE ( unit_nr, '(A,I8)' )   " State = ", state
 
     END IF
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%STATE")

@@ -70,7 +70,7 @@ MODULE adiabatic_methods
                                              adiab_print_nacv,        &
                                              adiab_print_stateno
 
-
+  USE jacob_utils,                     ONLY: read_listcoeff
 
 #include "./base/base_uses.f90"
 
@@ -80,8 +80,8 @@ IMPLICIT NONE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'adiabatic_methods'
    
-   PUBLIC :: adiab_fssh_routines,&
-             adiab_classicalpath_routines 
+   PUBLIC :: adiab_fssh_routines,          &
+             adiab_classicalpath_routines
 
 CONTAINS
 
@@ -274,6 +274,7 @@ CONTAINS
           particles_mix%els(jparticle)%v(:)= 0.0D0
       ELSE 
           particles_mix%els(jparticle)%f(:)= global_forces(1)%forces(:,iparticle)
+!print*,  "part forces", particles_mix%els(jparticle)%f(:) 
       ENDIF
 !      positions(jparticle,:)  = particles_mix%els(jparticle)%r(:)
     END DO
@@ -350,17 +351,17 @@ CONTAINS
     !REAL(KIND=dp), DIMENSION(:),POINTER      :: populations
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
-    INTEGER                                  :: old_state, new_state
+    INTEGER                                  :: old_state, new_state, init
     REAL(KIND=dp)                            :: scalefactor
     LOGICAL                                  :: is_hop
     LOGICAL                                  :: my_bo_keyword
 
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_plus(natom,3))
-    ALLOCATE(forces_adiab(natom,3))
+    ALLOCATE(forces_adiab(3,natom))
     factor = 1
 !> Save the previous state
-    old_state = aom_basket%state
+!    old_state = aom_basket%state
 
     my_bo_keyword = .FALSE.
     IF (PRESENT(bo_keyword)) my_bo_keyword = bo_keyword
@@ -390,11 +391,12 @@ CONTAINS
              i_val=norbitals)
         CALL section_vals_val_get(coupling_section,"NUCLEAR_TIMESTEP",&
              r_val=MDtimestep)
+!        CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
         itimes => my_itimes
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
              positions_plus, energies_plus, aom_basket, itimes, &
-             is_hop, forces_adiab, global_forces, coupling_section, my_bo_keyword)
+             is_hop, forces_adiab, global_forces, coupling_section, adiab_section, my_bo_keyword)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
  !       ALLOCATE(coefficients(norbitals*nadiab))
@@ -407,7 +409,8 @@ CONTAINS
  !       populations  = aom_basket%population
         hamiltonian  = aom_basket%hamiltonian
         nacv         = aom_basket%nacv
-        new_state        = aom_basket%state
+        new_state    = aom_basket%new_state
+        old_state    = aom_basket%old_state
 
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
@@ -417,9 +420,14 @@ CONTAINS
         !CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals,itimes)
         CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes)        
         CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes)
+!        IF (analytics)
+!             exact_forces = aom_basket%exact_forces
+!             CALL adiab_print_exactforces(adiab_section, exact_forces, natom, itimes)
+!        ENDIF
 
 !> Do the velocities rescaling if required
         IF (old_state.NE.new_state) THEN
+!print*, "RESCALE old new", old_state, new_state
            CPASSERT(is_hop) !Be sure there is indeed a hop
 !> Check that all the kinetic energies are the same for the different force
 !> fields
@@ -449,7 +457,15 @@ CONTAINS
 !> IMPORTANT : GIVE BACK THE FORCES TO FIST
     DO iparticle = 1, natom
       jparticle = map_index(iparticle)
-      particles_mix%els(jparticle)%f(:)= forces_adiab(:,iparticle)
+      IF (itimes.eq.0) THEN
+!> Starting site number
+        CALL section_vals_val_get(coupling_section,"INIT_SITES",&
+             i_val=init)
+       particles_mix%els(jparticle)%f(:)= global_forces(init)%forces(:,iparticle) 
+!print*,  "part forces", particles_mix%els(jparticle)%f(:) 
+      ELSE     
+         particles_mix%els(jparticle)%f(:)= forces_adiab(:,iparticle)
+      ENDIF
     END DO
 
 
@@ -476,123 +492,6 @@ CONTAINS
     DEALLOCATE(hamiltonian, nacv)
 
    END SUBROUTINE adiab_fssh_routines
-
-
-
-   SUBROUTINE read_listcoeff(listcoeff, ext_elements, ext_pres, &
-                            ext_scoeff, ext_pcoeff, natom)
-    TYPE(cp_sll_val_type), POINTER                         :: listcoeff
-    INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(OUT)        :: ext_elements
-    LOGICAL, DIMENSION(:), ALLOCATABLE,  INTENT(OUT)       :: ext_pres
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT)  :: ext_scoeff, ext_pcoeff
-    INTEGER, INTENT(IN)                                    :: natom
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_listcoeff', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=2*default_string_length)   :: line_att
-    CHARACTER(len=default_string_length)     :: error_message
-    !CHARACTER(len=default_string_length)     :: error_message, &
-    !                                            my_default_index
-                                                !unit_str
-                                                !my_default_index, strtmp, &
-                                                !unit_str
-    INTEGER                                  :: default_id, end_c, &
-    !INTEGER                                  :: default_id, end_c, handle, &
-                                                !iatom, j, output_unit, &
-                                                iatom, j,  &
-                                                start_c, wrd
-    LOGICAL                                  :: is_ok
-    TYPE(val_type), POINTER                  :: val
-    INTEGER                                  :: my_pres
-    REAL(KIND=dp)                            :: my_ext_elements, my_pres2
-
-    ALLOCATE(ext_elements(natom))
-    ALLOCATE(ext_pres(natom))
-    ALLOCATE(ext_scoeff(natom))
-    ALLOCATE(ext_pcoeff(natom))
-
-       DO iatom=1,natom
-          ! we use only the first default_string_length characters of each line
-          is_ok=cp_sll_val_next(listcoeff,val)
-          CALL val_get(val,c_val=line_att)
-          default_id = str2id(s2s(""))
-          ! Read name and atomic coordinates
-          start_c=1
-          DO wrd=1,5
-             DO j=start_c,LEN(line_att)
-                IF (line_att(j:j)/=' ') THEN
-                   start_c=j
-                   EXIT
-                END IF
-             END DO
-             end_c=LEN(line_att)+1
-             DO j=start_c,LEN(line_att)
-                IF (line_att(j:j)==' ') THEN
-                   end_c=j
-                   EXIT
-                END IF
-             END DO
-             IF(LEN_TRIM(line_att(start_c:end_c-1)) == 0)&
-                CALL cp_abort(__LOCATION__,&
-                     "Incorrectly formatted input line for atom "//&
-                     TRIM(ADJUSTL(cp_to_string(iatom)))//&
-                     " found in COORD section. Input line: <"//&
-                     TRIM(line_att)//"> ")
-             SELECT CASE (wrd)
-!             CASE (1)
-!                 = str2id(s2s(line_att(start_c:end_c-1)))
-             CASE (2)
-                CALL read_float_object(line_att(start_c:end_c-1),&
-                                       my_ext_elements,error_message)
-                ext_elements(iatom) = INT(my_ext_elements)
-                IF(LEN_TRIM(error_message) /= 0)&
-                   CALL cp_abort(__LOCATION__,&
-                        "Incorrectly formatted input line for atom "//&
-                        TRIM(ADJUSTL(cp_to_string(iatom)))//&
-                        " found in COORD section. "//TRIM(error_message)//&
-                        " Input line: <"//TRIM(line_att)//"> ")
-             CASE (3)
-                CALL read_float_object(line_att(start_c:end_c-1),&
-                                       my_pres2,error_message)
-                my_pres = INT(my_pres2)
-!print*, "b", my_pres2, my_pres
-                IF (my_pres.eq.0) THEN
-                   ext_pres(iatom) = .FALSE.
-                ELSE
-                   ext_pres(iatom) = .TRUE.
-                ENDIF
-                IF(LEN_TRIM(error_message) /= 0)&
-                   CALL cp_abort(__LOCATION__,&
-                        "Incorrectly formatted input line for atom "//&
-                        TRIM(ADJUSTL(cp_to_string(iatom)))//&
-                        " found in COORD section. "//TRIM(error_message)//&
-                        " Input line: <"//TRIM(line_att)//"> ")
-             CASE (4)
-                CALL read_float_object(line_att(start_c:end_c-1),&
-                                       ext_scoeff(iatom),error_message)
-                IF(LEN_TRIM(error_message) /= 0)&
-                   CALL cp_abort(__LOCATION__,&
-                        "Incorrectly formatted input line for atom "//&
-                        TRIM(ADJUSTL(cp_to_string(iatom)))//&
-                        " found in COORD section. "//TRIM(error_message)//&
-                        " Input line: <"//TRIM(line_att)//"> ")
-             CASE (5)
-                CALL read_float_object(line_att(start_c:end_c-1),&
-                                       ext_pcoeff(iatom),error_message)
-                IF(LEN_TRIM(error_message) /= 0)&
-                   CALL cp_abort(__LOCATION__,&
-                        "Incorrectly formatted input line for atom "//&
-                        TRIM(ADJUSTL(cp_to_string(iatom)))//&
-                        " found in COORD section. "//TRIM(error_message)//&
-                        " Input line: <"//TRIM(line_att)//"> ")
-
-             END SELECT
-             start_c = end_c
-             IF (start_c > LEN_TRIM(line_att)) EXIT
-          END DO
-      END DO
-   END SUBROUTINE read_listcoeff
 
 END MODULE adiabatic_methods
 

@@ -57,7 +57,8 @@ IMPLICIT NONE
                                                          rm2         ! position step min 2
 ! To store energies in the Jacob's Method
      REAL(KIND = dp), DIMENSION(:), POINTER :: energies   
-     INTEGER                                :: state
+     INTEGER                                :: new_state
+     INTEGER                                :: old_state
      LOGICAL                                :: inrun
 !> To store the previous overlap matrix
      REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Stmt, Sttm, Stmtm
@@ -71,7 +72,7 @@ IMPLICIT NONE
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: hamiltonian
 !> To print the NACVs
      REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER          :: nacv
-     LOGICAL, POINTER                                    :: futur_decohere
+     LOGICAL                                             :: futur_decohere
    END TYPE aom_basket_type
 
    PUBLIC :: aom_basket_type

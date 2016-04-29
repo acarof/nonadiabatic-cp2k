@@ -48,6 +48,47 @@ MODULE jacob_utils
    USE machine,                         ONLY: m_getpid
 !   USE jacob_types,                     ONLY: aom_basket_type
 
+  USE cp_parser_methods,               ONLY: read_float_object
+
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr,&
+                                             cp_print_key_finished_output
+  USE cp_log_handling,                 ONLY: cp_logger_type,&
+                                             cp_logger_release,&
+                                             cp_get_default_logger,&
+                                             cp_to_string
+  USE cp_result_methods,               ONLY: cp_results_erase,&
+                                             get_results,&
+                                             put_results,&
+                                             test_for_result
+  USE cp_result_types,                 ONLY: cp_result_p_type,&
+                                             cp_result_type
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_list_get,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE mixed_energy_types,              ONLY: mixed_force_type
+  USE particle_list_types,             ONLY: particle_list_type
+  USE virial_types,                    ONLY: virial_p_type,&
+                                             virial_type,&
+                                             zero_virial
+
+  USE mixed_environment_utils,        ONLY: get_subsys_map_index
+  USE mixed_environment_types,        ONLY: mixed_environment_type
+  USE input_val_types,                 ONLY: val_get,&
+                                             val_type
+  USE string_table,                    ONLY: id2str,&
+                                             s2s,&
+                                             str2id
+  USE cp_linked_list_val,              ONLY: &
+       cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, &
+       cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
+       cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
+       cp_sll_val_set_el_at, cp_sll_val_type
+
+
 #include "./base/base_uses.f90"
 
 
@@ -66,7 +107,8 @@ IMPLICIT NONE
    !          matinvsqrt, &
              adiabaticity, &
              !forces, &
-             forces
+             calcforces,       &
+             read_listcoeff
    !          calcTDT
 
 CONTAINS
@@ -258,7 +300,7 @@ subroutine sitecalc(A, bondslist, atoms, site, F, mat, molno)
 end subroutine sitecalc
 
 !subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, decohere)
-subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, decohere, ext_state, is_hop)
+subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, decohere, new_state, is_hop)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -274,7 +316,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
 !        end interface
 
         integer :: i, j, mol, k, l
-        integer, intent(inout) :: state
+        integer, intent(inout) :: old_state
         REAL(KIND=dp) :: hop, sumg
         REAL(KIND=dp), intent(in) :: deltat
         REAL(KIND=dp), dimension(:,:), allocatable :: dphi
@@ -286,7 +328,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak
         COMPLEX(KIND=dp) :: cstate
         logical, intent(out) :: decohere
-        INTEGER, INTENT(OUT)   :: ext_state
+        INTEGER, INTENT(OUT)   :: new_state
         LOGICAL, INTENT(OUT)    :: is_hop
 
         mol = size(Stt,1)
@@ -396,7 +438,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
         cstate = cmplx(0.0D0, 0.0D0, dp)
         do i=1,mol
                 !cstate = cstate + dcmplx(C1(state,i), 0.0D0)*c(i)
-                cstate = cstate + cmplx(C1(state,i), 0.0D0,dp)*c(i)
+                cstate = cstate + cmplx(C1(old_state,i), 0.0D0,dp)*c(i)
         end do
         do i=1,mol
                 !calculate a and b
@@ -407,20 +449,20 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
                         ct(i) = ct(i) + cmplx(C1(i,j), 0.0D0,dp)*c(j)
                 end do
                 ak(i) = ct(i)*conjg(cstate)
-                b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,state))
+                b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,old_state))
         end do
 
         sumg = 0.0D0
         !calculate g and sum(g)
         do i=1,mol
-                g(i) = (deltat*b(i))/abs(ak(state))
+                g(i) = (deltat*b(i))/abs(ak(old_state))
                 !as in Tully, set negative probabilities to 0
                 if (g(i) < 0.0D0) then
                         g(i) = 0.0D0
                 end if
-                if (i .ne. state) then
+                if (i .ne. old_state) then
                         sumg = sumg + g(i)
-                        print *, "Probability: ", i, g(i)
+!                        print *, "Probability: ", i, g(i)
                 end if
         end do
         !due to finite timestep, sometimes the probabilities may sum to greater than 1
@@ -428,10 +470,10 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
         if (sumg > 1.0D0) then
                 do i=1,mol
                         g(i) = g(i)/sumg
-                        g(state) = 0.0D0
+                        g(old_state) = 0.0D0
                 end do
         else
-                g(state) = 1.0D0 - sumg
+                g(old_state) = 1.0D0 - sumg
         end if
 
         !call a random number
@@ -443,18 +485,18 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
         do i=1,mol
                 sumg = sumg + g(i)
                 if (hop <= sumg) then
-                        if (i .ne. state) then
+                        if (i .ne. old_state) then
 !                                print *, "SURFACE HOP!"
-                                ext_state = i
+                                new_state = i
                                 !aom_basket%state = i
 !                                write(24,*) i                        
 !PRINT                                print *, "New state: ", i
                                 decohere = .FALSE.
                                 is_hop = .TRUE.
                                 return
-                        elseif (i == state) then
+                        elseif (i == old_state) then
 !                                print *, "No surface hop."
-                                ext_state = state
+                                new_state = old_state
                                 is_hop = .FALSE.
                                 !aom_basket%state = state
 !                                write(24,*) state
@@ -464,7 +506,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
                                 !if the non-adiabatic coupling dphi to all other states is below a certain threshold
                                 !then a wavefunction collapse will be enforced
                                 do j=1,mol
-                                        if (abs(dphi(state,j)) > 1.0D-5 .and. state .ne. j) then
+                                        if (abs(dphi(old_state,j)) > 1.0D-5 .and. old_state .ne. j) then
                                                 decohere = .FALSE.
                                                 return
                                         end if
@@ -474,7 +516,6 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, d
                         end if
                 end if
         end do
-
         deallocate(ak, b, g, ct, dphi, T1, T2, DT, TST, TDT, DS, DC)
 
 end subroutine surfacehop
@@ -639,6 +680,7 @@ subroutine adiabaticity(H, mol, C, E, print)
 
         C = H
 
+print*, C
         job = 'V'
         up = 'U'
         !DSYEV is from the BLAS. Returns vector of eigenvalues D and overwrites S with matrix of eigenvectors
@@ -659,12 +701,16 @@ subroutine adiabaticity(H, mol, C, E, print)
                 !stop "Error: array 'DGETRI_WORK' not allocated correctly."
         end if
 
+print*, "hey"
+print*, C
         call DSYEV(job, up, mol, C, mol, E, DGETRI_WORK, LWORK, stat)
         if (stat /= 0) then
                 CPABORT("Error with subroutine DSYEV: error status")
                 !write(*,*) "Error with subroutine DSYEV: error status", stat
                 !stop
         end if
+print*, C
+print*, E
 
 !        if (print) then
 !            open(unit=35,file="lambda",action='write')
@@ -680,7 +726,8 @@ end subroutine adiabaticity
 
 !subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S)
 !subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, ext_forces)
-subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_adiab, ext_pres, analytics)
+subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_adiab, & 
+                  ext_pres, analytics,  exact_forces,ctin)
 
         !per our full force expression derivation, this calculates the adiabatic forces
         !on each atom
@@ -695,29 +742,33 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
 !                end subroutine calcTDT
 !        end interface        
 
-        LOGICAL  :: analytics
-        integer :: i, j, k, m, mat, d
-        !integer :: i, j, k, m, n, mat, d
-!        integer :: i, j, k, m, mat, d
+        COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT), OPTIONAL   :: ctin
         integer, intent(in) :: state, atoms
-        integer, intent(in), dimension(:,:) :: NN
-        REAL(KIND=dp) :: bohrang, kcal
+        LOGICAL, INTENT(IN)  :: analytics
+        REAL(KIND=dp), dimension(:,:), INTENT(OUT) :: exact_forces
+        REAL(KIND=dp), dimension(:,:), POINTER                  :: forces_adiab
         REAL(KIND=dp), intent(in) :: scaling, cbar
         REAL(KIND=dp), intent(in), dimension(:,:) :: Hin, C, S
         REAL(KIND=dp), intent(in), dimension(:,:,:) :: Fin
         REAL(KIND=dp), intent(in), dimension(:,:,:,:) :: nacv
+        integer, intent(in), dimension(:,:) :: NN
+
+        integer :: i, j, k, m, mat, d
+        !integer :: i, j, k, m, n, mat, d
+!        integer :: i, j, k, m, mat, d
+        REAL(KIND=dp) :: bohrang, kcal
         REAL(KIND=dp), dimension(:,:,:,:), allocatable :: DH, DT, my_DP
         !REAL(KIND=dp), dimension(:,:,:), allocatable :: F
         REAL(KIND=dp), dimension(:,:), allocatable :: F
         REAL(KIND=dp), dimension(:,:), allocatable :: H, T, nsave, DHtemp
 
-        REAL(KIND=dp), dimension(:,:), POINTER                  :: forces_adiab
         INTEGER                                                 :: natom
         LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
         INTEGER                                                 :: aom_iatom, iatom
 
-        natom = SIZE(F,2)
+        natom = SIZE(Fin,2)
         mat = size(Hin,1)
+        ctin = ctin
 
         !1 Angstrom = bohrang Bohr
         bohrang = 1.889725989D0
@@ -742,6 +793,7 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
         !allocate(F(3,mat,atoms))
         !allocate(F(3,mat,natom))
         allocate(F(3,natom))
+!        allocate(exact_forces(3,natom))
         if (.not. allocated(F)) CPABORT("Error: array 'F' not allocated correctly.")
         !allocate(nsave(mat*atoms,3))
         allocate(nsave(natom,3))
@@ -750,20 +802,16 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
 !        do d=1,3
 !                my_DP(:,:,:,d) = nacv(d,:,:,:)
 !        end do
-        aom_iatom = 1
-        do d=1,3
-           do i=1,mat
-              do j=1, mat
-                 do iatom=1, natom
-                    if (ext_pres(iatom)) then
-                       my_DP(i,j,iatom,d) = nacv(d,i,j,aom_iatom)
-                       aom_iatom = aom_iatom +1
-                    else 
-                       my_DP(i,j,iatom,d) = 0.0D0
-                    endif
-                 enddo
-              enddo
-           enddo
+        aom_iatom = 0
+        do iatom=1, natom
+           if (ext_pres(iatom)) then
+              aom_iatom = aom_iatom +1
+              do d=1,3
+                  my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
+               enddo
+           else 
+              my_DP(:,:,:,iatom) = 0.0D0
+           endif
         enddo
         CPASSERT(aom_iatom.EQ.SIZE(nacv,4))
 
@@ -786,8 +834,10 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
                                         if (NN(i,j) == 1) then
                                                 if (i == j) then
                                                         DH(i,j,k,d) = Fin(d,k,i)
+!print*, "DH", i,j,k,d, DH(i,j,k,d)
                                                 else
                                                         DH(i,j,k,d) = scaling*my_DP(i,j,k,d)/cbar
+!print*, "DH", i,j,k,d, DH(i,j,k,d)
                                                 end if
                                         else
                                                 DH(i,j,k,d) = 0.0D0
@@ -806,19 +856,39 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
            DO d=1,3
               DO j=1,natom
                  IF (state.EQ.1) THEN
-                    F(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  +  &
+                    exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  -  &
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
-                    2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*H(1,2)**2 )
+                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
+IF ((j.eq.2).AND.(d.eq.1)) THEN
+print*, "DH",1,1,j,d, DH(1,1,j,d)
+print*, "DH",2,1,j,d, DH(2,1,j,d)
+print*, "DH",1,2,j,d, DH(1,2,j,d)
+print*, "DH",2,2,j,d, DH(2,2,j,d)
+print*, "Hin", 1,1, Hin(1,1)
+print*, "Hin", 2,1, Hin(2,1)
+print*, "Hin", 1,2, Hin(1,2)
+print*, "Hin", 2,2, Hin(2,2)
+print*, "dec"
+print*, 0.5 
+print*, (Hin(2,2)-Hin(1,1))
+print*, SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )
+print*, (0.5 + (Hin(2,2)-Hin(1,1))/(2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )))*DH(1,1,j,d)
+print*, "forces"
+print*, exact_forces(d,j)
+ENDIF
                  ELSE 
-                    F(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  -  &
+                    exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2.0  -  &
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
-                    2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*H(1,2)**2 )
+                    2.0*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*H(1,2)**2 )
                  ENDIF
               ENDDO 
            ENDDO
+        ELSE
+           exact_forces = 0.0D0
         ENDIF
-
-
+print*, "C", C
+print*, abs(C(1,1))**2
+print*, abs(C(2,1))**2
         !begin shortcut formula 
 
         !conjugates and realpart commands have been omitted, as everything should be real
@@ -829,13 +899,15 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
                          do i=1,mat
                 !do j=1,atoms
                                 !F(d,i,j) = 0.0D0
-                                do m=1,mat
+                                do m=i,mat
                                         !F(d,i,j) = F(d,i,j) + (abs(C(m,state))**2)*DH(m,m,(i-1)*atoms+j,d)
-                                        F(d,j) = F(d,j) + (abs(C(m,state))**2)*DH(m,m,j,d)
-                                        if (i .ne. m) then
+                                        if (i.eq. m) then
+                                                F(d,j) = F(d,j) + (abs(C(m,state))**2)*DH(m,m,j,d)
+                                        else
                                                 !F(d,i,j) = F(d,i,j) + 2.0D0*((C(i,state))*DH(m,i,(i-1)*atoms+j,d)*C(m,state))
                                                 F(d,j) = F(d,j) + 2.0D0*((C(i,state))*DH(m,i,j,d)*C(m,state))
                                         end if
+IF ((j.eq.2).AND.(d.eq.1)) print*, i,m, F(d,j)
                                                 !These terms are here for 'historical interest'
                                                 !We have shown that they should come out as exactly 0.
                                                 !do m=1,mat        
@@ -846,7 +918,7 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
                         end do
                 end do
         end do
-
+print*, F(1,2)
 !else
         !end shortcut formula
 
@@ -897,7 +969,7 @@ subroutine forces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_
         deallocate(H, T, DHtemp, DH, DT, my_DP, F, nsave)
         !deallocat(ext_forces)
                 
-end subroutine forces
+end subroutine calcforces
 
 subroutine calcTDT(S, DS, T, DT, atoms, mol)
 
@@ -1031,5 +1103,122 @@ subroutine calcTDT(S, DS, T, DT, atoms, mol)
         deallocate(W, Wtop, L, Tdiag, Sinv, Wleft, Wright, Temp, DGETRI_WORK)
 
 end subroutine calcTDT
+
+   SUBROUTINE read_listcoeff(listcoeff, ext_elements, ext_pres, &
+                            ext_scoeff, ext_pcoeff, natom)
+    TYPE(cp_sll_val_type), POINTER                         :: listcoeff
+    INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(OUT)        :: ext_elements
+    LOGICAL, DIMENSION(:), ALLOCATABLE,  INTENT(OUT)       :: ext_pres
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT)  :: ext_scoeff, ext_pcoeff
+    INTEGER, INTENT(IN)                                    :: natom
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_listcoeff', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=2*default_string_length)   :: line_att
+    CHARACTER(len=default_string_length)     :: error_message
+    !CHARACTER(len=default_string_length)     :: error_message, &
+    !                                            my_default_index
+                                                !unit_str
+                                                !my_default_index, strtmp, &
+                                                !unit_str
+    INTEGER                                  :: default_id, end_c, &
+    !INTEGER                                  :: default_id, end_c, handle, &
+                                                !iatom, j, output_unit, &
+                                                iatom, j,  &
+                                                start_c, wrd
+    LOGICAL                                  :: is_ok
+    TYPE(val_type), POINTER                  :: val
+    INTEGER                                  :: my_pres
+    REAL(KIND=dp)                            :: my_ext_elements, my_pres2
+
+    ALLOCATE(ext_elements(natom))
+    ALLOCATE(ext_pres(natom))
+    ALLOCATE(ext_scoeff(natom))
+    ALLOCATE(ext_pcoeff(natom))
+
+       DO iatom=1,natom
+          ! we use only the first default_string_length characters of each line
+          is_ok=cp_sll_val_next(listcoeff,val)
+          CALL val_get(val,c_val=line_att)
+          default_id = str2id(s2s(""))
+          ! Read name and atomic coordinates
+          start_c=1
+          DO wrd=1,5
+             DO j=start_c,LEN(line_att)
+                IF (line_att(j:j)/=' ') THEN
+                   start_c=j
+                   EXIT
+                END IF
+             END DO
+             end_c=LEN(line_att)+1
+             DO j=start_c,LEN(line_att)
+                IF (line_att(j:j)==' ') THEN
+                   end_c=j
+                   EXIT
+                END IF
+             END DO
+             IF(LEN_TRIM(line_att(start_c:end_c-1)) == 0)&
+                CALL cp_abort(__LOCATION__,&
+                     "Incorrectly formatted input line for atom "//&
+                     TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                     " found in COORD section. Input line: <"//&
+                     TRIM(line_att)//"> ")
+             SELECT CASE (wrd)
+!             CASE (1)
+!                 = str2id(s2s(line_att(start_c:end_c-1)))
+             CASE (2)
+                CALL read_float_object(line_att(start_c:end_c-1),&
+                                       my_ext_elements,error_message)
+                ext_elements(iatom) = INT(my_ext_elements)
+                IF(LEN_TRIM(error_message) /= 0)&
+                   CALL cp_abort(__LOCATION__,&
+                        "Incorrectly formatted input line for atom "//&
+                        TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                        " found in COORD section. "//TRIM(error_message)//&
+                        " Input line: <"//TRIM(line_att)//"> ")
+             CASE (3)
+                CALL read_float_object(line_att(start_c:end_c-1),&
+                                       my_pres2,error_message)
+                my_pres = INT(my_pres2)
+!print*, "b", my_pres2, my_pres
+                IF (my_pres.eq.0) THEN
+                   ext_pres(iatom) = .FALSE.
+                ELSE
+                   ext_pres(iatom) = .TRUE.
+                ENDIF
+                IF(LEN_TRIM(error_message) /= 0)&
+                   CALL cp_abort(__LOCATION__,&
+                        "Incorrectly formatted input line for atom "//&
+                        TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                        " found in COORD section. "//TRIM(error_message)//&
+                        " Input line: <"//TRIM(line_att)//"> ")
+             CASE (4)
+                CALL read_float_object(line_att(start_c:end_c-1),&
+                                       ext_scoeff(iatom),error_message)
+                IF(LEN_TRIM(error_message) /= 0)&
+                   CALL cp_abort(__LOCATION__,&
+                        "Incorrectly formatted input line for atom "//&
+                        TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                        " found in COORD section. "//TRIM(error_message)//&
+                        " Input line: <"//TRIM(line_att)//"> ")
+             CASE (5)
+                CALL read_float_object(line_att(start_c:end_c-1),&
+                                       ext_pcoeff(iatom),error_message)
+                IF(LEN_TRIM(error_message) /= 0)&
+                   CALL cp_abort(__LOCATION__,&
+                        "Incorrectly formatted input line for atom "//&
+                        TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                        " found in COORD section. "//TRIM(error_message)//&
+                        " Input line: <"//TRIM(line_att)//"> ")
+
+             END SELECT
+             start_c = end_c
+             IF (start_c > LEN_TRIM(line_att)) EXIT
+          END DO
+      END DO
+   END SUBROUTINE read_listcoeff
+
+
 
 END MODULE jacob_utils

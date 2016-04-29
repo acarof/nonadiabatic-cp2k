@@ -48,9 +48,11 @@ MODULE jacob_surfacehopping
                                              sab_screen_new, &
                                              calc_dRSab
 
-     USE jacob_utils,                        ONLY: makeX, &
+     USE jacob_utils,                        ONLY: makeX,  &
                                              adiabaticity, &
-                                             surfacehop
+                                             surfacehop,   &
+                                             calcforces,       &
+                                             read_listcoeff
 
      USE jacob_types,                     ONLY: aom_basket_type
      USE mixed_energy_types,              ONLY: mixed_force_type
@@ -64,6 +66,10 @@ MODULE jacob_surfacehopping
          cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
          cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
          cp_sll_val_set_el_at, cp_sll_val_type
+     USE jacob_print,                     ONLY: adiab_print_coeff, &
+                                                adiab_print_pop,   &
+                                                adiab_print_matrix_density, &
+                                                adiab_print_exact_forces
 
 
 
@@ -83,14 +89,8 @@ CONTAINS
         SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
                                       positions_plus, energies_plus, aom_basket, itimes, &
                                       is_hop, forces_adiab, global_forces, coupling_section, &
-                                      my_bo_keyword)
+                                      adiab_section, my_bo_keyword)
 
-!        SUBROUTINE construct_ham_X_SH(nadiab, &
-!                   ext_atoms, norbitals,  &
-!                   ext_cbar, ext_minao, ext_timestep, ext_el_steps, &
-!                   positions_plus, energies_plus, aom_basket, ext_elements, &
-!                   ext_pres, ext_scoeff, ext_pcoeff, itimes, collapse, is_hop, &
-!                   rescale_keyword, ext_dR, forces_adiab, global_forces)
 
         INTEGER                                        :: nadiab,  norbitals 
         INTEGER                                        :: aom_atoms
@@ -104,19 +104,21 @@ CONTAINS
         TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
         TYPE(section_vals_type), POINTER               :: coupling_section
         LOGICAL, INTENT(OUT)                           :: my_bo_keyword
+        TYPE(section_vals_type), POINTER         :: adiab_section
+
 
         CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
         routineP = moduleN//':'//routineN
 
-     integer :: coord
-     integer :: mol, i, j, k, l, m, d, atoms, c, t, t2, init, inc, state, mat, orb
+     integer :: coord, t2
+     integer :: mol, i, j, k, l, m, d, atoms, c,  init, inc, old_state, mat, orb
      integer, dimension(:), allocatable :: atomlist, elements
      integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
      integer, dimension(:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
      character(len=1) :: zgemm_type
-     REAL(KIND=dp) :: ctmag, bohrang, mev, kcal, cbar, minao
+     REAL(KIND=dp) :: ctmag,  cbar, minao
      REAL(KIND=dp), dimension(:), allocatable :: scoeffs
      REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      REAL(KIND=dp), dimension(:,:,:), allocatable :: crds, pcoeffsrun
@@ -125,12 +127,11 @@ CONTAINS
      REAL(KIND=dp), dimension(:,:), allocatable :: dist
      COMPLEX(KIND=dp) :: alpha, beta, ctcomp
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin, ctout, ctotal
-     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H1, H2, H12, Hdiff, Hsave, X1, X2, X12
+     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H1, H2, H12, Hdiff, Hsave, H2save, X1, X2, X12
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: Ktot, K2, K3, K4
      REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
 
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
-     INTEGER, DIMENSION(:), ALLOCATABLE :: elementtot
      LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask
 
 
@@ -138,14 +139,14 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C1, C2
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E1, E2
      LOGICAL                                      :: decohere, collapse, analytics
-     INTEGER                                      :: ext_state , ELsteps   
-     REAL(KIND=dp)                                :: dR 
+     INTEGER                                      :: new_state , ELsteps   
+     REAL(KIND=dp)                                :: dR, times 
      INTEGER                                      :: imol, iatom, natom
      integer, dimension(:), ALLOCATABLE           :: ext_elements
      LOGICAL, dimension(:), ALLOCATABLE           :: ext_pres
-     REAL(KIND=dp), dimension(:), ALLOCATABLE     :: ext_scoeff,ext_pcoeff
      TYPE(cp_sll_val_type), POINTER               :: listcoeff
      INTEGER                                      :: my_bo_state
+     REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
 
 
 !> cutoff to define the neighborough list
@@ -166,7 +167,6 @@ CONTAINS
         CALL section_vals_val_get(coupling_section,"ELECTRONIC_PARTIAL_STEP",&
              i_val=ELsteps)
 
-
      CALL section_vals_val_get(coupling_section,"NACV_INCREMENT",&
           r_val=dR)
      CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
@@ -177,61 +177,25 @@ CONTAINS
      ELSE
         my_bo_state = 0
      ENDIF
-     
 
-
-     !We begin by reading in the input parameters
-     !There are currently two modes this program can run in
-     !In Classical Path Approximation mode, the program reads in a pre-computed trajectory
-     !In Surface Hopping mode, the program runs alongside non-adiabatic MD
-     !This variable is 'S' for Surface Hopping and 'C' for Classical Path
-     !name of coordinate file(s)
-     !technically only mdcrd matters for progtype == C
-     !'type' of file so that program can interpret it
-     !currently supported:
-     ! - "AMBER" for AMBER .mdcrd file
-     ! - "NAMD" for NAMD .dcd file
-     ! - "XYZ" for .xyz file
-     ! - "SH" is format printed out by NAMD surfhop code and should be default for progtype == S
 !> Number of sites
      mol = nadiab ! CHANGE_AC
 !> Number of atoms per site
         atoms = aom_atoms ! CHANGE_AC
-     !for Classical Path Approximation, this is the number of timesteps in pre-computed trajectory
-     !otherwise, 2
 !> Number of orbitals per atom
      orb = norbitals ! CHANGE_AC
-!> In angstrom
-!     cutoff = ext_cutoff ! CHANGE_AC
-     !scaling = 0.5D0*0.06519D0
-     !scaling = ext_scaling ! CHANGE_AC
-     !init = 1
-!     init = ext_init ! CHANGE_AC
-     !cbar = 0.5082
-!     cbar = ext_cbar ! CHANGE_AC
-     !a value of 1E-17 means all atoms are included
-     !minao = 1.0D-17
- !    minao = ext_minao ! CHANGE_AC
-
-!> dR is the finite difference to calculate the NACV
-!     if (PRESENT(ext_dR)) then 
-!        dR = ext_dR
-!     else
-!        dR = 0.0001D0*1.889725989D0
-!     endif
-
-     !With surface-hopping, the program needs information about where in the simulation it is
-     !i.e. if this is the first timestep, or if certain once-in-a-while actions need to be done
-     !The file "inputget" contains this information
-
 !> Size of the vectorial space where the wavefunctions are projected
      mat = orb*mol
 !> Numbers of active atoms 
      c = mol*atoms
 !> Numbers of atoms
      natom = SIZE(global_forces(1)%forces,2)
+!> Find deltaMD, nuclear timestep, in atomic units
+     deltatMD = MDtimestep !CHANGE_AC
+!> electronic timestep is a fraction of the molecular timestep
+     deltatE = deltatMD/ELsteps !CHANGE_AC
 
-!> ALLOCATE aom_basket at timestep = 0
+!> ALLOCATE aom_basket at timestep = 1
     if (itimes.eq.0) then
        ALLOCATE(aom_basket%population(mat))
        ALLOCATE(aom_basket%ctin(mat))
@@ -247,38 +211,14 @@ CONTAINS
        ALLOCATE(aom_basket%energies(mol))
        ALLOCATE(aom_basket%bneighbour(3,0:atoms))
        ALLOCATE(aom_basket%nacv(3,mat,mat,mat*atoms))
+       aom_basket%futur_decohere = .FALSE.
     endif
-
-     !calculate timestep from femtoseconds in atomic units
-     !molecular timestep is generally 0.5fs to improve energy conservation
-!     deltatMD = (5.0D-16)/(2.4188843265D-17)
-!> Find deltaMD, nuclear timestep, in atomic units
-     deltatMD = MDtimestep !CHANGE_AC
-     !electronic timestep is a fraction of the molecular timestep
-!     deltatE = deltatMD/5.0D0
-!> Find deltaE, electronic timestep, in atomic units
-     deltatE = deltatMD/ELsteps !CHANGE_AC
-
-     !here are some useful conversion factors
-     !1 Angstrom = bohrang Bohr
-     bohrang = 1.889725989D0
-     !mev = 1 Hartree in meV
-     mev = 27211.0D0
-     !kcal = 1 Hartree in kcal/mol
-     kcal = 627.509D0
-     !offset is a number taken away from the absolute value of the hamiltonian diagonal elements
-     !the only thing important in the physics is the relative differences of the diagonals
-     !but reducing the absolute values can make the RK4 method more stable
-     !this option may be useful if you experience inexplicable discontinuities in your electron coefficients
-     !offset = 2.433840754D0
-
-
-     !ct are the electron coefficients
-     !ctin goes into the subroutine ZGEMV; ctout comes out of it (so essentially ctin = c(t), ctout = c(t+1))
-     allocate(ctin(mat))
-     allocate(ctout(mat))
-     !ctotal is |c(t)|^2: this is the output for diabatic electronic state
-     allocate(ctotal(mat))
+     
+     allocate(exact_forces(3,natom))
+     allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
+     IF (.NOT.ALLOCATED(ctin)) CPABORT("CTIN NOT ALLOCATED CORRECTLY.")
+     allocate(ctout(mat))     !ctout comes out of it (so essentially ctin = c(t), ctout = c(t+1))
+     allocate(ctotal(mat))    !ctotal is |c(t)|^2: this is the output for diabatic electronic state
 
      !need to allocate these square matrices
      !first the real, S-related ones
@@ -289,18 +229,14 @@ CONTAINS
      allocate(Stmt(mat,mat))
      allocate(Sttm(mat,mat))
      allocate(Stmtm(mat,mat))
-     allocate(Sttdiff(mat,mat))
-     allocate(Stmtmdiff(mat,mat))
      allocate(Stptpdiff(mat,mat))
      allocate(Sttpdiff(mat,mat))
+     allocate(Sttdiff(mat,mat))
+     allocate(Sttmdiff(mat,mat))
+     allocate(Stmtmdiff(mat,mat))
 
-
-     !c tells you how many atoms you will have per timestep
-     !allocate(crds(3,c,times+1))
      allocate(crds(3,c,3))
 
-     allocate(Sttpdiff(mat,mat))
-     allocate(Sttmdiff(mat,mat))
 
      !then the complex ones i.e. H matrices; combinations of H and S
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
@@ -313,6 +249,7 @@ CONTAINS
      allocate(H12(mat,mat))
      allocate(Hdiff(mat,mat))
      allocate(Hsave(mat,mat))
+     allocate(H2save(mat,mat))
      allocate(X1(mat,mat))
      allocate(X2(mat,mat))
      allocate(X12(mat,mat))
@@ -338,19 +275,13 @@ CONTAINS
           end do
      end do
 
-
-     !non-adiabatic coupling vectors
-     allocate(nacv(3,mat,mat,mat*atoms))
+     allocate(nacv(3,mat,mat,mat*atoms))      !non-adiabatic coupling vectors
      nacv = 0.0D0
-     !diagonals of the Hamiltonian
-     allocate(siteenergies(3,mat))
+     allocate(siteenergies(3,mat))      !diagonals of the Hamiltonian
 
-     !atomic coefficients for the overlap routine
-     allocate(pcoeffs(atoms,orb))
-     !pcoeffsrun exists because the p-coefficients need to be renormalised for each structure
-     allocate(pcoeffsrun(atoms,mat,3))
+     allocate(pcoeffs(atoms,orb)) !atomic coefficients for the overlap routine
+     allocate(pcoeffsrun(atoms,mat,3)) !pcoeffsrun exists because the p-coefficients need to be renormalised for each structure
      allocate(scoeffs(atoms))
-
      allocate(pcoefftot(c))
      allocate(scoefftot(c))
      allocate(coms(3,mol))
@@ -367,20 +298,18 @@ CONTAINS
      allocate(Btp(4,atoms))
      allocate(Btm(4,atoms))
 
-     !array of diagonal atomic forces
-     !allocate(F(3,mol*atoms,mol))
-     allocate(F(3,natom,mol))
+     allocate(F(3,natom,mol)) !array of diagonal atomic forces
 
      CALL section_vals_list_get(coupling_section,"_DEFAULT_KEYWORD_",list=listcoeff)
      CALL read_listcoeff(listcoeff, ext_elements, ext_pres, &
-                         ext_scoeff, ext_pcoeff, natom)
-     !elements contains the atomic number of each atom (this goes into At, Bt etc)
-     !it is user-defined input
-     allocate(elements(atoms))
-     allocate(elementtot(c))
-     elementtot = PACK(ext_elements, ext_pres)
+                         scoefftot, pcoefftot, natom)
+!     allocate(elements(atoms)) !elements contains the atomic number of each atom (this goes into At, Bt etc)
+     allocate(elements(c))
+     elements = PACK(ext_elements, ext_pres)
      allocate(atomlist_mask(c))
+     atomlist_mask =.NOT.((scoefftot.eq.0).AND.(pcoefftot.eq.0))
      allocate(atomlist(COUNT(atomlist_mask(1:atoms))))
+     atomlist = PACK( (/ (i, i=1,atoms) /), atomlist_mask(1:atoms) )
     if (itimes.eq.0) then
        allocate(aom_basket%connlist2(4,size(atomlist)))
     endif
@@ -395,19 +324,8 @@ CONTAINS
      allocate(neighbourlist(mol,0:atoms,0:atoms))
      neighbourlist = 0
 
-     !the stateno file contains a numeric representation of the adiabatic electronic state
-        if (itimes.gt.1) then
-           state = aom_basket%state
-        else
-           state = 1
-        endif
-
-     !if the program has been previously called, a bunch of data will have been saved
-
-     if (itimes.ge.3) then
-          ctin(:) = aom_basket%ctin(:)
-     !if not, it may need to be initialised/calculated for the first time
-     else if (itimes.eq.2) then
+!INITIALIZATION OR READING OF CTIN      
+     if (itimes.eq.0) then
           !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
           do i=1,mat
                ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
@@ -415,47 +333,48 @@ CONTAINS
           end do
           ctin(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
           ctotal(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-                aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
+          aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
      else
-          !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
-          do i=1,mat
-               ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
-               ctotal(i) = CMPLX(0.0D0, 0.0D0,dp)
-          end do
-          ctin(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-          ctotal(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-                aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
+          ctin(:) = aom_basket%ctin(:)
      end if
+!END INITIALIZATION OR READING OF CTIN      
 
 
-!READ THE COORDINATES
+!READ THE COORDINATES, ENERGIES AND STATE
         do coord=1,3
               if (itimes.ge.2) then
                  crds(coord,:,1) = PACK(aom_basket%rm2(:,coord), ext_pres)
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
+                 siteenergies(2,:) = aom_basket%energies(:) ! CHANGE_AC
+                 siteenergies(3,:) = energies_plus(:) ! CHANGE_AC
+                 old_state = aom_basket%new_state
               else if (itimes.eq.1) then 
+                 crds(coord,:,1) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
+                 siteenergies(2,:) = aom_basket%energies(:) ! CHANGE_AC
+                 siteenergies(3,:) = energies_plus(:) ! CHANGE_AC
+                 old_state = aom_basket%new_state
               else if (itimes.eq.0) then 
+                 crds(coord,:,1) = PACK(positions_plus(:,coord), ext_pres)
+                 crds(coord,:,2) = PACK(positions_plus(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
+                 siteenergies(2,:) = 0.0D0 ! CHANGE_AC
+                 siteenergies(3,:) = energies_plus(i) ! CHANGE_AC
+                 old_state = 1
               endif
         enddo
-!END READ THE COORDINATES
+!READ THE COORDINATES, ENERGIES AND STATE
 
 !READ THE COEFFICIENTS
-     !now we also read in the atomic coefficients
-        pcoefftot = ext_pcoeff
-        scoefftot = ext_scoeff
      do i=1,atoms
           do j=1,orb
-                       pcoeffs(i,j) = pcoefftot( i + (j-1)*orb)
+                pcoeffs(i,j) = pcoefftot( i + (j-1)*orb)
           end do
-                scoeffs(i) = scoefftot(i)
+          scoeffs(i) = scoefftot(i)
      end do
      
-!PRINT     print *, "Done! Calculating centres of mass..."
-
 !CALCULATE THE CENTER OF MASS
      !calculate CoMs at first timestep
      !coms(1 to 3,i) are the x, y and z coordinates of CoM of i
@@ -466,15 +385,12 @@ CONTAINS
           end do
           do m=1,atoms
                do d=1,3
-                    !coms(d,i) = coms(d,i) + (crds(d,(i-1)*atoms + m,1))/atoms
                     coms(d,i) = coms(d,i) + (crds(d,(i-1)*atoms + m,3))/atoms
                end do
           end do
      end do
 !END CALCULATE THE CENTER OF MASS
 
-     !construct neigbours list: 1 if close enough, 0 if not
-!PRINT     print *, "Constructing nearest neighbours list..."
 !CONSTRUCT NEIGHBOURS LIST
      do i=1,mol
           do j=1,mol
@@ -496,51 +412,25 @@ CONTAINS
           end do
      end do
 !END CONSTRUCT NEIGHBOURS LIST
-!PRINT     print *, "Nearest neighbours found."
-
-
-     do i=1,atoms
-                elements(i) = elementtot(i)
-     end do
-
-     atomlist = PACK( (/ (i, i=1,atoms) /), atomlist_mask(1:atoms) )
-     atomlist_mask =.NOT.((scoefftot.eq.0).AND.(pcoefftot.eq.0))
         
-
 !CONSTRUCT THE CONNLIST
      !we fill out the connlist arrays before calculating the nacv
-     do i=1,atoms
-          do j=1,3
-!CHANGE_AC: already in atomic units
-               At(j,i) = crds(j,i,3) !CHANGE_AC : 3 is the current timestep
-          end do
-     end do
-     !if (.not. inrun) then
      if (itimes.eq.0) then
-          call connect_list2(At(1:3,:), atomlist, connlist1, connlist2)
-          do i=1,atoms
-                        aom_basket%connlist1(1:4,i) = connlist1(1:4,i)
-          end do
-          do i=1,size(atomlist)
-                        aom_basket%connlist2(1:4,i) = connlist2(1:4,i)
-          end do
-     else if (itimes.gt.0) then
-                        connlist1(1:4,:) = aom_basket%connlist1(1:4,:)
-                        connlist2(1:4,:) = aom_basket%connlist2(1:4,:)
-     end if
+         At(2:4,1:atoms) = crds(1:3,1:atoms,3)
+         call connect_list2(At(2:4,:), atomlist, connlist1, connlist2)
+         aom_basket%connlist1  = connlist1
+         aom_basket%connlist2  = connlist2
+     else
+         connlist1 = aom_basket%connlist1
+         connlist2 = aom_basket%connlist2
+     endif
 !END CONSTRUCT THE CONNLIST
+
 
      !used to give correct commands to ZGEMX subroutines later
      zgemm_type = 'N'
 
-     !for each timestep: this loop is (probably) the main bulk of the code
-!PRINT     print *, "Calling overlap routine for each pair along the trajectory (this may take a while)"
-!     do t=2,times
-t =2
-           if (itimes.ge.2) then
-!          if (progtype == 'C') then
-!PRINT               print *, "Molecular timestep", t, "beginning."
-!          end if
+           if (itimes.ge.1) then
           !for each molecule
           do i=1,mol
                !create the array of all its atomic coordinates at t
@@ -551,18 +441,11 @@ t =2
                     Atm(1,j) = dble(elements(j))
                     do d=2,4
 !> CHANGE_AC : already coordonates in atomic units
-                         At(d,j) = crds(d-1,(i-1)*atoms+j,t)
-                         Atp(d,j) = crds(d-1,(i-1)*atoms+j,t+1)
-                         Atm(d,j) = crds(d-1,(i-1)*atoms+j,t-1)
+                         Atm(d,j) = crds(d-1,(i-1)*atoms+j,1)
+                         At(d,j)  = crds(d-1,(i-1)*atoms+j,2)
+                         Atp(d,j) = crds(d-1,(i-1)*atoms+j,3)
                     end do
                end do
-               !calculate the site energy for this molecule
-               !at this timestep
-                        siteenergies(t,i)   = aom_basket%energies(i) ! CHANGE_AC
-                        siteenergies(t+1,i) = energies_plus(i) ! CHANGE_AC
-
-               !then one timestep ahead: also calculate diagonal forces at this timestep
-!               call sitecalc(Atp, bonds, atoms, siteenergies(t+1,i), F(:,:,i), mol, i)
 
                !then for each other molecule
                do k=1,mol
@@ -573,9 +456,9 @@ t =2
                          Btm(1,l) = dble(elements(l))
                          do d=2,4
 !> CHANGE_AC : already coordonates in atomic units
-                              Bt(d,l) =  crds(d-1,(k-1)*atoms+l,t)
-                              Btp(d,l) = crds(d-1,(k-1)*atoms+l,t+1)
-                              Btm(d,l) = crds(d-1,(k-1)*atoms+l,t-1)
+                              Btm(d,l) = crds(d-1,(k-1)*atoms+l,1)
+                              Bt(d,l)  =  crds(d-1,(k-1)*atoms+l,2)
+                              Btp(d,l) = crds(d-1,(k-1)*atoms+l,3)
                          end do
                     end do
                     if (i == 1) then
@@ -593,7 +476,7 @@ t =2
                               end do
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
-                         if (itimes.eq.2) then
+                         if (itimes.eq.1) then
                               do d=1,orb
                                    do m=1,orb
                                         call sab_screen_new(At, atomlist, connlist1, pcoeffsrun(:,orb*(i-1)+d,2),&
@@ -629,42 +512,41 @@ t =2
                                    do m=1,orb
                                         !These diagonals are 1 by definition
                                         Stptp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
-                                        !H1(orb*(i-1)+d,orb*(k-1)+d) = dcmplx(0.0D0, (-siteenergies(t,k)/kcal))
-                                        H1(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t,k)), dp)
-                                        !H2(orb*(i-1)+d,orb*(k-1)+d) = dcmplx(0.0D0, (-siteenergies(t+1,k)/kcal))
-                                        H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(t+1,k)),dp)
+                                        H1(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(2,k)), dp)
+                                        H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
+
                                         call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                         Sttp(orb*(i-1)+d,orb*(k-1)+m) = S
+
                                         call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3), S, Bt,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = S
-                                        !call calc_dRSab(At, atomlist, connlist1, &
+
                                         call calc_dRSab(Atp, atomlist, connlist1, &
                                         &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
-                                        !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,1:atoms), &
-                                        !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,atoms+1:2*atoms), &
-                                        !&Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
                                         &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
-                                        !&neighbourlist(i,:,:), neighbourlist(k,:,:))
                                         &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                    end do
                               end do
 
-                              if (itimes.eq.2) then
+                              if (itimes.eq.1) then
                                    do d=1,orb
                                         do m=1,orb
                                              call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2),&
                                              & S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = S
+
                                              call calc_sab(Atm, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,1),&
                                              & S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                              Stmt(orb*(i-1)+d,orb*(k-1)+m) = S
+
                                              call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2),&
                                              & S, Btm, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,1))
                                              Sttm(orb*(i-1)+d,orb*(k-1)+m) = S
+
                                              call calc_sab(Atm, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,1),&
                                              & S, Btm, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,1))
                                              Stmtm(orb*(i-1)+d,orb*(k-1)+m) = S
@@ -683,10 +565,6 @@ t =2
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = Stt(orb*(k-1)+m,orb*(i-1)+d)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
                                              Stmtm(orb*(i-1)+d,orb*(k-1)+m) = Stmtm(orb*(k-1)+m,orb*(i-1)+d)
-                                             !nacv(:,i,k,1:atoms) = nacv(:,k,i,atoms+1:2*atoms)
-                                             !nacv(:,i,k,1:atoms) = 0.0D0
-                                             !nacv(:,i,k,atoms+1:2*atoms) = nacv(:,k,i,1:atoms)
-                                             !nacv(:,i,k,atoms+1:2*atoms) = 0.0D0
                                         end do
                                    end do
                               else
@@ -696,22 +574,18 @@ t =2
                                              & S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
-                                             !call calc_dRSab(At, atomlist, connlist1, &
+
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                              &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
                                              &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:i*atoms), &
-                                             !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:2*(k-1)*atoms), &
-                                             !&nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:2*(i-1)*atoms), &
-                                             !&Bt, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
                                              &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
-                                             !&scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:))
                                              &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                         end do
                                    end do
 
                                    !if (.not. inrun) then
-                                   if (itimes.eq.2) then
+                                   if (itimes.eq.1) then
                                         do d=1,orb
                                              do m=1,orb
                                                   call calc_sab(At, connlist2, &
@@ -719,22 +593,27 @@ t =2
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                                   Stt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                                   H1(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
+
                                                   call calc_sab(Atm, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, Btm, connlist2,&
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,1))
                                                   Stmtm(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+
                                                   call calc_sab(At, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btm, connlist2,&
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,1))
                                                   Sttm(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+
                                                   call calc_sab(Atm, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, Bt, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                                   Stmt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+
                                                   call calc_sab(Bt, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,2), S, Atm, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,1))
                                                   Sttm(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
+
                                                   call calc_sab(Btm, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,1), S, At, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,2))
@@ -749,12 +628,15 @@ t =2
                                         call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                         Sttp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+
                                         call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3), S, Bt,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+
                                         call calc_sab(Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2), S, Atp,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3))
                                         Sttp(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
+
                                         call calc_sab(Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3), S, At,&
                                         & connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2))
                                         Stpt(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
@@ -765,9 +647,7 @@ t =2
                          do d=1,orb
                               do m=1,orb
                                    !fill in elements of non-overlapping pairs with 0
-                                   !H1(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, 0.0D0)
                                    H1(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, 0.0D0,dp)
-                                   !H2(orb*(i-1)+d,orb*(k-1)+m) = dcmplx(0.0D0, 0.0D0)
                                    H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, 0.0D0,dp)
                                    Stt(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
                                    Sttp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
@@ -784,7 +664,7 @@ t =2
           !during a simulation, you can read in a lot of these overlaps from a previous timestep
           !if (inrun) then
 !GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
-          if (itimes.gt.2) then
+          if (itimes.gt.1) then
                do i=1,mat
                     do j=1,mat
                                         Stt(j,i) = aom_basket%Stt(j,i)
@@ -796,7 +676,7 @@ t =2
                                         Stmtm(j,i) = aom_basket%Stmtm(j,i)
                     end do
                end do
-         else if (itimes.ge.2) then !CHANGE_AC
+         else if (itimes.eq.1) then !CHANGE_AC
                do i=1,mat
                   do j=1,mat
                                 aom_basket%Stt(j,i)   = Stptp(j,i)
@@ -826,6 +706,7 @@ t =2
                Stptpdiff = Sttdiff
                Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
                Hsave = H1
+               H2save = H2
 !PRINT               print *, "Propagating the electron for one molecular timestep..."
                do t2=1,int(deltatMD/deltatE)
 
@@ -879,7 +760,7 @@ t =2
                     call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X2, mat, K3, &
                     &mat, beta, K4, mat)
                     K4 = K4 + X2
-     
+ 
                     !put everything together
                     Ktot = Imat + (deltatE/6.0D0)*(X1 + 2*K2 + 2*K3 + K4)
      
@@ -888,7 +769,6 @@ t =2
                     alpha = cmplx(1.0D0, 0.0D0,dp)
                     inc = 1
                     call ZGEMV(zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc)
-     
                     ctmag = 0.0D0
                     ctcomp = cmplx(0.0D0, 0.0D0,dp)
                     do i=1,mat
@@ -911,118 +791,206 @@ t =2
                     H1 = H2
                     ctin = ctout
                     ctout = cmplx(0.0D0, 0.0D0,dp)
+
+                    times = DBLE(itimes) + t2*1/DBLE(ELsteps)
+                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,times)
+                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,times)
+                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,times)
+
                end do
 !PRINT               print *, "Done."     
 !END PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
                H1 = Hsave
+               H2 = H2save
+
+      ELSE IF (itimes.eq.0) THEN
+          !for each molecule
+          do i=1,mol
+               !create the array of all its atomic coordinates at t
+               !numerical factor converts from Angstroms into Bohr radii
+               Atp(1,:) = dble(elements(:))
+               do j=1,atoms
+                    Atp(2:4,j) = crds(1:3,(i-1)*atoms+j,3)
+               end do
+
+               !then for each other molecule
+               do k=1,mol
+                    !create the array of its atomic coordinates at both t and t+dt
+                    Btp(1,:) = dble(elements(:))
+                    do l=1,atoms
+                        Btp(2:4,l) = crds(1:3,(k-1)*atoms+l,3)
+                    end do
+                    if (i == 1) then
+                         do d=1,orb
+                              pcoeffsrun(:,orb*(k-1)+d,3) = pcoeffs(:,d)
+                              call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
+                         end do
+                         do d=1,orb
+                                do m=1,orb
+                                     call sab_screen_new(Atp, atomlist, connlist1, pcoeffsrun(:,orb*(i-1)+d,3),&
+                                     & atomlist, Btp, atomlist, connlist1, pcoeffsrun(:,orb*(k-1)+m,3),&
+                                     & aneighbour(:,1:atoms), bneighbour(:,1:atoms), minao)
+                                end do
+                         end do
+                         neighbourlist(k,1:3,0) = [0, 0, 0]
+                         neighbourlist(k,:,1:atoms) = bneighbour(:,1:atoms)
+                    else
+                              do m=1,mol
+                                   neighbourlist(m,1:3,0) = [0, 0, 0]
+                              end do
+                    end if  ! (i == 1)
+                    !only call overlap if neighbours list says so
+                    if (NN(i,k) == 1) then
+                         !first the diagonals
+                         if (i == k) then
+                              do d=1,orb
+                                   do m=1,orb
+                                        !These diagonals are 1 by definition
+                                        H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
+
+                                        call calc_dRSab(Atp, atomlist, connlist1, &
+                                        &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
+                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
+                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
+                                        &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
+                                        &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
+                                   end do
+                              end do
+
+                         !now the off-diagonals                         
+                         else ! ( i == k)
+                              !symmetric matrices
+                              !no sense calling calc_sab twice as often as you need to
+                              if (k < i) then
+                                   do m=1,orb
+                                        do d=1,orb
+                                             H2(orb*(i-1)+d,orb*(k-1)+m) = H2(orb*(k-1)+m,orb*(i-1)+d)
+                                             Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
+                                        end do
+                                   end do
+                              else
+                                   do d=1,orb
+                                        do m=1,orb
+                                             call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
+                                             & S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
+                                             Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+                                             H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
+
+                                             call calc_dRSab(Atp, atomlist, connlist1, &
+                                             &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
+                                             &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
+                                             &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:i*atoms), &
+                                             &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
+                                             &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
+                                        end do
+                                   end do
+                              endif 
+                         end if !(i==k)
+                    else !(NN(i,k) == 1
+                         do d=1,orb
+                              do m=1,orb
+                                   !fill in elements of non-overlapping pairs with 0
+                                   H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, 0.0D0,dp)
+                                   Stptp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
+                              end do
+                         end do
+                    end if !(NN(i,k) == 1
+               end do !loop over k
+         enddo !loop-over i
+         DO t2=1,int(deltatMD/deltatE)
+                    times = DBLE(itimes) + t2*1/DBLE(ELsteps)
+                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,times)
+                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,times)
+                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,times)
+         ENDDO
+      endif !END OF THE BIG IF-LOOP itimes.ge.1
+
+
 
 !DO THE HOPPING TEST AND CALCULATE THE FORCES
-!          if (progtype == 'C') then
-!PRINT               print *, "Molecular timestep", t, "done."
-!          else
-!PRINT               print *, "Calculating surface hopping probabilities."
-
                !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
                !It gives us back the eigenvalues and eigenvectors
-!               call adiabaticity(-imagpart(H1), mat, C1, E1, .false.)
-!               call adiabaticity(-imagpart(H2), mat, C2, E2, .true.)
-               call adiabaticity(-AIMAG(H1), mat, C1, E1, .false.)
-               call adiabaticity(-AIMAG(H2), mat, C2, E2, .true.)
+      IF (itimes.ge.1) call adiabaticity(-AIMAG(H1), mat, C1, E1, .false.)
+      call adiabaticity(-AIMAG(H2), mat, C2, E2, .true.)
 
-               !The eigenvectors are needed to calculate the surface hopping probabilities
-               !The surfacehop subroutine calculates these probabilites and decides on the
-               !new (possibly unchanged) surface for simulation
-!               if (input /= 'n') then
-                    !call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, state, decohere)
-               IF (my_bo_keyword) THEN
-                    ext_state = my_bo_state
-                    decohere = .FALSE.
-                    is_hop = .FALSE.
-               ELSE    
-                    call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, state, decohere,  &      
-                                    ext_state, is_hop)
-                ENDIF
-                aom_basket%state = ext_state
-!               end if
+      !The eigenvectors are needed to calculate the surface hopping probabilities
+      !The surfacehop subroutine calculates these probabilites and decides on the
+      !new (possibly unchanged) surface for simulation
+      IF (my_bo_keyword) THEN
+          new_state = my_bo_state
+          old_state = my_bo_state
+          decohere = .FALSE.
+          is_hop = .FALSE.
+       ELSE    
+          IF (itimes.eq.0) THEN
+              new_state = my_bo_state
+              old_state = my_bo_state
+              decohere = .FALSE.
+              is_hop = .FALSE.
+          ELSE
+              call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, old_state, decohere,  &      
+                              new_state, is_hop)
+          ENDIF
+       ENDIF
 
-               !The forces subroutine then calculates the adiabatic forces and prints them out
-               !F = F/(kcal*bohrang)
-!               call forces(state, -imagpart(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt)
-               !call forces(state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt)
 !CALCULATE THE FORCES IN THE NEW ADIABATIC STATE!
-               !call forces(ext_state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt)
+      IF (itimes.ge.1) THEN       
                DO imol=1,mol
                   DO iatom=1, natom
                      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
                   ENDDO
                ENDDO
-               call forces(ext_state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt, forces_adiab, &
-                           ext_pres, analytics)
-               !call forces(state, -AIMAG(H2), C2, nacv, NN, atoms, scaling, cbar, F, Stt, ext_forces)
-
+               call calcforces(state=new_state,Hin=-AIMAG(H2), C=C2, nacv=nacv, NN=NN, atoms=atoms, & 
+                           scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=forces_adiab, &
+                           ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
+                           ctin=ctin)
+               IF (analytics) THEN
+                   CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, times)
+               ENDIF
                !Finally, collapse the wavefunction if called for
                !if (decohere) then
                if (is_hop) aom_basket%futur_decohere = .TRUE.
 !> Check if the collapse key word is TRUE in the input
                if (collapse) then
-!                    open(unit=37,file='decohere',action='read')
-!                    read(37,*), collapse
-!                    close(37)
-
-                    !if (collapse) then
 !> Check if the surface_hop subroutine asks us to do the decoherence
                     if (aom_basket%futur_decohere) then 
                        if (decohere) then
                              do i=1,mat
-                                 ctin(i) = C2(state,i)
+                                 ctin(i) = C2(old_state,i) !ASK_JACOB
                              end do
                              aom_basket%futur_decohere = .FALSE. 
-!                            write(37,*), 'f'
-!                            close(37)
                        end if
                     endif
                end if
-!          end if
+       ENDIF
 !END DO THE HOPPING TEST AND CALCULATE THE FORCES
-
-
-!     end do !loop over t
-      endif
 
 !STORE THE COORDINATES
         if (itimes.ge.1) then
-           do i=1,c
-              do coord=1,3
-                 aom_basket%rm2(i,coord) = aom_basket%rm1(i,coord)
-                 aom_basket%rm1(i,coord) = positions_plus(i,coord)
-              enddo
-           enddo
-           do i=1,mol
-              aom_basket%energies(i) = energies_plus(i)
-           enddo
+           aom_basket%rm2      = aom_basket%rm1
+           aom_basket%rm1      = positions_plus
+           aom_basket%energies = energies_plus
         else if (itimes.eq.0) then
-           do i=1,c
-              do coord=1,3
-                 aom_basket%rm1(i,coord) = positions_plus(i,coord)
-              enddo
-           enddo
-           do i=1,mol
-              aom_basket%energies(i) = energies_plus(i)
-           enddo
+           aom_basket%rm1      = positions_plus
+           aom_basket%energies = energies_plus
         endif
 !END STORE THE COORDINATES
 
 !PREPARE THE PRINT
-       aom_basket%ctin(1:mat) = ctin(1:mat)
+       aom_basket%ctin        = ctin
        aom_basket%hamiltonian = AIMAG(H2)
        aom_basket%nacv        = nacv
+       aom_basket%new_state = new_state
+       aom_basket%old_state = old_state
 !END PREPARE THE PRINT
 
-!PRINT     print *, "All done!",itimes
-
 !DEALLOCATE
+     deallocate(ext_pres, ext_elements)
+     deallocate(scoefftot, pcoefftot)
      deallocate(pcoeffs, pcoeffsrun, scoeffs)
-     deallocate(ctin, ctout, ctotal)
+     deallocate(ctin)
+     deallocate(ctout)
+     deallocate(ctotal)
      deallocate(siteenergies)
      deallocate(crds)
      deallocate(coms)
@@ -1034,11 +1002,14 @@ t =2
      deallocate(Btm)
      deallocate(Btp)
      deallocate(atomlist)
+     deallocate(atomlist_mask)
      deallocate(connlist1)
      deallocate(connlist2)
-     deallocate(H1, H2, H12, Hdiff, Hsave, X1, X2, X12, Ktot, K2, K3, K4)
+     deallocate(H1, H2, H12, Hdiff, Hsave, H2save,X1, X2, X12, Ktot, K2, K3, K4)
      deallocate(Stt, Stptp, Stmtm, Sttp, Sttm, Stpt, Stmt)
      deallocate(Sttdiff, Stptpdiff, Stmtmdiff, Sttpdiff, Sttmdiff, nacv, dist)
+     deallocate(exact_forces)
+     deallocate(F)
 !END DEALLOCATE
 
     END SUBROUTINE construct_ham_X_SH

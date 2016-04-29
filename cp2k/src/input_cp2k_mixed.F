@@ -381,6 +381,22 @@ CONTAINS
      CALL section_add_subsection(sub2section,print_key)
      CALL section_release(print_key)
 
+     CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="STATE",&
+          description="Control the output of the present state.",&
+          common_iter_levels=1,&
+          filename="")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
+     CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="EXACT_FORCES",&
+          description="Control the output of the exact forces in case of ANALYTICS.",&
+          common_iter_levels=1,&
+          filename="")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
     CALL section_add_subsection(subsection,sub2section)
     CALL section_release(sub2section)
     CALL section_add_subsection(section,subsection)
