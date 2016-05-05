@@ -1700,17 +1700,23 @@ contains
 !     normalisation 
 
 !print*, "blue", coeffap
+!print*, "red", coeffbp
 !print*, 1603, sarrayn
       call calc_sab_turbo(xyza, atomlista, connlistal, coeffap, rvecsa, sarrayn, atomlista)
 !print*, 1605, sarrayn
 !print*, "blue", coeffap
-
+!print*, "red", coeffbp
+!print*, "calc_dR"
 
 !     Calculating Sab(R,R) and initialising p_pi directions and atomic overlap matrix sarrayo
 
       call calc_sab_turbo2(xyza, atomlista, connlistal, coeffap, rvecsa,&
 &                                 sarrayo, atomlista, aneighbour(:,2:(size(aneighbour,2))),&
 &                     sabRR, xyzb, atomlistb, connlistbl, coeffbp, rvecsb)
+!print*, xyza
+!print*, xyzb
+!print*, sabRR
+!print*, "red", coeffbp
 !print*, "blue", coeffap
 
 !     Looping all over the structure 
@@ -2176,7 +2182,10 @@ contains
 
       deallocate(preaneighbour)
 
-
+!print*, "overlap"
+!print*, screenlist1
+!print*, aneighbour
+!print*, "overlap"
 !     Creating bneighbour list
 
       screenlist2=transpose(screenlist1)
@@ -2422,19 +2431,21 @@ contains
              do k=1,aneighbour(1,i)
 
                 sarray(aneighbour(k+1,i),i)=sarrayline(k)
-
+!print*, "aneighbour k", k, i,aneighbour(k+1,i)
              end do
 
              deallocate(expcoeffa, expcoeffb, rvecsb, sarrayline)
              deallocate(dist, unitvecs, musbp, xyzb)
 
         end do
-
+!print*, "sarray", sarray
+!print*, "coeffbp", coeffbp
         call DGEMV('t', size(sarray,1), size(sarray,2), 1.0d0, sarray,&
                    & size(sarray,1), coeffbp, 1, 0.d0, stc, 1)
-
+!print*, "coeffap", coeffap
+!print*, "stc", stc
         sab = DDOT(size(coeffap,1),coeffap,1,stc,1)
-
+!print*, "sab last", sab
    
        elseif ((present(prexyzb) .and. present(precoeffbp) .and. &
 &         present(sab) .and. present(connlistbl)) .eqv. .false.) then

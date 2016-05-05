@@ -858,6 +858,10 @@ CONTAINS
 !    INTEGER, POINTER                         :: my_itimes !CHANGE_AC
 !> End CHANGE_AC
 
+IF (my_itimes.eq.1) print*, "STOP"
+!IF (my_itimes.eq.1) stop
+
+
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(force_env))
     ! Get infos about the mixed subsys

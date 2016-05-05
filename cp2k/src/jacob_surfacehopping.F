@@ -688,6 +688,10 @@ CONTAINS
          endif !CHANGE_AC
 !END GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
 
+print*, "STPT", Stpt(1,1)
+print*, "STPT", Stpt(2,1)
+print*, "STPT", Stpt(1,2)
+print*, "STPT", Stpt(2,2)
           nacv = cbar*nacv
 
 
@@ -822,7 +826,7 @@ CONTAINS
                     end do
                     if (i == 1) then
                          do d=1,orb
-                              pcoeffsrun(:,orb*(k-1)+d,3) = pcoeffs(:,d)
+                              pcoeffsrun(1:atoms,orb*(k-1)+d,3) = pcoeffs(1:atoms,d)
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
                          do d=1,orb
@@ -849,10 +853,10 @@ CONTAINS
                                         H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
 
                                         call calc_dRSab(Atp, atomlist, connlist1, &
-                                        &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
+                                        &pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
                                         &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
-                                        &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
+                                        &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3), scoeffs, &
                                         &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                    end do
                               end do
@@ -877,10 +881,10 @@ CONTAINS
                                              H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
                                              call calc_dRSab(Atp, atomlist, connlist1, &
-                                             &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
+                                             &pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
                                              &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
                                              &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:i*atoms), &
-                                             &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
+                                             &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
                                              &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                         end do
                                    end do

@@ -680,7 +680,7 @@ subroutine adiabaticity(H, mol, C, E, print)
 
         C = H
 
-print*, C
+!print*, C
         job = 'V'
         up = 'U'
         !DSYEV is from the BLAS. Returns vector of eigenvalues D and overwrites S with matrix of eigenvectors
@@ -701,16 +701,16 @@ print*, C
                 !stop "Error: array 'DGETRI_WORK' not allocated correctly."
         end if
 
-print*, "hey"
-print*, C
+!print*, "hey"
+!print*, C
         call DSYEV(job, up, mol, C, mol, E, DGETRI_WORK, LWORK, stat)
         if (stat /= 0) then
                 CPABORT("Error with subroutine DSYEV: error status")
                 !write(*,*) "Error with subroutine DSYEV: error status", stat
                 !stop
         end if
-print*, C
-print*, E
+!print*, C
+!print*, E
 
 !        if (print) then
 !            open(unit=35,file="lambda",action='write')
@@ -860,21 +860,21 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
                     (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
 IF ((j.eq.2).AND.(d.eq.1)) THEN
-print*, "DH",1,1,j,d, DH(1,1,j,d)
-print*, "DH",2,1,j,d, DH(2,1,j,d)
-print*, "DH",1,2,j,d, DH(1,2,j,d)
-print*, "DH",2,2,j,d, DH(2,2,j,d)
-print*, "Hin", 1,1, Hin(1,1)
-print*, "Hin", 2,1, Hin(2,1)
-print*, "Hin", 1,2, Hin(1,2)
-print*, "Hin", 2,2, Hin(2,2)
-print*, "dec"
-print*, 0.5 
-print*, (Hin(2,2)-Hin(1,1))
-print*, SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )
-print*, (0.5 + (Hin(2,2)-Hin(1,1))/(2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )))*DH(1,1,j,d)
-print*, "forces"
-print*, exact_forces(d,j)
+!print*, "DH",1,1,j,d, DH(1,1,j,d)
+!print*, "DH",2,1,j,d, DH(2,1,j,d)
+!print*, "DH",1,2,j,d, DH(1,2,j,d)
+!print*, "DH",2,2,j,d, DH(2,2,j,d)
+!print*, "Hin", 1,1, Hin(1,1)
+!print*, "Hin", 2,1, Hin(2,1)
+!print*, "Hin", 1,2, Hin(1,2)
+!print*, "Hin", 2,2, Hin(2,2)
+!print*, "dec"
+!print*, 0.5 
+!print*, (Hin(2,2)-Hin(1,1))
+!print*, SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )
+!print*, (0.5 + (Hin(2,2)-Hin(1,1))/(2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )))*DH(1,1,j,d)
+!print*, "forces"
+!print*, exact_forces(d,j)
 ENDIF
                  ELSE 
                     exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2.0  -  &
@@ -886,9 +886,9 @@ ENDIF
         ELSE
            exact_forces = 0.0D0
         ENDIF
-print*, "C", C
-print*, abs(C(1,1))**2
-print*, abs(C(2,1))**2
+!print*, "C", C
+!print*, abs(C(1,1))**2
+!print*, abs(C(2,1))**2
         !begin shortcut formula 
 
         !conjugates and realpart commands have been omitted, as everything should be real
@@ -918,7 +918,7 @@ IF ((j.eq.2).AND.(d.eq.1)) print*, i,m, F(d,j)
                         end do
                 end do
         end do
-print*, F(1,2)
+!rint*, F(1,2)
 !else
         !end shortcut formula
 

@@ -133,7 +133,7 @@ CONTAINS
     INTEGER                                  :: iparticle, jparticle, natom,iforce_eval
     INTEGER                                  :: aom_natom, nadiab
     INTEGER                                  :: norbitals, ext_init, ext_atoms
-    INTEGER                                  :: ext_el_steps
+    INTEGER                                  :: ext_el_steps, init
 !    REAL(KIND=dp), DIMENSION(:), POINTER     :: energies
     REAL(kind=dp)                            :: ext_cutoff, ext_scaling
     REAL(KIND=dp)                            :: ext_timestep
@@ -273,7 +273,9 @@ CONTAINS
           particles_mix%els(jparticle)%f(:)= 0.0D0
           particles_mix%els(jparticle)%v(:)= 0.0D0
       ELSE 
-          particles_mix%els(jparticle)%f(:)= global_forces(1)%forces(:,iparticle)
+          CALL section_vals_val_get(coupling_section,"INIT_SITES",&
+               i_val=init)
+          particles_mix%els(jparticle)%f(:)= global_forces(init)%forces(:,iparticle)
 !print*,  "part forces", particles_mix%els(jparticle)%f(:) 
       ENDIF
 !      positions(jparticle,:)  = particles_mix%els(jparticle)%r(:)
@@ -366,6 +368,9 @@ CONTAINS
     my_bo_keyword = .FALSE.
     IF (PRESENT(bo_keyword)) my_bo_keyword = bo_keyword
 
+IF (my_itimes.eq.1) print*, "STOP"
+IF (my_itimes.eq.1) stop
+
 
 !> Find the method to calculate the off-diagonal elements
     CALL section_vals_val_get(adiab_section,"METHOD_COUPLING",c_val=coupling_keyword)
@@ -407,6 +412,10 @@ CONTAINS
 !> Get the renewed information from aom_basket
  !       coefficients = aom_basket%ctin
  !       populations  = aom_basket%population
+        hamiltonian  = 0.0D0
+        nacv         = 0.0D0
+        new_state    = 0
+        old_state    = 0
         hamiltonian  = aom_basket%hamiltonian
         nacv         = aom_basket%nacv
         new_state    = aom_basket%new_state
@@ -418,6 +427,7 @@ CONTAINS
         !CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals,itimes)
         CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes)
         !CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals,itimes)
+print*, "NACV", nacv(1,1,1,1)
         CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes)        
         CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes)
 !        IF (analytics)
@@ -462,11 +472,14 @@ CONTAINS
         CALL section_vals_val_get(coupling_section,"INIT_SITES",&
              i_val=init)
        particles_mix%els(jparticle)%f(:)= global_forces(init)%forces(:,iparticle) 
+print*, particles_mix%els(jparticle)%f(:)
 !print*,  "part forces", particles_mix%els(jparticle)%f(:) 
       ELSE     
          particles_mix%els(jparticle)%f(:)= forces_adiab(:,iparticle)
+print*, particles_mix%els(jparticle)%f(:)
       ENDIF
     END DO
+!stop
 
 
     iforce_eval = nforce_eval
