@@ -859,7 +859,7 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
                     exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  -  &
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
                     (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
-IF ((j.eq.2).AND.(d.eq.1)) THEN
+!IF ((j.eq.2).AND.(d.eq.1)) THEN
 !print*, "DH",1,1,j,d, DH(1,1,j,d)
 !print*, "DH",2,1,j,d, DH(2,1,j,d)
 !print*, "DH",1,2,j,d, DH(1,2,j,d)
@@ -875,7 +875,7 @@ IF ((j.eq.2).AND.(d.eq.1)) THEN
 !print*, (0.5 + (Hin(2,2)-Hin(1,1))/(2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )))*DH(1,1,j,d)
 !print*, "forces"
 !print*, exact_forces(d,j)
-ENDIF
+!ENDIF
                  ELSE 
                     exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2.0  -  &
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
@@ -907,7 +907,7 @@ ENDIF
                                                 !F(d,i,j) = F(d,i,j) + 2.0D0*((C(i,state))*DH(m,i,(i-1)*atoms+j,d)*C(m,state))
                                                 F(d,j) = F(d,j) + 2.0D0*((C(i,state))*DH(m,i,j,d)*C(m,state))
                                         end if
-IF ((j.eq.2).AND.(d.eq.1)) print*, i,m, F(d,j)
+!IF ((j.eq.2).AND.(d.eq.1)) print*, i,m, F(d,j)
                                                 !These terms are here for 'historical interest'
                                                 !We have shown that they should come out as exactly 0.
                                                 !do m=1,mat        

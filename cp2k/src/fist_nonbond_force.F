@@ -234,7 +234,6 @@ CONTAINS
              ! kind_a and atom_b of kind_b, ie. they might be swapped.
              kind_a = particle_set(atom_a)%atomic_kind%kind_number
              kind_b = particle_set(atom_b)%atomic_kind%kind_number
-
              fac_kind = ij_kind_full_fac(kind_a,kind_b)
              ! take the proper potential
              pot => potparm%pot(kind_a,kind_b)%pot

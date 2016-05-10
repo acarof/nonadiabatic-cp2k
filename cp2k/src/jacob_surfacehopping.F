@@ -178,6 +178,7 @@ CONTAINS
         my_bo_state = 0
      ENDIF
 
+
 !> Number of sites
      mol = nadiab ! CHANGE_AC
 !> Number of atoms per site
@@ -688,10 +689,6 @@ CONTAINS
          endif !CHANGE_AC
 !END GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
 
-print*, "STPT", Stpt(1,1)
-print*, "STPT", Stpt(2,1)
-print*, "STPT", Stpt(1,2)
-print*, "STPT", Stpt(2,2)
           nacv = cbar*nacv
 
 
@@ -812,7 +809,7 @@ print*, "STPT", Stpt(2,2)
           do i=1,mol
                !create the array of all its atomic coordinates at t
                !numerical factor converts from Angstroms into Bohr radii
-               Atp(1,:) = dble(elements(:))
+               Atp(1,1:atoms) = dble(elements((i-1)*atoms+1:i*atoms))
                do j=1,atoms
                     Atp(2:4,j) = crds(1:3,(i-1)*atoms+j,3)
                end do
@@ -820,7 +817,7 @@ print*, "STPT", Stpt(2,2)
                !then for each other molecule
                do k=1,mol
                     !create the array of its atomic coordinates at both t and t+dt
-                    Btp(1,:) = dble(elements(:))
+                    Btp(1,1:atoms) = dble(elements((k-1)*atoms+1:k*atoms))
                     do l=1,atoms
                         Btp(2:4,l) = crds(1:3,(k-1)*atoms+l,3)
                     end do
@@ -990,6 +987,7 @@ print*, "STPT", Stpt(2,2)
 
 !DEALLOCATE
      deallocate(ext_pres, ext_elements)
+     deallocate(elements)
      deallocate(scoefftot, pcoefftot)
      deallocate(pcoeffs, pcoeffsrun, scoeffs)
      deallocate(ctin)

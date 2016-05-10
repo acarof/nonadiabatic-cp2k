@@ -858,9 +858,6 @@ CONTAINS
 !    INTEGER, POINTER                         :: my_itimes !CHANGE_AC
 !> End CHANGE_AC
 
-IF (my_itimes.eq.1) print*, "STOP"
-!IF (my_itimes.eq.1) stop
-
 
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(force_env))
@@ -924,7 +921,6 @@ IF (my_itimes.eq.1) print*, "STOP"
           jparticle = map_index(iparticle)
           particles(iforce_eval)%list%els(iparticle)%r= particles_mix%els(jparticle)%r
        END DO
-
        ! Calculate energy and forces for each sub_force_env
        CALL force_env_calc_energy_force(force_env%sub_force_env(iforce_eval)%force_env,&
                                         calc_force=calculate_forces,&
@@ -1173,6 +1169,7 @@ IF (my_itimes.eq.1) print*, "STOP"
     DEALLOCATE(subsystems)
     DEALLOCATE(particles)
     DEALLOCATE(energies)
+    DEALLOCATE(kinetic_energies) !CHANGE_AC
     DEALLOCATE(glob_natoms)
     DEALLOCATE(virials)
     DEALLOCATE(results)

@@ -346,11 +346,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: coupling_section
     CHARACTER(LEN=default_string_length)     :: coupling_keyword
     CHARACTER(LEN=default_string_length)     :: rescale_keyword
-    !TYPE(cp_sll_val_type), POINTER           :: listcoeff
     TYPE(aom_basket_type)                    :: aom_basket
-    !COMPLEX(KIND=dp), DIMENSION(:),  POINTER :: coefficients
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
-    !REAL(KIND=dp), DIMENSION(:),POINTER      :: populations
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
     INTEGER                                  :: old_state, new_state, init
@@ -362,14 +359,9 @@ CONTAINS
     ALLOCATE(positions_plus(natom,3))
     ALLOCATE(forces_adiab(3,natom))
     factor = 1
-!> Save the previous state
-!    old_state = aom_basket%state
 
     my_bo_keyword = .FALSE.
     IF (PRESENT(bo_keyword)) my_bo_keyword = bo_keyword
-
-IF (my_itimes.eq.1) print*, "STOP"
-IF (my_itimes.eq.1) stop
 
 
 !> Find the method to calculate the off-diagonal elements
@@ -386,8 +378,6 @@ IF (my_itimes.eq.1) stop
         END DO
 !> Get the coupling section and all the information 
         coupling_section => section_vals_get_subs_vals(adiab_section, "AOM")
-!        CALL section_vals_val_get(coupling_section,"_DEFAULT_KEYWORD_",&
-!             n_rep_val=aom_natom)
         CALL section_vals_val_get(coupling_section,"NUMBER_DIABATIC_STATES",&
              i_val=nadiab)
         CALL section_vals_val_get(coupling_section,"NUMBER_ATOMS_PER_SITE",&
@@ -396,7 +386,6 @@ IF (my_itimes.eq.1) stop
              i_val=norbitals)
         CALL section_vals_val_get(coupling_section,"NUCLEAR_TIMESTEP",&
              r_val=MDtimestep)
-!        CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
         itimes => my_itimes
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
@@ -404,40 +393,22 @@ IF (my_itimes.eq.1) stop
              is_hop, forces_adiab, global_forces, coupling_section, adiab_section, my_bo_keyword)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
- !       ALLOCATE(coefficients(norbitals*nadiab))
- !       ALLOCATE(populations(norbitals*nadiab))
         ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
         ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*aom_atoms))
 
 !> Get the renewed information from aom_basket
- !       coefficients = aom_basket%ctin
- !       populations  = aom_basket%population
-        hamiltonian  = 0.0D0
-        nacv         = 0.0D0
-        new_state    = 0
-        old_state    = 0
         hamiltonian  = aom_basket%hamiltonian
         nacv         = aom_basket%nacv
         new_state    = aom_basket%new_state
         old_state    = aom_basket%old_state
-
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
-        !CALL adiab_print_coeff(adiab_section, coefficients,nadiab,norbitals,itimes)
-        !CALL adiab_print_pop(adiab_section, populations, nadiab,norbitals,itimes)
         CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes)
-        !CALL adiab_print_matrix_density(adiab_section, coefficients, nadiab,norbitals,itimes)
-print*, "NACV", nacv(1,1,1,1)
         CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes)        
         CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes)
-!        IF (analytics)
-!             exact_forces = aom_basket%exact_forces
-!             CALL adiab_print_exactforces(adiab_section, exact_forces, natom, itimes)
-!        ENDIF
 
 !> Do the velocities rescaling if required
         IF (old_state.NE.new_state) THEN
-!print*, "RESCALE old new", old_state, new_state
            CPASSERT(is_hop) !Be sure there is indeed a hop
 !> Check that all the kinetic energies are the same for the different force
 !> fields
@@ -460,6 +431,7 @@ print*, "NACV", nacv(1,1,1,1)
 
 !> IMPORTANT: store all aom_basket for the future timesteps
         mixed_env%aom_basket=aom_basket
+
     CASE DEFAULT
         CPABORT("There is no method to calculate the coupling")
     END SELECT
@@ -472,14 +444,10 @@ print*, "NACV", nacv(1,1,1,1)
         CALL section_vals_val_get(coupling_section,"INIT_SITES",&
              i_val=init)
        particles_mix%els(jparticle)%f(:)= global_forces(init)%forces(:,iparticle) 
-print*, particles_mix%els(jparticle)%f(:)
-!print*,  "part forces", particles_mix%els(jparticle)%f(:) 
       ELSE     
-         particles_mix%els(jparticle)%f(:)= forces_adiab(:,iparticle)
-print*, particles_mix%els(jparticle)%f(:)
+        particles_mix%els(jparticle)%f(:)= forces_adiab(:,iparticle)
       ENDIF
     END DO
-!stop
 
 
     iforce_eval = nforce_eval
@@ -503,6 +471,7 @@ print*, particles_mix%els(jparticle)%f(:)
     END IF
     
     DEALLOCATE(hamiltonian, nacv)
+    DEALLOCATE(positions_plus, forces_adiab)
 
    END SUBROUTINE adiab_fssh_routines
 
