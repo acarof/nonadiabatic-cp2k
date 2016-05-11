@@ -87,31 +87,34 @@ MODULE jacob_surfacehopping
 CONTAINS
 
         SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-                                      positions_plus, energies_plus, aom_basket, itimes, &
+                                      positions_plus, energies_plus, kinetic_energies, &
+                                      aom_basket, itimes, &
                                       is_hop, forces_adiab, global_forces, coupling_section, &
-                                      adiab_section, my_bo_keyword)
+                                      adiab_section, my_bo_keyword, rescale_factor)
 
 
-        INTEGER                                        :: nadiab,  norbitals 
-        INTEGER                                        :: aom_atoms
-        REAL(KIND=dp)                                  :: MDtimestep
+        INTEGER, INTENT(IN)                            :: nadiab,  norbitals 
+        INTEGER, INTENT(IN)                            :: aom_atoms
+        REAL(KIND=dp), INTENT(OUT)                     :: MDtimestep
         REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_plus
         REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_plus
-        TYPE(aom_basket_type)                          :: aom_basket
+        REAL(kind=dp), DIMENSION(:),  POINTER          :: kinetic_energies
+        TYPE(aom_basket_type), INTENT(INOUT)           :: aom_basket
         INTEGER, POINTER                               :: itimes
         LOGICAL, INTENT(OUT)                           :: is_hop
         REAL(kind=dp), DIMENSION(:,:),POINTER          :: forces_adiab
         TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
         TYPE(section_vals_type), POINTER               :: coupling_section
         LOGICAL, INTENT(OUT)                           :: my_bo_keyword
-        TYPE(section_vals_type), POINTER         :: adiab_section
+        TYPE(section_vals_type), POINTER               :: adiab_section
+        REAL(KIND=dp), INTENT(OUT)                     :: rescale_factor
 
 
         CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
         routineP = moduleN//':'//routineN
 
      integer :: coord, t2
-     integer :: mol, i, j, k, l, m, d, atoms, c,  init, inc, old_state, mat, orb
+     integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, inc, old_state, mat, orb
      integer, dimension(:), allocatable :: atomlist, elements
      integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
      integer, dimension(:,:,:), allocatable :: neighbourlist
@@ -140,13 +143,14 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E1, E2
      LOGICAL                                      :: decohere, collapse, analytics
      INTEGER                                      :: new_state , ELsteps   
-     REAL(KIND=dp)                                :: dR, times 
+     REAL(KIND=dp)                                :: dR, times, delta_energy 
      INTEGER                                      :: imol, iatom, natom
      integer, dimension(:), ALLOCATABLE           :: ext_elements
      LOGICAL, dimension(:), ALLOCATABLE           :: ext_pres
      TYPE(cp_sll_val_type), POINTER               :: listcoeff
-     INTEGER                                      :: my_bo_state
+     INTEGER                                      :: first_adiabat
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
+     CHARACTER(LEN=default_string_length)         :: rescale_keyword
 
 
 !> cutoff to define the neighborough list
@@ -156,8 +160,8 @@ CONTAINS
         CALL section_vals_val_get(coupling_section,"SCALING_FACTOR",&
              r_val=scaling)
 !> Starting site number
-        CALL section_vals_val_get(coupling_section,"INIT_SITES",&
-             i_val=init)
+        CALL section_vals_val_get(coupling_section,"FIRST_DIABAT",&
+             i_val=first_diabat)
 !> cbar factor : Sab = cbar*Sab_bar
         CALL section_vals_val_get(coupling_section,"CBAR",&
              r_val=cbar)
@@ -171,12 +175,8 @@ CONTAINS
           r_val=dR)
      CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
      CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
-     IF (my_bo_keyword) THEN
-        CALL section_vals_val_get(coupling_section,"BO_STATE",&
-             i_val=my_bo_state)
-     ELSE
-        my_bo_state = 0
-     ENDIF
+     CALL section_vals_val_get(coupling_section,"FIRST_ADIABAT",&
+          i_val=first_adiabat)
 
 
 !> Number of sites
@@ -332,8 +332,8 @@ CONTAINS
                ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
                ctotal(i) = CMPLX(0.0D0, 0.0D0,dp)
           end do
-          ctin(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-          ctotal(init*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+          ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+          ctotal(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
           aom_basket%population(1:mat) = abs(ctotal(1:mat)) 
      else
           ctin(:) = aom_basket%ctin(:)
@@ -516,41 +516,41 @@ CONTAINS
                                         H1(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(2,k)), dp)
                                         H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
 
-                                        call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
-                                        & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
-                                        Sttp(orb*(i-1)+d,orb*(k-1)+m) = S
+                                        !call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
+                                        !& connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
+                                        Sttp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
 
-                                        call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3), S, Bt,&
-                                        & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
-                                        Stpt(orb*(i-1)+d,orb*(k-1)+m) = S
+                                        !call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3), S, Bt,&
+                                        !& connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
+                                        Stpt(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
 
-                                        call calc_dRSab(Atp, atomlist, connlist1, &
-                                        &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
-                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
-                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
-                                        &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
-                                        &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
+                                        !call calc_dRSab(Atp, atomlist, connlist1, &
+                                        !&pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
+                                        !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
+                                        !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
+                                        !&Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2), scoeffs, &
+                                        !&neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                    end do
                               end do
 
                               if (itimes.eq.1) then
                                    do d=1,orb
                                         do m=1,orb
-                                             call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2),&
-                                             & S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
-                                             Stt(orb*(i-1)+d,orb*(k-1)+m) = S
+                                             !call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2),&
+                                             !& S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
+                                             Stt(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
 
-                                             call calc_sab(Atm, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,1),&
-                                             & S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
-                                             Stmt(orb*(i-1)+d,orb*(k-1)+m) = S
+                                             !call calc_sab(Atm, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,1),&
+                                             !& S, Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
+                                             Stmt(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
 
-                                             call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2),&
-                                             & S, Btm, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,1))
-                                             Sttm(orb*(i-1)+d,orb*(k-1)+m) = S
+                                             !call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2),&
+                                             !& S, Btm, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,1))
+                                             Sttm(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
 
-                                             call calc_sab(Atm, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,1),&
-                                             & S, Btm, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,1))
-                                             Stmtm(orb*(i-1)+d,orb*(k-1)+m) = S
+                                             !call calc_sab(Atm, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,1),&
+                                             !& S, Btm, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,1))
+                                             Stmtm(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
                                         end do
                                    end do     
                               end if ! (.not.inrun)
@@ -566,6 +566,8 @@ CONTAINS
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = Stt(orb*(k-1)+m,orb*(i-1)+d)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
                                              Stmtm(orb*(i-1)+d,orb*(k-1)+m) = Stmtm(orb*(k-1)+m,orb*(i-1)+d)
+                                             Sttp(orb*(i-1)+d,orb*(k-1)+m)  = Sttp(orb*(k-1)+m,orb*(i-1)+d)
+                                             Stpt(orb*(i-1)+d,orb*(k-1)+m)  = Stpt(orb*(k-1)+m,orb*(i-1)+d)
                                         end do
                                    end do
                               else
@@ -578,8 +580,8 @@ CONTAINS
 
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
-                                             &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
-                                             &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:i*atoms), &
+                                             &nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
+                                             &nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
                                              &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                         end do
@@ -634,13 +636,13 @@ CONTAINS
                                         & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
 
-                                        call calc_sab(Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2), S, Atp,&
-                                        & connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3))
-                                        Sttp(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
+                                        !call calc_sab(Bt, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2), S, Atp,&
+                                        !& connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3))
+                                        !Sttp(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
 
-                                        call calc_sab(Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3), S, At,&
-                                        & connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2))
-                                        Stpt(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
+                                        !call calc_sab(Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3), S, At,&
+                                        !& connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2))
+                                        !Stpt(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
                                    end do
                               end do
                          end if !(i==k)
@@ -849,12 +851,12 @@ CONTAINS
                                         !These diagonals are 1 by definition
                                         H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
 
-                                        call calc_dRSab(Atp, atomlist, connlist1, &
-                                        &pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
-                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
-                                        &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
-                                        &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3), scoeffs, &
-                                        &neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
+                                        !call calc_dRSab(Atp, atomlist, connlist1, &
+                                        !&pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
+                                        !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
+                                        !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(i-1)*atoms+1:i*atoms), &
+                                        !&Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3), scoeffs, &
+                                        !&neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                    end do
                               end do
 
@@ -879,8 +881,8 @@ CONTAINS
 
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
-                                             &nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
-                                             &nacv(1:3,orb*(k-1)+m,orb*(i-1)+d,(i-1)*atoms+1:i*atoms), &
+                                             &nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
+                                             &nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
                                              &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
                                         end do
@@ -908,7 +910,7 @@ CONTAINS
 
 
 
-!DO THE HOPPING TEST AND CALCULATE THE FORCES
+!DO THE HOPPING TEST 
                !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
                !It gives us back the eigenvalues and eigenvectors
       IF (itimes.ge.1) call adiabaticity(-AIMAG(H1), mat, C1, E1, .false.)
@@ -918,21 +920,53 @@ CONTAINS
       !The surfacehop subroutine calculates these probabilites and decides on the
       !new (possibly unchanged) surface for simulation
       IF (my_bo_keyword) THEN
-          new_state = my_bo_state
-          old_state = my_bo_state
+          new_state = first_adiabat
+          old_state = first_adiabat
           decohere = .FALSE.
           is_hop = .FALSE.
+          rescale_factor = 1
        ELSE    
           IF (itimes.eq.0) THEN
-              new_state = my_bo_state
-              old_state = my_bo_state
+              new_state = first_adiabat
+              old_state = first_adiabat
               decohere = .FALSE.
               is_hop = .FALSE.
+              rescale_factor = 1
           ELSE
               call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, old_state, decohere,  &      
                               new_state, is_hop)
+           !> Do the velocities rescaling if required
+              IF (old_state.NE.new_state) THEN
+                   CPASSERT(is_hop) !Be sure there is indeed a hop
+                !> Check that there is enough kinetic energy to hop between old_state and new_state
+                !> But first check kinetic energies are consistant between the different diabats
+                   DO imol = 2, mol
+                      IF (kinetic_energies(imol).NE.kinetic_energies(1)) THEN
+                       CPABORT("The different diabatic FF don't share the same kinetic energies")
+                      END IF
+                   ENDDO
+                   delta_energy = kinetic_energies(1)-(energies_plus(new_state)-energies_plus(old_state))
+                !> If delta_energy < 0: frustrated hop, do nothing!
+                   IF (delta_energy.lt.0) THEN
+                      new_state = old_state
+                      decohere  = .FALSE.
+                      is_hop    = .FALSE.
+                      rescale_factor = 1
+                   ELSE
+                      CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
+                      SELECT CASE(rescale_keyword)
+                      CASE("SIMPLE")
+                   !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
+                           rescale_factor = SQRT( ( kinetic_energies(1) - (energies_plus(new_state) - &
+                                            energies_plus(old_state) ) ) / kinetic_energies(1) )
+                      CASE DEFAULT
+                           CPABORT("There is no method to do the rescaling of the velocities.")
+                      END SELECT
+                   ENDIF
+              ENDIF 
           ENDIF
        ENDIF
+!END DO THE HOPPING TEST 
 
 !CALCULATE THE FORCES IN THE NEW ADIABATIC STATE!
       IF (itimes.ge.1) THEN       
@@ -957,7 +991,7 @@ CONTAINS
                     if (aom_basket%futur_decohere) then 
                        if (decohere) then
                              do i=1,mat
-                                 ctin(i) = C2(old_state,i) !ASK_JACOB
+                                 ctin(i) = C2(old_state,i) 
                              end do
                              aom_basket%futur_decohere = .FALSE. 
                        end if

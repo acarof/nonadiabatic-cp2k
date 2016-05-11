@@ -231,13 +231,13 @@ CONTAINS
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="INIT_SITES",&
+    CALL keyword_create(keyword, name="FIRST_DIABAT",&
          description="starting molecule number",&
          usage="1", type_of_var=integer_t)
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="BO_STATE",&
+    CALL keyword_create(keyword, name="FIRST_ADIABAT",&
          description="In B.O. case, decide in which state propagates the electrons.",&
          usage="1", type_of_var=integer_t)
     CALL section_add_keyword(sub2section,keyword)

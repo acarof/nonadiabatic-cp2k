@@ -516,8 +516,19 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                         end if
                 end if
         end do
-        deallocate(ak, b, g, ct, dphi, T1, T2, DT, TST, TDT, DS, DC)
-
+stop
+        deallocate(ak)
+        deallocate(b)
+        deallocate(g)
+        deallocate(ct)
+        deallocate(dphi)
+        deallocate(T1)
+        deallocate(T2)
+        deallocate(DT)
+        deallocate(TST)
+        deallocate(TDT)
+        deallocate(DS)
+        deallocate(DC)
 end subroutine surfacehop
 
 subroutine init_random_seed()
@@ -836,7 +847,9 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
                                                         DH(i,j,k,d) = Fin(d,k,i)
 !print*, "DH", i,j,k,d, DH(i,j,k,d)
                                                 else
-                                                        DH(i,j,k,d) = scaling*my_DP(i,j,k,d)/cbar
+                                                        !DH(i,j,k,d) = scaling*my_DP(i,j,k,d)/cbar
+!> Correct the nacv
+                                                        DH(i,j,k,d) = - scaling*my_DP(i,j,k,d)/cbar
 !print*, "DH", i,j,k,d, DH(i,j,k,d)
                                                 end if
                                         else

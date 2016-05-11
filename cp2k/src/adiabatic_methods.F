@@ -203,7 +203,7 @@ CONTAINS
              r_val=ext_cutoff)
         CALL section_vals_val_get(coupling_section,"SCALING_FACTOR",&
              r_val=ext_scaling)
-        CALL section_vals_val_get(coupling_section,"INIT_SITES",&
+        CALL section_vals_val_get(coupling_section,"FIRST_DIABAT",&
              i_val=ext_init)
         CALL section_vals_val_get(coupling_section,"CBAR",&
              r_val=ext_cbar)
@@ -273,7 +273,7 @@ CONTAINS
           particles_mix%els(jparticle)%f(:)= 0.0D0
           particles_mix%els(jparticle)%v(:)= 0.0D0
       ELSE 
-          CALL section_vals_val_get(coupling_section,"INIT_SITES",&
+          CALL section_vals_val_get(coupling_section,"FIRST_DIABAT",&
                i_val=init)
           particles_mix%els(jparticle)%f(:)= global_forces(init)%forces(:,iparticle)
 !print*,  "part forces", particles_mix%els(jparticle)%f(:) 
@@ -345,13 +345,12 @@ CONTAINS
     REAL(kind=dp)                            :: factor
     TYPE(section_vals_type), POINTER         :: coupling_section
     CHARACTER(LEN=default_string_length)     :: coupling_keyword
-    CHARACTER(LEN=default_string_length)     :: rescale_keyword
     TYPE(aom_basket_type)                    :: aom_basket
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
     INTEGER                                  :: old_state, new_state, init
-    REAL(KIND=dp)                            :: scalefactor
+    REAL(KIND=dp)                            :: rescale_factor
     LOGICAL                                  :: is_hop
     LOGICAL                                  :: my_bo_keyword
 
@@ -389,8 +388,9 @@ CONTAINS
         itimes => my_itimes
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-             positions_plus, energies_plus, aom_basket, itimes, &
-             is_hop, forces_adiab, global_forces, coupling_section, adiab_section, my_bo_keyword)
+             positions_plus, energies_plus, kinetic_energies, aom_basket, itimes, &
+             is_hop, forces_adiab, global_forces, coupling_section, adiab_section,& 
+             my_bo_keyword, rescale_factor)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
         ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
@@ -407,30 +407,18 @@ CONTAINS
         CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes)        
         CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes)
 
-!> Do the velocities rescaling if required
-        IF (old_state.NE.new_state) THEN
-           CPASSERT(is_hop) !Be sure there is indeed a hop
-!> Check that all the kinetic energies are the same for the different force
-!> fields
-     CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
-
-          DO iforce_eval = 2, nforce_eval
-             IF (kinetic_energies(iforce_eval).NE.kinetic_energies(1)) THEN
-                CPABORT("The different diabatic FF don't share the same kinetic energies")
-             END IF
-          ENDDO
-!Factor to rescale the velocities (Eq. 49 of PAPER_1)
-          scalefactor = SQRT( ( kinetic_energies(1) - (energies_plus(new_state) - &
-                        energies_plus(old_state) ) ) / kinetic_energies(1) ) 
-           DO iparticle = 1, natom
+!> If hop, rescale the velocities (frustrated hop present in the
+!> construct_ham_X_SH subroutine)
+        IF (is_hop) THEN
+            DO iparticle = 1, natom
               jparticle = map_index(iparticle)
-              particles_mix%els(jparticle)%v(:)   = &
-              scalefactor*particles_mix%els(jparticle)%v(:)
+              particles_mix%els(jparticle)%v(:)   = rescale_factor*particles_mix%els(jparticle)%v(:)
            END DO
         ENDIF
 
 !> IMPORTANT: store all aom_basket for the future timesteps
         mixed_env%aom_basket=aom_basket
+!> IMPORTANT
 
     CASE DEFAULT
         CPABORT("There is no method to calculate the coupling")
@@ -441,7 +429,7 @@ CONTAINS
       jparticle = map_index(iparticle)
       IF (itimes.eq.0) THEN
 !> Starting site number
-        CALL section_vals_val_get(coupling_section,"INIT_SITES",&
+        CALL section_vals_val_get(coupling_section,"FIRST_DIABAT",&
              i_val=init)
        particles_mix%els(jparticle)%f(:)= global_forces(init)%forces(:,iparticle) 
       ELSE     
