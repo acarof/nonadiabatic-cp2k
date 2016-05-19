@@ -87,7 +87,8 @@ MODULE jacob_surfacehopping
 CONTAINS
 
         SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-                                      positions_plus, energies_plus, kinetic_energies, &
+                                      positions_plus, velocities, &
+                                      energies_plus, kinetic_energies, &
                                       aom_basket, itimes, &
                                       is_hop, forces_adiab, global_forces, coupling_section, &
                                       adiab_section, my_bo_keyword, rescale_factor)
@@ -97,6 +98,7 @@ CONTAINS
         INTEGER, INTENT(IN)                            :: aom_atoms
         REAL(KIND=dp), INTENT(OUT)                     :: MDtimestep
         REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_plus
+        REAL(kind=dp), DIMENSION(:,:),POINTER          :: velocities
         REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_plus
         REAL(kind=dp), DIMENSION(:),  POINTER          :: kinetic_energies
         TYPE(aom_basket_type), INTENT(INOUT)           :: aom_basket
@@ -345,15 +347,8 @@ CONTAINS
 
 !READ THE COORDINATES, ENERGIES AND STATE
         do coord=1,3
-              if (itimes.ge.2) then
+              if (itimes.ge.1) then
                  crds(coord,:,1) = PACK(aom_basket%rm2(:,coord), ext_pres)
-                 crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
-                 crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
-                 siteenergies(2,:) = aom_basket%energies(:) ! CHANGE_AC
-                 siteenergies(3,:) = energies_plus(:) ! CHANGE_AC
-                 old_state = aom_basket%new_state
-              else if (itimes.eq.1) then 
-                 crds(coord,:,1) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
                  siteenergies(2,:) = aom_basket%energies(:) ! CHANGE_AC
@@ -361,7 +356,8 @@ CONTAINS
                  old_state = aom_basket%new_state
               else if (itimes.eq.0) then 
                  crds(coord,:,1) = PACK(positions_plus(:,coord), ext_pres)
-                 crds(coord,:,2) = PACK(positions_plus(:,coord), ext_pres)
+                 crds(coord,:,2) = PACK(positions_plus(:,coord), ext_pres) -  &
+                                   PACK(velocities(:,coord), ext_pres)*deltatMD
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
                  siteenergies(2,:) = 0.0D0 ! CHANGE_AC
                  siteenergies(3,:) = energies_plus(i) ! CHANGE_AC
@@ -975,6 +971,7 @@ CONTAINS
        ENDIF
 !END DO THE HOPPING TEST 
 
+
 !CALCULATE THE FORCES IN THE NEW ADIABATIC STATE!
       IF (itimes.ge.1) THEN       
                DO imol=1,mol
@@ -989,6 +986,12 @@ CONTAINS
                IF (analytics) THEN
                    CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, times)
                ENDIF
+      ENDIF
+!END CALCULATE THE FORCES
+
+
+!COLLAPSE IF REQUIRED
+      IF (itimes.ge.1) THEN       
                !Finally, collapse the wavefunction if called for
                !if (decohere) then
                if (is_hop) aom_basket%futur_decohere = .TRUE.
@@ -1004,8 +1007,8 @@ CONTAINS
                        end if
                     endif
                end if
-       ENDIF
-!END DO THE HOPPING TEST AND CALCULATE THE FORCES
+      ENDIF
+!END COLLAPSE IF REQUIRED
 
 !STORE THE COORDINATES
         if (itimes.ge.1) then
@@ -1013,6 +1016,7 @@ CONTAINS
            aom_basket%rm1      = positions_plus
            aom_basket%energies = energies_plus
         else if (itimes.eq.0) then
+           aom_basket%rm2      = aom_basket%rm1
            aom_basket%rm1      = positions_plus
            aom_basket%energies = energies_plus
            aom_basket%neighbourlist = neighbourlist

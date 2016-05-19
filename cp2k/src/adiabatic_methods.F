@@ -341,6 +341,7 @@ CONTAINS
     INTEGER                                  :: norbitals, aom_atoms
     REAL(KIND=dp)                            :: MDtimestep
     REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions_plus
+    REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
     REAL(kind=dp), DIMENSION(:,:),POINTER    :: forces_adiab
     REAL(kind=dp)                            :: factor
     TYPE(section_vals_type), POINTER         :: coupling_section
@@ -349,13 +350,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
-    INTEGER                                  :: old_state, new_state, init
+    INTEGER                                  :: old_state, new_state
     REAL(KIND=dp)                            :: rescale_factor
     LOGICAL                                  :: is_hop
     LOGICAL                                  :: my_bo_keyword
 
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_plus(natom,3))
+    ALLOCATE(velocities(natom,3))
     ALLOCATE(forces_adiab(3,natom))
     factor = 1
 
@@ -374,6 +376,7 @@ CONTAINS
         DO iparticle = 1, natom
            jparticle = map_index(iparticle)
            positions_plus(jparticle,:)     = particles_mix%els(jparticle)%r(:)
+           velocities(jparticle,:)         = particles_mix%els(jparticle)%v(:)
         END DO
 !> Get the coupling section and all the information 
         coupling_section => section_vals_get_subs_vals(adiab_section, "AOM")
@@ -388,7 +391,7 @@ CONTAINS
         itimes => my_itimes
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-             positions_plus, energies_plus, kinetic_energies, aom_basket, itimes, &
+             positions_plus, velocities, energies_plus, kinetic_energies, aom_basket, itimes, &
              is_hop, forces_adiab, global_forces, coupling_section, adiab_section,& 
              my_bo_keyword, rescale_factor)
             
@@ -429,10 +432,10 @@ CONTAINS
       jparticle = map_index(iparticle)
       IF (itimes.eq.0) THEN
 !> Starting site number
-        CALL section_vals_val_get(coupling_section,"FIRST_DIABAT",&
-             i_val=init)
-       particles_mix%els(jparticle)%f(:)= global_forces(init)%forces(:,iparticle) 
-      ELSE     
+!        CALL section_vals_val_get(coupling_section,"FIRST_DIABAT",&
+!             i_val=init)
+!       particles_mix%els(jparticle)%f(:)= global_forces(init)%forces(:,iparticle) 
+!      ELSE     
         particles_mix%els(jparticle)%f(:)= forces_adiab(:,iparticle)
       ENDIF
     END DO

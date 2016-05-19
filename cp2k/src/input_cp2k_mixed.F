@@ -220,7 +220,8 @@ CONTAINS
 
     CALL keyword_create(keyword, name="CUT_OFF",&
          description="Distance cut-off for H_ab calculation",&
-         usage="6.0D0", type_of_var=real_t)
+         usage="6.0D0", type_of_var=real_t, &
+         unit_str="angstrom")
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
