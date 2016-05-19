@@ -67,7 +67,7 @@ IMPLICIT NONE
      COMPLEX(KIND=dp), DIMENSION(:),POINTER              :: ctin
 !> To print the populations
      REAL(KIND=dp), DIMENSION(:), POINTER                :: population
-     INTEGER, DIMENSION(:,:,:), POINTER                  :: neighbourlist
+     INTEGER, DIMENSION(:,:,:,:), POINTER                  :: neighbourlist
 !> To print the Hamiltonian
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: hamiltonian
 !> To print the NACVs

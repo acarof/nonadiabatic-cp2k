@@ -117,7 +117,7 @@ CONTAINS
      integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, inc, old_state, mat, orb
      integer, dimension(:), allocatable :: atomlist, elements
      integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
-     integer, dimension(:,:,:), allocatable :: neighbourlist
+     integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
      character(len=1) :: zgemm_type
@@ -202,7 +202,7 @@ CONTAINS
        ALLOCATE(aom_basket%ctin(mat))
        ALLOCATE(aom_basket%hamiltonian(mat,mat))
        ALLOCATE(aom_basket%connlist1(4,atoms))
-       ALLOCATE(aom_basket%neighbourlist(mol,3,0:atoms))
+       ALLOCATE(aom_basket%neighbourlist(mol,mol,0:atoms,0:atoms))
        ALLOCATE(aom_basket%Stt(mat,mat))
        ALLOCATE(aom_basket%Stmt(mat,mat))
        ALLOCATE(aom_basket%Sttm(mat,mat))
@@ -322,7 +322,9 @@ CONTAINS
      allocate(connlist2(4,size(atomlist)))
      allocate(aneighbour(0:atoms,0:atoms))
      allocate(bneighbour(0:atoms,0:atoms))
-     allocate(neighbourlist(mol,0:atoms,0:atoms))
+     aneighbour = 0
+     bneighbour = 0
+     allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
      neighbourlist = 0
 
 !INITIALIZATION OR READING OF CTIN      
@@ -477,34 +479,36 @@ CONTAINS
                               end do
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
-                         if (itimes.eq.1) then
-                              do d=1,orb
-                                   do m=1,orb
-                                        call sab_screen_new(At, atomlist, connlist1, pcoeffsrun(:,orb*(i-1)+d,2),&
-                                        & atomlist, Bt, atomlist, connlist1, pcoeffsrun(:,orb*(k-1)+m,2),&
-                                        & aneighbour(:,1:atoms), bneighbour(:,1:atoms), minao)
-                                   end do
-                              end do
-                              neighbourlist(k,1:3,0) = [0, 0, 0]
-                              neighbourlist(k,:,1:atoms) = bneighbour(:,1:atoms)
-                              if (k == mol) then
-                                   do m=1,mol
-                                        do j=1,atoms
-                                                                aom_basket%neighbourlist(m,:,j) = & 
-                                                                        neighbourlist(m,:,j)
-                                        end do
-                                   end do
-                              end if
-                         else
-                              do m=1,mol
-                                   neighbourlist(m,1:3,0) = [0, 0, 0]
-                                   do j=1,atoms
-                                                                neighbourlist(m,:,j)=&
-                                                                aom_basket%neighbourlist(m,:,j)
-                                   end do
-                              end do
-                         end if !(inrun.eq.FALSE.)
-                    end if  ! (i == 1)
+                    end if
+                         neighbourlist(:,:,:,:) = aom_basket%neighbourlist(:,:,:,:)
+                         !if (itimes.eq.1) then
+                         !     do d=1,orb
+                         !          do m=1,orb
+                         !               call sab_screen_new(At, atomlist, connlist1, pcoeffsrun(:,orb*(i-1)+d,2),&
+                         !               & atomlist, Bt, atomlist, connlist1, pcoeffsrun(:,orb*(k-1)+m,2),&
+                         !               & aneighbour(:,1:atoms), bneighbour(:,1:atoms), minao)
+                         !          end do
+                         !     end do
+                              !neighbourlist(k,1:3,0) = [0, 0, 0]
+                              !neighbourlist(k,:,1:atoms) = bneighbour(:,1:atoms)
+                              !if (k == mol) then
+                         !          do m=1,mol
+                         !               do j=1,atoms
+                         !                                       aom_basket%neighbourlist(m,:,j) = & 
+                         !                                               bneighbour(m,:,j)
+                         !               end do
+                         !          end do
+                              !end if
+                         !else
+                         !     do m=1,mol
+                              !     neighbourlist(m,1:3,0) = [0, 0, 0]
+                         !          do j=1,atoms
+                         !                              bneighbourlist(:,j)= aom_basket%bneighbour(:,j)
+                         !                              aneighbourlist(:,j)= aom_basket%aneighbour(:,j)
+                         !          end do
+                         !     end do
+                         !end if !(inrun.eq.FALSE.)
+                    !end if  ! (i == 1)
                     !only call overlap if neighbours list says so
                     if (NN(i,k) == 1) then
                          !first the diagonals
@@ -583,7 +587,8 @@ CONTAINS
                                              &nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
                                              &nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
-                                             &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
+                                             !&scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
+                                             &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR)
                                         end do
                                    end do
 
@@ -828,6 +833,7 @@ CONTAINS
                               pcoeffsrun(1:atoms,orb*(k-1)+d,3) = pcoeffs(1:atoms,d)
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
+                    end if  ! (i == 1)
                          do d=1,orb
                                 do m=1,orb
                                      call sab_screen_new(Atp, atomlist, connlist1, pcoeffsrun(:,orb*(i-1)+d,3),&
@@ -835,13 +841,13 @@ CONTAINS
                                      & aneighbour(:,1:atoms), bneighbour(:,1:atoms), minao)
                                 end do
                          end do
-                         neighbourlist(k,1:3,0) = [0, 0, 0]
-                         neighbourlist(k,:,1:atoms) = bneighbour(:,1:atoms)
-                    else
-                              do m=1,mol
-                                   neighbourlist(m,1:3,0) = [0, 0, 0]
-                              end do
-                    end if  ! (i == 1)
+                         !neighbourlist(k,1:3,0) = [0, 0, 0]
+                         neighbourlist(i,k,:,1:atoms) = bneighbour(:,1:atoms)
+                         neighbourlist(k,i,:,1:atoms) = aneighbour(:,1:atoms)
+                    !else
+                    !          do m=1,mol
+                    !               neighbourlist(m,1:3,0) = [0, 0, 0]
+                    !          end do
                     !only call overlap if neighbours list says so
                     if (NN(i,k) == 1) then
                          !first the diagonals
@@ -884,7 +890,8 @@ CONTAINS
                                              &nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
                                              &nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
-                                             &scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
+                                             !&scoeffs, neighbourlist(i,:,:), neighbourlist(k,:,:), dR)
+                                             &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR)
                                         end do
                                    end do
                               endif 
@@ -1008,6 +1015,7 @@ CONTAINS
         else if (itimes.eq.0) then
            aom_basket%rm1      = positions_plus
            aom_basket%energies = energies_plus
+           aom_basket%neighbourlist = neighbourlist
         endif
 !END STORE THE COORDINATES
 

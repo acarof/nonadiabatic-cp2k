@@ -302,7 +302,7 @@ CONTAINS
        ALLOCATE(aom_basket%ctin(mat))
        ALLOCATE(aom_basket%hamiltonian(mat,mat))
        allocate(aom_basket%connlist1(4,atoms))
-       ALLOCATE(aom_basket%neighbourlist(mol,3,0:atoms))
+       ALLOCATE(aom_basket%neighbourlist(1,mol,3,0:atoms))
        ALLOCATE(aom_basket%Stt(mat,mat))
        ALLOCATE(aom_basket%Stmt(mat,mat))
        ALLOCATE(aom_basket%Sttm(mat,mat))
@@ -1089,7 +1089,7 @@ t =2
                                         do j=1,atoms
 !WRITE                                             write(43,*), neighbourlist(m,:,j)
 !print*, neighbourlist(m,:,j), "lilili"
-                                                                aom_basket%neighbourlist(m,:,j) = & 
+                                                                aom_basket%neighbourlist(1,m,:,j) = & 
                                                                         neighbourlist(m,:,j)
 !print*, aom_basket%neighbourlist(m,:,j), "lilili"
                                         end do
@@ -1103,7 +1103,7 @@ t =2
                                    do j=1,atoms
 !print*, aom_basket%neighbourlist(m,:,j), "lalala"
                                                                 neighbourlist(m,:,j)=&
-                                                                aom_basket%neighbourlist(m,:,j)
+                                                                aom_basket%neighbourlist(1,m,:,j)
 !print*, neighbourlist(m,:,j), "lalala"
 !                                        read(43,*), neighbourlist(m,:,j)
                                    end do
