@@ -232,6 +232,12 @@ CONTAINS
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="DECOHERENCE_CRITERION",&
+         description="Criteiron to decohere",&
+         usage="1.0E-05", type_of_var=real_t)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="FIRST_DIABAT",&
          description="starting molecule number",&
          usage="1", type_of_var=integer_t)
@@ -353,6 +359,15 @@ CONTAINS
           description="Control the output of the diabatic populations.",&
           common_iter_levels=1,&
           filename="")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
+     CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="ADIABAT_ENERGIES",&
+          description="Control the output of the adiabatic energies.",&
+          common_iter_levels=1,&
+          filename="",         &
+          unit_str = "hartree")
      CALL section_add_subsection(sub2section,print_key)
      CALL section_release(print_key)
 

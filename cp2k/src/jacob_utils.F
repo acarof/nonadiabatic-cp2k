@@ -300,7 +300,8 @@ subroutine sitecalc(A, bondslist, atoms, site, F, mat, molno)
 end subroutine sitecalc
 
 !subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, decohere)
-subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, decohere, new_state, is_hop)
+subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, & 
+                      decohere, new_state, is_hop, decohere_criterion)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -314,6 +315,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
 !                        REAL(KIND=dp), dimension(:,:), intent(inout) :: S
 !                end subroutine matinvsqrt
 !        end interface
+        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
 
         integer :: i, j, mol, k, l
         integer, intent(inout) :: old_state
@@ -506,7 +508,8 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                                 !if the non-adiabatic coupling dphi to all other states is below a certain threshold
                                 !then a wavefunction collapse will be enforced
                                 do j=1,mol
-                                        if (abs(dphi(old_state,j)) > 1.0D-5 .and. old_state .ne. j) then
+                                        !if (abs(dphi(old_state,j)) > 1.0D-5 .and. old_state .ne. j) then
+                                        if (abs(dphi(old_state,j)) > decohere_criterion .and. old_state .ne. j) then
                                                 decohere = .FALSE.
                                                 return
                                         end if

@@ -68,6 +68,7 @@ MODULE jacob_surfacehopping
          cp_sll_val_set_el_at, cp_sll_val_type
      USE jacob_print,                     ONLY: adiab_print_coeff, &
                                                 adiab_print_pop,   &
+                                                adiab_print_adiabat_energies,   &
                                                 adiab_print_matrix_density, &
                                                 adiab_print_exact_forces
 
@@ -146,6 +147,7 @@ CONTAINS
      LOGICAL                                      :: decohere, collapse, analytics
      INTEGER                                      :: new_state , ELsteps   
      REAL(KIND=dp)                                :: dR, times, delta_energy 
+     REAL(KIND=dp)                                :: decohere_criterion
      INTEGER                                      :: imol, iatom, natom
      integer, dimension(:), ALLOCATABLE           :: ext_elements
      LOGICAL, dimension(:), ALLOCATABLE           :: ext_pres
@@ -172,6 +174,8 @@ CONTAINS
              r_val=minao)
         CALL section_vals_val_get(coupling_section,"ELECTRONIC_PARTIAL_STEP",&
              i_val=ELsteps)
+        CALL section_vals_val_get(coupling_section,"DECOHERENCE_CRITERION",&
+                  r_val=decohere_criterion)
 
      CALL section_vals_val_get(coupling_section,"NACV_INCREMENT",&
           r_val=dR)
@@ -918,6 +922,7 @@ CONTAINS
                !It gives us back the eigenvalues and eigenvectors
       IF (itimes.ge.1) call adiabaticity(-AIMAG(H1), mat, C1, E1, .false.)
       call adiabaticity(-AIMAG(H2), mat, C2, E2, .true.)
+      CALL adiab_print_adiabat_energies(adiab_section, E2,nadiab,times)
 
       !The eigenvectors are needed to calculate the surface hopping probabilities
       !The surfacehop subroutine calculates these probabilites and decides on the
@@ -937,7 +942,8 @@ CONTAINS
               rescale_factor = 1
           ELSE
               call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, old_state, decohere,  &      
-                              new_state, is_hop)
+                              !new_state, is_hop)
+                              new_state, is_hop, decohere_criterion)
            !> Do the velocities rescaling if required
               IF (old_state.NE.new_state) THEN
                    CPASSERT(is_hop) !Be sure there is indeed a hop
@@ -973,7 +979,7 @@ CONTAINS
 
 
 !CALCULATE THE FORCES IN THE NEW ADIABATIC STATE!
-      IF (itimes.ge.1) THEN       
+      !IF (itimes.ge.1) THEN       
                DO imol=1,mol
                   DO iatom=1, natom
                      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
@@ -986,7 +992,7 @@ CONTAINS
                IF (analytics) THEN
                    CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, times)
                ENDIF
-      ENDIF
+      !ENDIF
 !END CALCULATE THE FORCES
 
 

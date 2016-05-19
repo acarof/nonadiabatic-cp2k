@@ -72,6 +72,7 @@ IMPLICIT NONE
    
    PUBLIC :: adiab_print_coeff,          &
              adiab_print_pop,            &
+             adiab_print_adiabat_energies,&
              adiab_print_matrix_density, &
              adiab_print_hamiltonian,    &
              adiab_print_nacv,           &
@@ -174,6 +175,41 @@ CONTAINS
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%EXACT_FORCES")
    END SUBROUTINE adiab_print_exact_forces
 
+   SUBROUTINE adiab_print_adiabat_energies(adiab_section, energies, nadiab, times)
+    TYPE(section_vals_type), POINTER         :: adiab_section
+    REAL(KIND=dp), DIMENSION(:)              :: energies
+    INTEGER                                  :: nadiab
+    REAL(KIND=dp)                            :: times
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_pop', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: unit_nr
+    INTEGER                                  :: iadiab
+    CHARACTER(LEN=default_string_length)     :: my_format
+    TYPE(cp_logger_type), POINTER            :: logger
+
+
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
+
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%ADIABAT_ENERGIES",&
+               extension=".xyz", middle_name="pop",log_filename=.FALSE.)
+
+    IF (unit_nr>0) THEN
+
+       WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Pop.", "; nadiab =", nadiab
+       WRITE ( unit_nr, '(A,F10.1)' )   " i = ",times
+
+       DO iadiab=1, nadiab
+         my_format="(I4,1X,I4,"
+         WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, energies(iadiab) 
+       ENDDO
+
+    END IF
+
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%ADIABAT_ENERGIES")
+   END SUBROUTINE adiab_print_adiabat_energies
 
 
    SUBROUTINE adiab_print_pop(adiab_section, populations, nadiab, norbitals,times)
