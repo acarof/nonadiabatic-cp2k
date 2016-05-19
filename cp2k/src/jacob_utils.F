@@ -775,7 +775,7 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
 
         INTEGER                                                 :: natom
         LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
-        INTEGER                                                 :: aom_iatom, iatom
+        INTEGER                                                 :: aom_iatom, iatom, num_mol
 
         natom = SIZE(Fin,2)
         mat = size(Hin,1)
@@ -839,18 +839,15 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
         !i is over each site
         do i=1,mat
                 do j=1,mat
-!                        do k=1,mat*atoms
                         do k=1, natom
                                 do d=1,3
                                         if (NN(i,j) == 1) then
                                                 if (i == j) then
                                                         DH(i,j,k,d) = Fin(d,k,i)
-!print*, "DH", i,j,k,d, DH(i,j,k,d)
                                                 else
                                                         !DH(i,j,k,d) = scaling*my_DP(i,j,k,d)/cbar
 !> Correct the nacv
                                                         DH(i,j,k,d) = - scaling*my_DP(i,j,k,d)/cbar
-!print*, "DH", i,j,k,d, DH(i,j,k,d)
                                                 end if
                                         else
                                                 DH(i,j,k,d) = 0.0D0
@@ -872,23 +869,6 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
                     exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  -  &
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
                     (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
-!IF ((j.eq.2).AND.(d.eq.1)) THEN
-!print*, "DH",1,1,j,d, DH(1,1,j,d)
-!print*, "DH",2,1,j,d, DH(2,1,j,d)
-!print*, "DH",1,2,j,d, DH(1,2,j,d)
-!print*, "DH",2,2,j,d, DH(2,2,j,d)
-!print*, "Hin", 1,1, Hin(1,1)
-!print*, "Hin", 2,1, Hin(2,1)
-!print*, "Hin", 1,2, Hin(1,2)
-!print*, "Hin", 2,2, Hin(2,2)
-!print*, "dec"
-!print*, 0.5 
-!print*, (Hin(2,2)-Hin(1,1))
-!print*, SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )
-!print*, (0.5 + (Hin(2,2)-Hin(1,1))/(2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )))*DH(1,1,j,d)
-!print*, "forces"
-!print*, exact_forces(d,j)
-!ENDIF
                  ELSE 
                     exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2.0  -  &
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
@@ -899,38 +879,46 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
         ELSE
            exact_forces = 0.0D0
         ENDIF
-!print*, "C", C
-!print*, abs(C(1,1))**2
-!print*, abs(C(2,1))**2
         !begin shortcut formula 
 
         !conjugates and realpart commands have been omitted, as everything should be real
         !remember to change this if it ever becomes not the case!
+        num_mol = 0
         do d=1,3
                 do j=1,natom
                    F(d,j) = 0.0D0
                          do i=1,mat
+                                F(d,j) = F(d,j) + (abs(C(i,state))**2)*DH(i,i,j,d)
+                                IF (ext_pres(j)) THEN
+                                   num_mol = MODULO(num_mol, mat) + 1
+                                   IF (i.ne.num_mol) THEN
+                                      F(d,j) = F(d,j) + 2.0D0*((C(m,state))*DH(i,m,j,d)*C(i,state))
+                                   ENDIF
+                                ENDIF
+                         ENDDO
+                ENDDO
+        ENDDO
+
                 !do j=1,atoms
                                 !F(d,i,j) = 0.0D0
-                                do m=i,mat
+                                !do m=i,mat
                                         !F(d,i,j) = F(d,i,j) + (abs(C(m,state))**2)*DH(m,m,(i-1)*atoms+j,d)
-                                        if (i.eq. m) then
-                                                F(d,j) = F(d,j) + (abs(C(m,state))**2)*DH(m,m,j,d)
-                                        else
+                                !        if (i.eq. m) then
+                                !                F(d,j) = F(d,j) + (abs(C(m,state))**2)*DH(m,m,j,d)
+                                !        else
                                                 !F(d,i,j) = F(d,i,j) + 2.0D0*((C(i,state))*DH(m,i,(i-1)*atoms+j,d)*C(m,state))
-                                                F(d,j) = F(d,j) + 2.0D0*((C(i,state))*DH(m,i,j,d)*C(m,state))
-                                        end if
-!IF ((j.eq.2).AND.(d.eq.1)) print*, i,m, F(d,j)
+                                !                F(d,j) = F(d,j) + 2.0D0*((C(i,state))*DH(m,i,j,d)*C(m,state))
+                                !        end if
                                                 !These terms are here for 'historical interest'
                                                 !We have shown that they should come out as exactly 0.
                                                 !do m=1,mat        
                                                         !F(d,i,j) = F(d,i,j) - 2.0D0*((C(n,state))*H(n,i)*(C(m,state)*my_DP(m,i,j,d)) + &
                                                         !&(C(i,state)*C(n,state)*H(n,m)*my_DP(i,m,j,d)))
                                                 !end do
-                                end do
-                        end do
-                end do
-        end do
+!                                end do
+!                        end do
+!                end do
+!        end do
 !rint*, F(1,2)
 !else
         !end shortcut formula
