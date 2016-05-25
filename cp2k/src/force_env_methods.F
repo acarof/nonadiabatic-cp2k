@@ -133,8 +133,9 @@ MODULE force_env_methods
 !> 15-12-11
 !> To create a new way to combine the force
 !> To get the adiabatic force 
-   USE adiabatic_methods,             ONLY: adiab_fssh_routines,&
-                                            adiab_classicalpath_routines
+   USE adiabatic_methods,             ONLY: adiab_fssh_routines
+   !USE adiabatic_methods,             ONLY: adiab_fssh_routines,&
+   !                                         adiab_classicalpath_routines
    !USE adiabatic_methods,             ONLY:  adiab_classicalpath_routines
 !> End CHANGE_AC
 
@@ -853,7 +854,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: adiab_keyword
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: kinetic_energies
-    LOGICAL                                  :: frozen_hamil
+!    LOGICAL                                  :: frozen_hamil
     LOGICAL                                  :: bo_keyword
 !    INTEGER, POINTER                         :: my_itimes !CHANGE_AC
 !> End CHANGE_AC
@@ -1108,9 +1109,13 @@ CONTAINS
                  CPABORT("Illegal use of CLASSICAL_PATH methods")
               END IF
            ENDDO 
-           CALL adiab_classicalpath_routines(particles_mix, virial_mix, results_mix,   &
+           CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
                 global_forces, energies, virials, results, nforce_eval,&
-                map_index, mapping_section,adiab_section,mixed_env,my_itimes) 
+                map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
+                kinetic_energies, adiab_keyword)
+           !CALL adiab_classicalpath_routines(particles_mix, virial_mix, results_mix,   &
+           !     global_forces, energies, virials, results, nforce_eval,&
+           !     map_index, mapping_section,adiab_section,mixed_env,my_itimes) 
         CASE("FROZEN_HAMILTONIAN")
            !Check that all the FF have the same number of atoms than the 1st FF
            !because in the subroutine the number of atoms will be the one of 1st
@@ -1120,11 +1125,15 @@ CONTAINS
                  CPABORT("Illegal use of CLASSICAL_PATH methods")
               END IF
            ENDDO
-           frozen_hamil = .TRUE.
-           CALL adiab_classicalpath_routines(particles_mix, virial_mix, results_mix,   &
+           CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
                 global_forces, energies, virials, results, nforce_eval,&
                 map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
-                frozen_hamil)
+                kinetic_energies, adiab_keyword)
+           !frozen_hamil = .TRUE.
+           !CALL adiab_classicalpath_routines(particles_mix, virial_mix, results_mix,   &
+           !     global_forces, energies, virials, results, nforce_eval,&
+           !     map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
+           !     frozen_hamil)
         CASE("FSSH")
            !Check that all the FF have the same number of atoms than the 1st FF
            !because in the subroutine the number of atoms wil be the one of 1st
@@ -1137,7 +1146,7 @@ CONTAINS
            CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
                 global_forces, energies, virials, results, nforce_eval,&
                 map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
-                kinetic_energies)
+                kinetic_energies, adiab_keyword)
         CASE("BORN_OPPENHEIMER")
            !Check that all the FF have the same number of atoms than the 1st FF
            !because in the subroutine the number of atoms wil be the one of 1st
@@ -1151,7 +1160,7 @@ CONTAINS
            CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
                 global_forces, energies, virials, results, nforce_eval,&
                 map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
-                kinetic_energies, bo_keyword)
+                kinetic_energies, adiab_keyword)
         CASE DEFAULT
            CPABORT("There is no method to calculate the adiabatic force")
         END SELECT

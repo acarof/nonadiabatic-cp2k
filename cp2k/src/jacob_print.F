@@ -82,46 +82,38 @@ IMPLICIT NONE
 CONTAINS
 
 
-   SUBROUTINE adiab_print_coeff(adiab_section, coefficients, nadiab, norbitals,times)
-    TYPE(section_vals_type), POINTER         :: adiab_section
-    COMPLEX(KIND=dp), DIMENSION(:)           :: coefficients
-    INTEGER                                  :: nadiab, norbitals
-    REAL(KIND=dp)                            :: times
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+   SUBROUTINE adiab_print_coeff(adiab_section, coefficients, nadiab, norbitals,itimes, deltatMD, times)
+    TYPE(section_vals_type), POINTER           :: adiab_section
+    COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN) :: coefficients
+    INTEGER, INTENT(IN)                        :: nadiab, norbitals, itimes
+    REAL(KIND=dp), INTENT(IN)                  :: times, deltatMD
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_coeff', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-!    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: unit_conv_fs, time
     INTEGER                                  :: iadiab, iorbitals
-!    TYPE(particle_type), POINTER             :: particle_set(:)
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=default_string_length)     :: my_format
     TYPE(cp_logger_type), POINTER            :: logger
-
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%COEFFICIENTS",&
                extension=".xyz", middle_name="coeff", log_filename=.FALSE.)
+    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"femtosecond")
    
     IF (unit_nr>0) THEN
 
-!       ncoeff = SIZE(coefficients)
-
+       time = times*deltatMD*unit_conv_fs
        WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Psi", "; nadiab =", nadiab, "; norbitals =",&
                                    norbitals
-       WRITE ( unit_nr, '(A,F10.1)' )   " i = ",times
+       WRITE ( unit_nr, '(A,I0,A,F0.3,A,F0.10)' )   " Step = ",itimes,", time = ",time 
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
-!          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-!                  name=atm_name)
-!          my_format="(A4,"
          my_format="(I4,1X,I4,"
-!          name = TRIM(atm_name)
          WRITE(unit_nr,TRIM(my_format)//"1X,2F20.10)") iadiab, iorbitals, &
                    REAL(coefficients((iadiab-1)*norbitals + iorbitals)),   &
                    AIMAG(coefficients((iadiab-1)*norbitals + iorbitals))
@@ -134,38 +126,33 @@ CONTAINS
    END SUBROUTINE adiab_print_coeff
 
 
-   SUBROUTINE adiab_print_exact_forces(adiab_section, exact_forces,natom,times)
-    TYPE(section_vals_type), POINTER         :: adiab_section
-    REAL(KIND=dp), DIMENSION(:,:),INTENT(OUT) :: exact_forces
-    INTEGER, INTENT(OUT)                      :: natom
-    REAL(KIND=dp), INTENT(OUT)                :: times
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+
+   SUBROUTINE adiab_print_exact_forces(adiab_section, exact_forces,natom, deltatMD, times)
+    TYPE(section_vals_type), POINTER          :: adiab_section
+    REAL(KIND=dp), DIMENSION(:,:),INTENT(IN ) :: exact_forces
+    INTEGER, INTENT(IN)                       :: natom
+    REAL(KIND=dp), INTENT(IN)                 :: deltatMD, times
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_exact_forces', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr, iatom
-!    INTEGER                                  :: i
-!    INTEGER                                  :: iadiab, iorbitals
-!    TYPE(particle_type), POINTER             :: particle_set(:)
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-!    CHARACTER(LEN=4)                         :: name
-!    CHARACTER(LEN=default_string_length)     :: my_format
+    REAL(KIND=dp)                            :: unit_conv_fs, time
     TYPE(cp_logger_type), POINTER            :: logger
-
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%EXACT_FORCES",&
                extension=".xyz", middle_name="exfrc",log_filename=.FALSE.)
+    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"femtosecond")
 
     IF (unit_nr>0) THEN
 
-!       ncoeff = SIZE(coefficients)
-
+       time = times*deltatMD*unit_conv_fs
        WRITE ( unit_nr, "(I8)" )          natom
-       WRITE ( unit_nr, '(A,F10.1)' )   " i = ",times
+       WRITE ( unit_nr, '(A,I0,A,F0.3,A,F0.10)' )   " Step = ",INT(times),", time = ",time 
        DO iatom=1,natom 
           WRITE(unit_nr,"(3F20.10)")  exact_forces(:,iatom)
        ENDDO
@@ -175,31 +162,36 @@ CONTAINS
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%EXACT_FORCES")
    END SUBROUTINE adiab_print_exact_forces
 
-   SUBROUTINE adiab_print_adiabat_energies(adiab_section, energies, nadiab, times)
+
+
+   SUBROUTINE adiab_print_adiabat_energies(adiab_section, energies, nadiab, deltatMD, times)
     TYPE(section_vals_type), POINTER         :: adiab_section
-    REAL(KIND=dp), DIMENSION(:)              :: energies
-    INTEGER                                  :: nadiab
-    REAL(KIND=dp)                            :: times
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: energies
+    INTEGER, INTENT(IN)                      :: nadiab
+    REAL(KIND=dp), INTENT(IN)                :: times
+    REAL(KIND=dp), INTENT(IN)                :: deltatMD
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_pop', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
+    REAL(KIND=dp)                            :: unit_conv_fs, time
     INTEGER                                  :: iadiab
     CHARACTER(LEN=default_string_length)     :: my_format
     TYPE(cp_logger_type), POINTER            :: logger
-
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%ADIABAT_ENERGIES",&
                extension=".xyz", middle_name="pop",log_filename=.FALSE.)
+    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"femtosecond")
 
     IF (unit_nr>0) THEN
 
+       time = times*deltatMD*unit_conv_fs
        WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Pop.", "; nadiab =", nadiab
-       WRITE ( unit_nr, '(A,F10.1)' )   " i = ",times
+       WRITE ( unit_nr, '(A,I0,A,F0.3,A,F0.10)' )   " Step = ",INT(times),", time = ",time 
 
        DO iadiab=1, nadiab
          my_format="(I4,1X,I4,"
@@ -212,47 +204,40 @@ CONTAINS
    END SUBROUTINE adiab_print_adiabat_energies
 
 
-   SUBROUTINE adiab_print_pop(adiab_section, populations, nadiab, norbitals,times)
+
+
+   SUBROUTINE adiab_print_pop(adiab_section, populations, nadiab, norbitals,itimes, deltatMD, times)
     TYPE(section_vals_type), POINTER         :: adiab_section
-    REAL(KIND=dp), DIMENSION(:)              :: populations
-    INTEGER                                  :: nadiab, norbitals
-    REAL(KIND=dp)                            :: times
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: populations
+    INTEGER, INTENT(IN)                      :: nadiab, norbitals, itimes
+    REAL(KIND=dp),INTENT(IN)                 :: deltatMD, times
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_pop', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-!    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: unit_conv_fs, time
     INTEGER                                  :: iadiab, iorbitals
-!    TYPE(particle_type), POINTER             :: particle_set(:)
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-!    CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: my_format
     TYPE(cp_logger_type), POINTER            :: logger
-
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%POPULATIONS",&
                extension=".xyz", middle_name="pop",log_filename=.FALSE.)
+    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"femtosecond")
 
     IF (unit_nr>0) THEN
 
-!       ncoeff = SIZE(coefficients)
-
+       time = unit_conv_fs*times*deltatMD
        WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Pop.", "; nadiab =", nadiab, "; norbitals =",&
                                    norbitals
-       WRITE ( unit_nr, '(A,F10.1)' )   " i = ",times
+       WRITE ( unit_nr, '(A,I0,A,F0.3,A,F0.10)' )   " Step = ",itimes,", time = ",time 
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
-!          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-!                  name=atm_name)
-!          my_format="(A4,"
          my_format="(I4,1X,I4,"
-!          name = TRIM(atm_name)
          WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, iorbitals, &
                    populations((iadiab-1)*norbitals + iorbitals)
          ENDDO
@@ -264,27 +249,25 @@ CONTAINS
    END SUBROUTINE adiab_print_pop
 
 
+
+
    SUBROUTINE adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab, &
-              norbitals, itimes)
+              norbitals, itimes, deltatMD)
     TYPE(section_vals_type), POINTER         :: adiab_section
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
-    INTEGER                                  :: nadiab, norbitals
+    INTEGER, INTENT(IN)                      :: nadiab, norbitals
     INTEGER, POINTER                         :: itimes
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    REAL(KIND=dp),INTENT(IN)                 :: deltatMD
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_hamiltonian', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-!    INTEGER                                  :: i
     INTEGER                                  :: iadiab, iorbitals
- !   INTEGER                                  :: jorbitals
-!    TYPE(particle_type), POINTER             :: particle_set(:)
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=default_string_length)     ::  my_format, my_format2
     TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL                                  :: new_file
-    REAL(KIND=dp)                            :: unit_conv
+    REAL(KIND=dp)                            :: unit_conv, unit_conv_fs, time
     CHARACTER(LEN=default_string_length)     :: unit_str 
 
     NULLIFY(logger)
@@ -294,33 +277,24 @@ CONTAINS
                extension=".xyz",middle_name="hamilt", log_filename=.FALSE.,&
                is_new_file=new_file)
 
-
     IF (unit_nr>0) THEN
 
-!       ncoeff = SIZE(coefficients)
        CALL section_vals_val_get(adiab_section,"PRINT%HAMILTONIAN%UNIT",&
             c_val=unit_str)
        unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
+       unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"femtosecond")
+       time = unit_conv_fs*itimes*deltatMD
 
        WRITE ( unit_nr, "( A,A,A,I8,A,I8)" ) "H (",TRIM(unit_str),");  nadiab =", nadiab, "; norbitals =",&
                                    norbitals
-       WRITE ( unit_nr, '(A,I8)' )   " i = ",itimes
+       WRITE ( unit_nr, '(A,I0,A,F0.3,A,F0.10)' )   " Step = ",itimes,", time = ",time 
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
-!            DO jadiab=1, nadiab
-!               DO jorbitals=1,norbitals 
-!          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-!                  name=atm_name)
-!          my_format="(A4,"
          my_format="(I4,1X,I4,"
          write(my_format2,"(I8)") nadiab*norbitals
-!          name = TRIM(atm_name)
          WRITE(unit_nr,TRIM(my_format)//"1X,"//TRIM(my_format2)//"F20.10)") iadiab, iorbitals, &
                            unit_conv*hamiltonian( (iadiab-1)*norbitals + iorbitals,:) 
-!print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
-!              ENDDO
-!            ENDDO
           ENDDO
        ENDDO
 
@@ -329,25 +303,23 @@ CONTAINS
    END SUBROUTINE adiab_print_hamiltonian
 
 
+
+
    SUBROUTINE adiab_print_matrix_density(adiab_section, coefficients, nadiab, &
-              norbitals, times)
-    TYPE(section_vals_type), POINTER         :: adiab_section
-    COMPLEX(KIND=dp), DIMENSION(:)           :: coefficients
-    !REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
-    INTEGER                                  :: nadiab, norbitals
-    REAL(KIND=dp)                            :: times
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+              norbitals, itimes, deltatMD, times)
+    TYPE(section_vals_type), POINTER           :: adiab_section
+    COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN) :: coefficients
+    INTEGER, INTENT(IN)                        :: nadiab, norbitals, itimes
+    REAL(KIND=dp), INTENT(IN)                  :: deltatMD, times
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_matrix_density', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), DIMENSION(:,:),  POINTER :: matrix
     INTEGER                                  :: unit_nr
-!    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: unit_conv_fs, time
     INTEGER                                  :: iadiab, iorbitals
     INTEGER                                  :: jadiab, jorbitals
-!    TYPE(particle_type), POINTER             :: particle_set(:)
-!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=default_string_length)     ::  my_format, my_format2
     TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL                                  :: new_file
@@ -361,14 +333,13 @@ CONTAINS
                extension=".xyz",middle_name="mat", log_filename=.FALSE.,&
                is_new_file=new_file)
 
-
     IF (unit_nr>0) THEN
 
-!       ncoeff = SIZE(coefficients)
-
+       unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"femtosecond")
+       time = unit_conv_fs*times*deltatMD
        WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Mat. Dens.", "; nadiab =", nadiab, "; norbitals =",&
                                    norbitals
-       WRITE ( unit_nr, '(A,F10.1)' )   " i = ",times
+       WRITE ( unit_nr, '(A,I0,A,F0.3,A,F0.10)' )   " Step = ",itimes,", time = ",time 
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
@@ -377,8 +348,6 @@ CONTAINS
                    matrix( (iadiab-1)*norbitals + iorbitals, (jadiab-1)*norbitals + jorbitals ) = &
                    coefficients( (iadiab-1)*norbitals + iorbitals)* &
                    CONJG(coefficients( (jadiab-1)*norbitals + jorbitals)) 
-! print*, "hwre", coefficients( (iadiab-1)*norbitals + iorbitals)
-! print*, "here", matrix( (iadiab-1)*norbitals + iorbitals, (jadiab-1)*norbitals + jorbitals ) 
                 ENDDO
              ENDDO
           ENDDO
@@ -386,19 +355,10 @@ CONTAINS
 
        DO iadiab=1, nadiab
           DO iorbitals=1,norbitals
-!            DO jadiab=1, nadiab
-!               DO jorbitals=1,norbitals 
-!          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-!                  name=atm_name)
-!          my_format="(A4,"
          my_format="(I4,1X,I4,"
          write(my_format2,"(I8)") 2*nadiab*norbitals
-!          name = TRIM(atm_name)
          WRITE(unit_nr,TRIM(my_format)//"1X,"//TRIM(my_format2)//"F20.10)") iadiab, iorbitals, &
                            matrix( (iadiab-1)*norbitals + iorbitals,:)
-!print*, hamiltonian( (iadiab-1)*norbitals + iorbitals,:), "bbbb"
-!              ENDDO
-!            ENDDO
           ENDDO
        ENDDO
 
@@ -407,25 +367,24 @@ CONTAINS
    END SUBROUTINE adiab_print_matrix_density
 
 
+
+
    SUBROUTINE adiab_print_nacv(adiab_section, nacv, nadiab, &
-              norbitals,ext_atoms, itimes)
-    TYPE(section_vals_type), POINTER         :: adiab_section
+              norbitals,ext_atoms, itimes, deltatMD)
+    TYPE(section_vals_type), POINTER          :: adiab_section
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
-    INTEGER                                  :: nadiab, norbitals, ext_atoms
-    INTEGER, POINTER                         :: itimes
+    INTEGER, INTENT(IN)                       :: nadiab, norbitals, ext_atoms
+    INTEGER, POINTER                          :: itimes
+    REAL(KIND=dp), INTENT(IN)                 :: deltatMD
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_nacv', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-    !INTEGER                                  :: iatom
-    !INTEGER                                  :: iadiab, iorbitals
-    !INTEGER                                  :: jadiab, jorbitals
-    !CHARACTER(LEN=default_string_length)     ::  my_format
     TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL                                  :: new_file
     INTEGER                                  :: i,j,k
-    REAL(KIND=dp)                            :: unit_conv
+    REAL(KIND=dp)                            :: unit_conv, time, unit_conv_fs
     CHARACTER(LEN=default_string_length)     :: unit_str
 
 
@@ -442,10 +401,12 @@ CONTAINS
        CALL section_vals_val_get(adiab_section,"PRINT%NACV%UNIT",&
             c_val=unit_str)
        unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
+       unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"femtosecond")
+       time = unit_conv_fs*itimes*deltatMD
 
         WRITE ( unit_nr, "( A,A,A,I8,A,I8)" ) "NACV (",TRIM(unit_str),"); nadiab =", nadiab,"; norbitals =",&
                                            norbitals
-        WRITE ( unit_nr, '(A,I8)' )   " i = ",itimes
+        WRITE ( unit_nr, '(A,I0,A,F0.3,A,F0.10)' )   " Step = ",itimes,", time = ",time 
         DO i=1,nadiab*norbitals*ext_atoms
            DO j=1,3
               WRITE( unit_nr, *) "Atom = ",i,"Dimension = ", j
@@ -455,41 +416,25 @@ CONTAINS
            ENDDO
         ENDDO
            
-!       WRITE ( unit_nr, "(2I8)" ) ext_atoms, nadiab, norbitals
-!       WRITE ( unit_nr, '(A)' ) 'Atoms, Adiab., Orb.,NACV'
-
-!       DO iatom=1,ext_atoms
-!          DO iadiab=1, nadiab
-!             DO iorbitals=1,norbitals
-!                DO jadiab=1, nadiab
-!                   DO jorbitals=1, norbitals
-!                      my_format="(I4,1X,I4,1X,I4,1X,I4,1X,I4,1X,3F20.10)"
-!                      WRITE(unit_nr,TRIM(my_format)) &
-!                             iatom, iadiab, iorbitals, jadiab, jorbitals,   &
-!                             nacv(:, (iadiab-1)*norbitals+iorbitals,        & 
-!                             (jadiab-1)*norbitals+jorbitals, iatom)
-!                   ENDDO
-!                ENDDO 
-!             ENDDO
-!          ENDDO
-!       ENDDO
-
     END IF
-!    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%NACV")
    END SUBROUTINE adiab_print_nacv
 
 
-   SUBROUTINE adiab_print_stateno(adiab_section, state, ext_atoms,itimes)
+
+
+   SUBROUTINE adiab_print_stateno(adiab_section, state, ext_atoms,itimes, deltatMD)
     TYPE(section_vals_type), POINTER         :: adiab_section
-    INTEGER                                  :: state
-    INTEGER                                  :: ext_atoms
+    INTEGER, INTENT(IN)                      :: state
+    INTEGER, INTENT(IN)                      :: ext_atoms
     INTEGER, POINTER                         :: itimes
+    REAL(KIND=dp), INTENT(IN)                :: deltatMD
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_stateno', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
+    REAL(KIND=dp)                            :: unit_conv_fs, time
     TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL                                  :: new_file
 
@@ -500,11 +445,13 @@ CONTAINS
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%STATE",&
                extension=".xyz",middle_name="state", log_filename=.FALSE.,&
                is_new_file=new_file)
+    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"femtosecond")
 
     IF (unit_nr>0) THEN
 
+       time = itimes*deltatMD*unit_conv_fs
        WRITE ( unit_nr, '(A)' ) 'Present Adiabatic State'
-       WRITE ( unit_nr, '(A,I8)' )   " i = ",itimes
+       WRITE ( unit_nr, '(A,I0,A,F0.3,A,F0.10)' )   " Step = ",itimes,", time = ",time 
        WRITE ( unit_nr, '(A,I8)' )   " State = ", state
 
     END IF

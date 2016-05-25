@@ -353,6 +353,8 @@ CONTAINS
         do coord=1,3
               if (itimes.ge.1) then
                  crds(coord,:,1) = PACK(aom_basket%rm2(:,coord), ext_pres)
+print*, "crds(coord,:,1)"
+print*, crds(coord,:,m)
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
                  siteenergies(2,:) = aom_basket%energies(:) ! CHANGE_AC
@@ -362,6 +364,10 @@ CONTAINS
                  crds(coord,:,1) = PACK(positions_plus(:,coord), ext_pres)
                  crds(coord,:,2) = PACK(positions_plus(:,coord), ext_pres) -  &
                                    PACK(velocities(:,coord), ext_pres)*deltatMD
+print*, "velocities"
+print*, velocities
+print*, "crds(coord,:,2)"
+print*, crds(coord,:,2)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
                  siteenergies(2,:) = 0.0D0 ! CHANGE_AC
                  siteenergies(3,:) = energies_plus(i) ! CHANGE_AC
@@ -447,6 +453,7 @@ CONTAINS
                          Atm(d,j) = crds(d-1,(i-1)*atoms+j,1)
                          At(d,j)  = crds(d-1,(i-1)*atoms+j,2)
                          Atp(d,j) = crds(d-1,(i-1)*atoms+j,3)
+print*, "Atm d j", d, j, Atm(d,j)
                     end do
                end do
 
@@ -570,8 +577,12 @@ CONTAINS
                                              Stt(orb*(i-1)+d,orb*(k-1)+m) = Stt(orb*(k-1)+m,orb*(i-1)+d)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
                                              Stmtm(orb*(i-1)+d,orb*(k-1)+m) = Stmtm(orb*(k-1)+m,orb*(i-1)+d)
-                                             Sttp(orb*(i-1)+d,orb*(k-1)+m)  = Sttp(orb*(k-1)+m,orb*(i-1)+d)
-                                             Stpt(orb*(i-1)+d,orb*(k-1)+m)  = Stpt(orb*(k-1)+m,orb*(i-1)+d)
+                                             Sttp(orb*(i-1)+d,orb*(k-1)+m)  = Stpt(orb*(k-1)+m,orb*(i-1)+d)
+                                             Stpt(orb*(i-1)+d,orb*(k-1)+m)  = Sttp(orb*(k-1)+m,orb*(i-1)+d)
+                                             IF (itimes.eq.1) THEN
+                                                Sttm(orb*(i-1)+d,orb*(k-1)+m)  = Stmt(orb*(k-1)+m,orb*(i-1)+d)
+                                                Stmt(orb*(i-1)+d,orb*(k-1)+m)  = Sttm(orb*(k-1)+m,orb*(i-1)+d)
+                                             ENDIF
                                         end do
                                    end do
                               else
@@ -617,15 +628,15 @@ CONTAINS
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                                   Stmt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
 
-                                                  call calc_sab(Bt, connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(k-1)+m,2), S, Atm, connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,1))
-                                                  Sttm(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
+                                                  !call calc_sab(Bt, connlist2, &
+                                                  !&pcoeffsrun(1:atoms,orb*(k-1)+m,2), S, Atm, connlist2, &
+                                                  !&pcoeffsrun(1:atoms,orb*(i-1)+d,1))
+                                                  !Sttm(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
 
-                                                  call calc_sab(Btm, connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(k-1)+m,1), S, At, connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,2))
-                                                  Stmt(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
+                                                  !call calc_sab(Btm, connlist2, &
+                                                  !&pcoeffsrun(1:atoms,orb*(k-1)+m,1), S, At, connlist2, &
+                                                  !&pcoeffsrun(1:atoms,orb*(i-1)+d,2))
+                                                  !Stmt(orb*(k-1)+m,orb*(i-1)+d) = cbar*S
                                              end do
                                         end do
                                    end if ! (.not.inrun)
@@ -715,6 +726,16 @@ CONTAINS
                Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
                Hsave = H1
                H2save = H2
+print*, "Hdiff", Hdiff
+print*, "Sttp", Sttp
+print*, "Sttm", Sttm
+print*, "Stmt", Stmt
+print*, "Stpt", Stpt
+print*, "Sttdiff", Sttdiff
+print*, "Sttpdiff", Sttpdiff
+print*, "Sttmdiff", Sttmdiff
+print*, "Stptpdiff", Stptpdiff
+print*, "Stmtmdiff", Stmtmdiff
 !PRINT               print *, "Propagating the electron for one molecular timestep..."
                do t2=1,int(deltatMD/deltatE)
 
@@ -801,9 +822,12 @@ CONTAINS
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
                     times = DBLE(itimes) + t2*1/DBLE(ELsteps)
-                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,times)
-                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,times)
-                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,times)
+                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
+                                           times)
+                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes, deltatMD, &
+                                         times)
+                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes,deltatMD, &
+                                                    times)
 
                end do
 !PRINT               print *, "Done."     
@@ -909,9 +933,10 @@ CONTAINS
          enddo !loop-over i
          DO t2=1,int(deltatMD/deltatE)
                     times = DBLE(itimes) + t2*1/DBLE(ELsteps)
-                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,times)
-                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,times)
-                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,times)
+                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, times)
+                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes,deltatMD, times)
+                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes, &
+                                                    deltatMD, times)
          ENDDO
       endif !END OF THE BIG IF-LOOP itimes.ge.1
 
@@ -922,7 +947,7 @@ CONTAINS
                !It gives us back the eigenvalues and eigenvectors
       IF (itimes.ge.1) call adiabaticity(-AIMAG(H1), mat, C1, E1, .false.)
       call adiabaticity(-AIMAG(H2), mat, C2, E2, .true.)
-      CALL adiab_print_adiabat_energies(adiab_section, E2,nadiab,times)
+      CALL adiab_print_adiabat_energies(adiab_section, E2,nadiab,deltatMD, times)
 
       !The eigenvectors are needed to calculate the surface hopping probabilities
       !The surfacehop subroutine calculates these probabilites and decides on the
@@ -990,7 +1015,7 @@ CONTAINS
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
                            ctin=ctin)
                IF (analytics) THEN
-                   CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, times)
+                   CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, deltatMD, times)
                ENDIF
       !ENDIF
 !END CALCULATE THE FORCES
@@ -1022,7 +1047,7 @@ CONTAINS
            aom_basket%rm1      = positions_plus
            aom_basket%energies = energies_plus
         else if (itimes.eq.0) then
-           aom_basket%rm2      = aom_basket%rm1
+           aom_basket%rm2      = positions_plus - velocities*deltatMD
            aom_basket%rm1      = positions_plus
            aom_basket%energies = energies_plus
            aom_basket%neighbourlist = neighbourlist
