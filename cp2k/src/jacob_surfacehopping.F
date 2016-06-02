@@ -66,11 +66,12 @@ MODULE jacob_surfacehopping
          cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
          cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
          cp_sll_val_set_el_at, cp_sll_val_type
-     USE jacob_print,                     ONLY: adiab_print_coeff, &
-                                                adiab_print_pop,   &
+     USE jacob_print,                     ONLY: adiab_print_coeff,              &
+                                                adiab_print_pop,                &
                                                 adiab_print_adiabat_energies,   &
-                                                adiab_print_matrix_density, &
-                                                adiab_print_exact_forces
+                                                adiab_print_matrix_density,     &
+                                                adiab_print_exact_forces,       &
+                                                adiab_print_active_state
 
 
 
@@ -1000,6 +1001,8 @@ print*, "Stmtmdiff", Stmtmdiff
               ENDIF 
           ENDIF
        ENDIF
+       CALL adiab_print_active_state(adiab_section, new_state, E2(new_state), &
+            C2(:,new_state), nadiab, norbitals, itimes, deltatMD)
 !END DO THE HOPPING TEST 
 
 

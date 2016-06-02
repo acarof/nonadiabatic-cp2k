@@ -77,7 +77,8 @@ IMPLICIT NONE
              adiab_print_hamiltonian,    &
              adiab_print_nacv,           &
              adiab_print_stateno,        &
-             adiab_print_exact_forces
+             adiab_print_exact_forces,   &
+             adiab_print_active_state
 
 CONTAINS
 
@@ -247,6 +248,62 @@ CONTAINS
 
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%POPULATIONS")
    END SUBROUTINE adiab_print_pop
+
+
+
+   SUBROUTINE adiab_print_active_state(adiab_section, state, energy, vector, & 
+              nadiab, norbitals, itimes, deltatMD)
+    TYPE(section_vals_type), POINTER         :: adiab_section
+    INTEGER, INTENT(IN)                      :: state
+    REAL(KIND=dp), INTENT(IN)                :: energy
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector
+    INTEGER, INTENT(IN)                      :: nadiab, norbitals
+    INTEGER, POINTER                         :: itimes
+    REAL(KIND=dp),INTENT(IN)                 :: deltatMD
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_active_state', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: unit_nr
+    INTEGER                                  :: iadiab, iorbitals
+    CHARACTER(LEN=default_string_length)     :: my_format
+    TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL                                  :: new_file
+    REAL(KIND=dp)                            :: unit_conv, unit_conv_fs, time
+    CHARACTER(LEN=default_string_length)     :: unit_str
+
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
+
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%ACTIVE_STATE_INFO",&
+               extension=".xyz",middle_name="active", log_filename=.FALSE.,&
+               is_new_file=new_file)
+
+    IF (unit_nr>0) THEN
+
+       CALL section_vals_val_get(adiab_section,"PRINT%ACTIVE_STATE_INFO%UNIT",&
+            c_val=unit_str)
+       unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
+       unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"femtosecond")
+       time = unit_conv_fs*itimes*deltatMD
+
+       WRITE ( unit_nr, "( A,A,A,I8,A,I8)" ) "H (",TRIM(unit_str),");  nadiab =", nadiab, "; norbitals =",&
+                                   norbitals
+       WRITE ( unit_nr, '(A,I0,A,F0.3,A,F0.10)' )   " Step = ",itimes,", time = ",time
+       WRITE ( unit_nr, '(A,I8)' )   " State = ", state
+       WRITE ( unit_nr, '(A,A,A,I8)' )   " Energy (",TRIM(unit_str),") = ", energy
+       WRITE ( unit_nr, '(A)' )   " Eigenvector = "
+       DO iadiab=1, nadiab
+          DO iorbitals=1,norbitals
+         my_format="(I4,1X,I4,"
+         WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, iorbitals, &
+                   vector((iadiab-1)*norbitals + iorbitals)
+         ENDDO
+       ENDDO
+
+    END IF
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%ACTIVE_STATE_INFO")
+   END SUBROUTINE adiab_print_active_state
 
 
 
