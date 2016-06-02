@@ -156,6 +156,7 @@ CONTAINS
      INTEGER                                      :: first_adiabat
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
      CHARACTER(LEN=default_string_length)         :: rescale_keyword
+     REAL(KIND=dp), dimension(:,:), allocatable   :: NACE
 
 
 !> cutoff to define the neighborough list
@@ -208,6 +209,7 @@ CONTAINS
        ALLOCATE(aom_basket%population(mat))
        ALLOCATE(aom_basket%ctin(mat))
        ALLOCATE(aom_basket%hamiltonian(mat,mat))
+       ALLOCATE(aom_basket%nace(mat,mat))
        ALLOCATE(aom_basket%connlist1(4,atoms))
        ALLOCATE(aom_basket%neighbourlist(mol,mol,0:atoms,0:atoms))
        ALLOCATE(aom_basket%Stt(mat,mat))
@@ -254,6 +256,7 @@ CONTAINS
 
      allocate(H1(mat,mat))
      allocate(H2(mat,mat))
+     allocate(NACE(mat,mat))
      allocate(H12(mat,mat))
      allocate(Hdiff(mat,mat))
      allocate(Hsave(mat,mat))
@@ -354,8 +357,6 @@ CONTAINS
         do coord=1,3
               if (itimes.ge.1) then
                  crds(coord,:,1) = PACK(aom_basket%rm2(:,coord), ext_pres)
-print*, "crds(coord,:,1)"
-print*, crds(coord,:,m)
                  crds(coord,:,2) = PACK(aom_basket%rm1(:,coord), ext_pres)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
                  siteenergies(2,:) = aom_basket%energies(:) ! CHANGE_AC
@@ -365,10 +366,6 @@ print*, crds(coord,:,m)
                  crds(coord,:,1) = PACK(positions_plus(:,coord), ext_pres)
                  crds(coord,:,2) = PACK(positions_plus(:,coord), ext_pres) -  &
                                    PACK(velocities(:,coord), ext_pres)*deltatMD
-print*, "velocities"
-print*, velocities
-print*, "crds(coord,:,2)"
-print*, crds(coord,:,2)
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
                  siteenergies(2,:) = 0.0D0 ! CHANGE_AC
                  siteenergies(3,:) = energies_plus(i) ! CHANGE_AC
@@ -454,7 +451,6 @@ print*, crds(coord,:,2)
                          Atm(d,j) = crds(d-1,(i-1)*atoms+j,1)
                          At(d,j)  = crds(d-1,(i-1)*atoms+j,2)
                          Atp(d,j) = crds(d-1,(i-1)*atoms+j,3)
-print*, "Atm d j", d, j, Atm(d,j)
                     end do
                end do
 
@@ -727,16 +723,6 @@ print*, "Atm d j", d, j, Atm(d,j)
                Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
                Hsave = H1
                H2save = H2
-print*, "Hdiff", Hdiff
-print*, "Sttp", Sttp
-print*, "Sttm", Sttm
-print*, "Stmt", Stmt
-print*, "Stpt", Stpt
-print*, "Sttdiff", Sttdiff
-print*, "Sttpdiff", Sttpdiff
-print*, "Sttmdiff", Sttmdiff
-print*, "Stptpdiff", Stptpdiff
-print*, "Stmtmdiff", Stmtmdiff
 !PRINT               print *, "Propagating the electron for one molecular timestep..."
                do t2=1,int(deltatMD/deltatE)
 
@@ -756,7 +742,7 @@ print*, "Stmtmdiff", Stmtmdiff
                     Sttm = Sttm + 0.5D0*Sttmdiff
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
-                    call makeX(mat, H2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD)
+                    call makeX(mat, H2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD, NACE)
      
                     K2 = cmplx(0.0D0, 0.0D0,dp)
                     K3 = cmplx(0.0D0, 0.0D0,dp)
@@ -1060,6 +1046,7 @@ print*, "Stmtmdiff", Stmtmdiff
 !PREPARE THE PRINT
        aom_basket%ctin        = ctin
        aom_basket%hamiltonian = AIMAG(H2)
+       aom_basket%nace        = NACE
        aom_basket%nacv        = nacv
        aom_basket%new_state = new_state
        aom_basket%old_state = old_state

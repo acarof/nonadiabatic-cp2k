@@ -67,6 +67,7 @@ MODULE adiabatic_methods
   USE cp_units,                        ONLY: cp_unit_from_cp2k
 
   USE jacob_print,                     ONLY: adiab_print_hamiltonian, &
+                                             adiab_print_nace,        &
                                              adiab_print_nacv,        &
                                              adiab_print_stateno
 
@@ -349,6 +350,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: coupling_keyword
     TYPE(aom_basket_type)                    :: aom_basket
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
+    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: nace
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
     INTEGER                                  :: old_state, new_state
@@ -402,16 +404,19 @@ CONTAINS
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
         ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
+        ALLOCATE(nace(norbitals*nadiab, norbitals*nadiab))
         ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*aom_atoms))
 
 !> Get the renewed information from aom_basket
         hamiltonian  = aom_basket%hamiltonian
+        nace         = aom_basket%nace
         nacv         = aom_basket%nacv
         new_state    = aom_basket%new_state
         old_state    = aom_basket%old_state
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
         CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes, MDtimestep)
+        CALL adiab_print_nace(adiab_section, nace, nadiab,norbitals,itimes, MDtimestep)
         CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, MDtimestep)        
         CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes, MDtimestep)
 
@@ -479,7 +484,7 @@ CONTAINS
        DEALLOCATE(map_index)
     END IF
     
-    DEALLOCATE(hamiltonian, nacv)
+    DEALLOCATE(hamiltonian, nacv, nace)
     DEALLOCATE(positions_plus, forces_adiab)
 
    END SUBROUTINE adiab_fssh_routines

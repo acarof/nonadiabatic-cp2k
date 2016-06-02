@@ -113,7 +113,8 @@ IMPLICIT NONE
 
 CONTAINS
   
-subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat)
+!subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat)
+subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         !X is the name I give to the matrix in the solution to the Schroedinger equation:
         !dc/dt = X*c
         !makeX constructs an X matrix from inputs of S and H
@@ -137,6 +138,7 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat)
         REAL(KIND=dp), dimension(:,:), allocatable :: Sterm1, Sterm2, Splace1, Splace2
         COMPLEX(KIND=dp), dimension(:,:), intent(in) :: H
         COMPLEX(KIND=dp), dimension(:,:), intent(out) :: X
+        REAL(KIND=dp), dimension(:,:), intent(out), optional    :: NACE   
 
         !allocate matrices
         allocate(Sttinvsqrt(mol,mol))
@@ -181,39 +183,55 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat)
         end if
 
 !print*, 'Stt'
+!print*, Stt
+!print*, 'Sttp'
+!print*, Sttp
+!print*, 'Sttm'
+!print*, Sttm
+!print*, 'Sttsqrt'
         Sttsqrt = Stt
         call matinvsqrt(mol, .FALSE., Sttsqrt)
+!print*, Sttsqrt
+!print*, "Sttinvsqrt"
         Sttinvsqrt = Stt
         call matinvsqrt(mol, .TRUE., Sttinvsqrt)
-!print*, 'Stptp'
+!print*, Sttinvsqrt
+!print*, 'Stptpinvsqrt'
         Stptpinvsqrt = Stptp
         call matinvsqrt(mol, .TRUE., Stptpinvsqrt)
-!print*, 'Stmtm'
+!print*, Stptpinvsqrt
+!print*, 'Stmtminvsqrt'
         Stmtminvsqrt = Stmtm
         call matinvsqrt(mol, .TRUE., Stmtminvsqrt)
+!print*, Stmtminvsqrt
         
         !subroutine DGEMM multiplies two matrices, from the BLAS
         !use to build the S terms in the X matrix
 
         !first term: Sttsqrt*(Stptpinvsqrt - Stmtmtinvsqrt)
         Splace1 = Stptpinvsqrt - Stmtminvsqrt
-!print*, "eeee"
-!print*, Stptpinvsqrt 
-!print*, Stmtminvsqrt
+!print*, "Splace1"
 !print*, Splace1
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttsqrt, mol, Splace1, mol, 0.0D0, Sterm1, mol)
-!print*, Sterm1
 
         !second term: Sttinvsqrt*(Sttp - Sttm)*Sttinvsqrt
         Splace1 = Sttp - Sttm
+!print*, "Splace1"
 !print*, Splace1
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Splace1, mol, Sttinvsqrt, mol, 0.0D0, Splace2, mol)
-!print*, Splace2
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
-!print*, Sterm2
-!print*, "eeee"
-!print*, "eeee"
         X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
+
+!> CHANGE_AC
+        IF (PRESENT(NACE)) THEN
+           NACE = (0.5D0/deltat)*(Sterm1 + Sterm2) 
+!print*, "Sterm1"
+!print*, Sterm1
+!print*, "Sterm2"
+!print*, Sterm2
+!print*, "NACE"
+!print*, NACE
+        ENDIF
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
 

@@ -391,6 +391,15 @@ CONTAINS
 
 
      CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="NACE",&
+          description="Control the output of the NACE.",&
+          common_iter_levels=1,&
+          filename="",         &
+          unit_str = "fs^-1")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
+     CALL cp_print_key_section_create(print_key_section=print_key,&
           name="NACV",&
           description="Control the output of the NACV.",&
           common_iter_levels=1,&

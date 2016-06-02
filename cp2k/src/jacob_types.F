@@ -70,6 +70,7 @@ IMPLICIT NONE
      INTEGER, DIMENSION(:,:,:,:), POINTER                  :: neighbourlist
 !> To print the Hamiltonian
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: hamiltonian
+     REAL(KIND=dp), DIMENSION(:,:), POINTER              :: nace
 !> To print the NACVs
      REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER          :: nacv
      LOGICAL                                             :: futur_decohere
