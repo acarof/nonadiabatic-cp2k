@@ -177,26 +177,31 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-    REAL(KIND=dp)                            :: unit_conv_fs, time
+    REAL(KIND=dp)                            :: unit_conv_fs, unit_conv, time
     INTEGER                                  :: iadiab
     CHARACTER(LEN=default_string_length)     :: my_format
     TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(LEN=default_string_length)     :: unit_str 
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%ADIABAT_ENERGIES",&
-               extension=".xyz", middle_name="pop",log_filename=.FALSE.)
+               extension=".xyz", middle_name="adiab",log_filename=.FALSE.)
     unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
 
     IF (unit_nr>0) THEN
-
+       CALL section_vals_val_get(adiab_section,"PRINT%ADIABAT_ENERGIES%UNIT",&
+            c_val=unit_str)
+       unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
+       unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
        time = times*deltatMD*unit_conv_fs
-       WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Pop.", "; nadiab =", nadiab
+
+       WRITE ( unit_nr, "( A,A,A,I8,A,I8)" ) "Adiab. Energies (",TRIM(unit_str),");  nadiab =", nadiab
        WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",INT(times),", time = ",time, " (fs)"
 
        DO iadiab=1, nadiab
-         my_format="(I4,1X,I4,"
+         my_format="(I4,"
          WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, energies(iadiab) 
        ENDDO
 
