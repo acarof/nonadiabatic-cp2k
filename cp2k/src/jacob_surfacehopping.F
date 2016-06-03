@@ -1032,7 +1032,8 @@ CONTAINS
                        if (decohere) then
                              sh_print_basket%decohere = .TRUE.
                              do i=1,mat
-                                 ctin(i) = C2(old_state,i) 
+                                 !ctin(i) = C2(old_state,i) 
+                                 ctin(i) = C2(i,old_state) 
                              end do
                              aom_basket%futur_decohere = .FALSE. 
                        end if
