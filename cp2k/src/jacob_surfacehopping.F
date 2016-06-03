@@ -48,11 +48,12 @@ MODULE jacob_surfacehopping
                                              sab_screen_new, &
                                              calc_dRSab
 
-     USE jacob_utils,                        ONLY: makeX,  &
-                                             adiabaticity, &
-                                             surfacehop,   &
-                                             calcforces,       &
-                                             read_listcoeff
+     USE jacob_utils,                        ONLY: makeX,    &
+                                             adiabaticity,   &
+                                             surfacehop,     &
+                                             calcforces,     &
+                                             read_listcoeff, &
+                                             choose_firstadiabat
 
      USE jacob_types,                     ONLY: aom_basket_type, &
                                                 sh_print_basket_type
@@ -188,8 +189,8 @@ CONTAINS
           r_val=dR)
      CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
      CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
-     CALL section_vals_val_get(coupling_section,"FIRST_ADIABAT",&
-          i_val=first_adiabat)
+!     CALL section_vals_val_get(coupling_section,"FIRST_ADIABAT",&
+!          i_val=first_adiabat)
 
 
 !> Number of sites
@@ -230,6 +231,7 @@ CONTAINS
     endif
 
     ALLOCATE(sh_print_basket%proba(mol))     
+    ALLOCATE(sh_print_basket%pop_init(mol))     
 
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
@@ -375,7 +377,7 @@ CONTAINS
                                    PACK(velocities(:,coord), ext_pres)*deltatMD
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
                  siteenergies(2,:) = 0.0D0 ! CHANGE_AC
-                 siteenergies(3,:) = energies_plus(i) ! CHANGE_AC
+                 siteenergies(3,:) = energies_plus(:) ! CHANGE_AC
                  old_state = 1
               endif
         enddo
@@ -874,7 +876,6 @@ CONTAINS
                                    do m=1,orb
                                         !These diagonals are 1 by definition
                                         H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
-
                                         !call calc_dRSab(Atp, atomlist, connlist1, &
                                         !&pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
                                         !&nacv(1:3,orb*(i-1)+d,orb*(k-1)+m,(k-1)*atoms+1:k*atoms), &
@@ -954,12 +955,14 @@ CONTAINS
           rescale_factor = 1
        ELSE    
           IF (itimes.eq.0) THEN
+              CALL choose_firstadiabat(C2, first_diabat, sh_print_basket, first_adiabat)
               new_state = first_adiabat
               old_state = first_adiabat
               decohere = .FALSE.
               is_hop = .FALSE.
               rescale_factor = 1
           ELSE
+              sh_print_basket%is_first = .FALSE.
               call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, old_state, decohere,  &      
                               !new_state, is_hop)
                               new_state, is_hop, decohere_criterion, sh_print_basket)
@@ -1069,6 +1072,7 @@ CONTAINS
 
 !DEALLOCATE
      DEALLOCATE(sh_print_basket%proba)     
+     DEALLOCATE(sh_print_basket%pop_init)     
      deallocate(ext_pres, ext_elements)
      deallocate(elements)
      deallocate(scoefftot, pcoefftot)

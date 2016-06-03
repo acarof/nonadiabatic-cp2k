@@ -100,15 +100,16 @@ IMPLICIT NONE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'jacob_utils'
 
    !PUBLIC :: makeX, &
-   PUBLIC :: makeX, &
+   PUBLIC :: makeX,            &
    !          sitecalc, &
-             surfacehop, &
+             surfacehop,       &
    !          init_random_seed, &
    !          matinvsqrt, &
-             adiabaticity, &
+             adiabaticity,     &
              !forces, &
              calcforces,       &
-             read_listcoeff
+             read_listcoeff,   &
+             choose_firstadiabat
    !          calcTDT
 
 CONTAINS
@@ -182,10 +183,6 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
                 !stop "Error: array 'Splace2' not allocated correctly."
         end if
 
-!print*, 'Stt'
-!print*, Stt
-!print*, 'Sttp'
-!print*, Sttp
 !print*, 'Sttm'
 !print*, Sttm
 !print*, 'Sttsqrt'
@@ -505,7 +502,6 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
 !> CHANGE_AC
                 sh_print_basket%renorm = .FALSE.
                 sh_print_basket%sumprob   = sumg        
-print*, "sumg", sumg
                 g(old_state) = 1.0D0 - sumg
         end if
 
@@ -666,11 +662,7 @@ subroutine matinvsqrt(mol, invert, S)
         job = 'V'
         up = 'U'
         !DSYEV is from the BLAS. Returns vector of eigenvalues D and overwrites S with matrix of eigenvectors
-!print*, S
         call DSYEV(job, up, mol, S, mol, D, DGETRI_WORK, 3*mol, stat)
-!print*, "DSYEV"
-!print*, S
-!print*, D
         if (stat /= 0) then
                 CPABORT("Error with subroutine DSYEV: error status")
                 !write(*,*) "Error with subroutine DSYEV: error status", stat
@@ -738,7 +730,6 @@ subroutine adiabaticity(H, mol, C, E, print)
 
         C = H
 
-!print*, C
         job = 'V'
         up = 'U'
         !DSYEV is from the BLAS. Returns vector of eigenvalues D and overwrites S with matrix of eigenvectors
@@ -759,16 +750,12 @@ subroutine adiabaticity(H, mol, C, E, print)
                 !stop "Error: array 'DGETRI_WORK' not allocated correctly."
         end if
 
-!print*, "hey"
-!print*, C
         call DSYEV(job, up, mol, C, mol, E, DGETRI_WORK, LWORK, stat)
         if (stat /= 0) then
                 CPABORT("Error with subroutine DSYEV: error status")
                 !write(*,*) "Error with subroutine DSYEV: error status", stat
                 !stop
         end if
-!print*, C
-!print*, E
 
 !        if (print) then
 !            open(unit=35,file="lambda",action='write')
@@ -1229,7 +1216,6 @@ end subroutine calcTDT
                 CALL read_float_object(line_att(start_c:end_c-1),&
                                        my_pres2,error_message)
                 my_pres = INT(my_pres2)
-!print*, "b", my_pres2, my_pres
                 IF (my_pres.eq.0) THEN
                    ext_pres(iatom) = .FALSE.
                 ELSE
@@ -1268,5 +1254,35 @@ end subroutine calcTDT
    END SUBROUTINE read_listcoeff
 
 
+   SUBROUTINE choose_firstadiabat(C, init, sh_print_basket, first_adiabat)
+        REAL(KIND=dp), dimension(:,:), intent(in) :: C
+        INTEGER, INTENT(IN)                       :: init
+        TYPE(sh_print_basket_type), INTENT(OUT)   :: sh_print_basket
+        INTEGER, INTENT(OUT)                      :: first_adiabat
+
+        CHARACTER(len=*), PARAMETER :: routineN = 'choose_firstadiabat', &
+        routineP = moduleN//':'//routineN
+        
+        INTEGER                                   :: i
+        REAL( KIND =dp)                           :: random, sumc
+
+        sh_print_basket%is_first = .TRUE. 
+        CALL init_random_seed()
+        CALL random_number(random)
+        sh_print_basket%initrandom = random
+        sumc = 0.0D0
+        DO i=1, SIZE(C(init,:))
+           sh_print_basket%pop_init(i) = C(init,i)*C(init,i)
+        ENDDO
+        DO i=1, SIZE(C(init,:))
+           sumc = sumc + C(init,i)*C(init,i)
+           IF (random.le.sumc) THEN
+              first_adiabat = i
+              sh_print_basket%first_adiabat = i
+              return
+           ENDIF
+        ENDDO
+
+   END SUBROUTINE choose_firstadiabat
 
 END MODULE jacob_utils

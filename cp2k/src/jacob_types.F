@@ -88,6 +88,10 @@ IMPLICIT NONE
      REAL(KIND = dp)                             :: delta_energy
      LOGICAL                                     :: is_hop
      LOGICAL                                     :: decohere
+     LOGICAL                                     :: is_first
+     REAL(KIND = dp)                             :: initrandom
+     REAL(KIND = dp), DIMENSION(:), POINTER      :: pop_init
+     INTEGER                                     :: first_adiabat
    END TYPE sh_print_basket_type
 
    PUBLIC :: aom_basket_type, &
