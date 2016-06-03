@@ -389,6 +389,15 @@ CONTAINS
      CALL section_add_subsection(sub2section,print_key)
      CALL section_release(print_key)
 
+     CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="SH_INFO",&
+          description="Print the info relative to the surface hopping event:"//&
+          "Probability, Frustrated Hop, Decoherence, etc.", &
+          common_iter_levels=1,&
+          filename="")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
 
      CALL cp_print_key_section_create(print_key_section=print_key,&
           name="NACE",&

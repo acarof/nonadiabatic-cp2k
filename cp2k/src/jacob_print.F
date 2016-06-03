@@ -56,7 +56,8 @@ MODULE jacob_print
        cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
        cp_sll_val_set_el_at, cp_sll_val_type
 
-  USE jacob_types,                     ONLY: aom_basket_type 
+  USE jacob_types,                     ONLY: aom_basket_type, &
+                                             sh_print_basket_type
 !  USE timings,                         ONLY: timeset,&
 !                                             timestop
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -79,7 +80,8 @@ IMPLICIT NONE
              adiab_print_nacv,           &
              adiab_print_stateno,        &
              adiab_print_exact_forces,   &
-             adiab_print_active_state
+             adiab_print_active_state,   &
+             adiab_print_sh_info
 
 CONTAINS
 
@@ -573,6 +575,95 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%STATE")
    END SUBROUTINE adiab_print_stateno
+
+
+   SUBROUTINE adiab_print_sh_info(adiab_section, sh_print_basket, nadiab, norbitals, deltatMD, times)
+    TYPE(section_vals_type), POINTER         :: adiab_section
+    TYPE(sh_print_basket_type), INTENT(IN)   :: sh_print_basket
+    INTEGER, INTENT(IN)                      :: nadiab, norbitals
+    REAL(KIND=dp), INTENT(IN)                :: times
+    REAL(KIND=dp), INTENT(IN)                :: deltatMD
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_pop', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: unit_nr
+    !REAL(KIND=dp)                            :: unit_conv_fs, unit_conv, time
+    REAL(KIND=dp)                            :: unit_conv_fs, time
+    INTEGER                                  :: iadiab
+    CHARACTER(LEN=default_string_length)     :: my_format
+    TYPE(cp_logger_type), POINTER            :: logger
+
+     REAL(KIND = dp), DIMENSION(:), POINTER      :: proba
+     REAL(KIND = dp)                             :: hop
+     LOGICAL                                     :: renorm
+     REAL(KIND = dp)                             :: sumg
+     REAL(KIND = dp)                             :: factor
+     INTEGER                                     :: old_state
+     INTEGER                                     :: new_state
+     REAL(KIND = dp)                             :: delta_energy
+     LOGICAL                                     :: is_hop
+     LOGICAL                                     :: decohere
+   
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
+
+    ALLOCATE(proba(nadiab))
+
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%SH_INFO",&
+               extension=".log", middle_name="sh",log_filename=.FALSE.)
+    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
+
+    IF (unit_nr>0) THEN
+       !CALL section_vals_val_get(adiab_section,"PRINT%SH_INFO%UNIT",&
+       !     c_val=unit_str)
+       !unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
+       unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
+       time = times*deltatMD*unit_conv_fs
+
+       sumg         = sh_print_basket%sumprob
+       renorm       = sh_print_basket%renorm
+       proba        = sh_print_basket%proba
+       hop          = sh_print_basket%hop
+       is_hop       = sh_print_basket%is_hop
+       old_state    = sh_print_basket%old_state
+       new_state    = sh_print_basket%new_state
+       delta_energy = sh_print_basket%delta_energy
+       factor       = sh_print_basket%factor
+       decohere     = sh_print_basket%decohere
+
+
+       WRITE ( unit_nr, "( A,I8,A,I8)" ) "Surface Hopping Info,  nadiab =", nadiab, &
+                                             " , norbitals = ", norbitals
+       WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",INT(times),", time = ",time, " (fs)"
+
+       WRITE( unit_nr, "(A,F20.10)" ) "Sum of probability = ", sumg
+       IF (renorm)  WRITE( unit_nr, "(A)" ) "RE-NORMALIZATION!"
+       WRITE( unit_nr, "(A)" ) "Probability = "
+       DO iadiab=1, nadiab
+         my_format="(I4,"
+         WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, proba(iadiab)
+       ENDDO
+       WRITE( unit_nr, "(A,F20.10)" ) "Random number = ", hop
+       IF (is_hop) THEN
+          WRITE( unit_nr, "(A,I8,A,I8)" ) "ATTEMPT between old_state = ", old_state, " and new_state = ", new_state
+          WRITE( unit_nr, "(A,F20.1)" ) "Energy Differences = ", delta_energy
+          IF (delta_energy.ge.0) THEN
+             WRITE( unit_nr, "(A)") "SUCCESSFUL HOP!"
+             WRITE( unit_nr, "(A,F20.1)" ) "Rescaling factor = ", factor
+          ELSE
+             WRITE( unit_nr, "(A)") "FRUSTRATED HOP: NO HOP!"
+          ENDIF
+       ELSE 
+          WRITE( unit_nr, "(A)") "NO HOP!"
+       ENDIF   
+       IF (decohere) WRITE( unit_nr, "(A)") "DECOHERENCE"       
+
+    END IF
+
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%SH_INFO")
+    DEALLOCATE(proba)
+   END SUBROUTINE adiab_print_sh_info
 
 
 END MODULE jacob_print

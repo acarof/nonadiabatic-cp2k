@@ -46,7 +46,7 @@ MODULE jacob_utils
    USE kinds,                           ONLY: default_string_length,&
                                                dp
    USE machine,                         ONLY: m_getpid
-!   USE jacob_types,                     ONLY: aom_basket_type
+   USE jacob_types,                     ONLY: sh_print_basket_type
 
   USE cp_parser_methods,               ONLY: read_float_object
 
@@ -222,6 +222,7 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
         X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
 
+print*, "X", X
 !> CHANGE_AC
         IF (PRESENT(NACE)) THEN
            NACE = (0.5D0/deltat)*(Sterm1 + Sterm2) 
@@ -319,7 +320,7 @@ end subroutine sitecalc
 
 !subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, state, decohere)
 subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, & 
-                      decohere, new_state, is_hop, decohere_criterion)
+                      decohere, new_state, is_hop, decohere_criterion, sh_print_basket)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -348,8 +349,9 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak
         COMPLEX(KIND=dp) :: cstate
         logical, intent(out) :: decohere
-        INTEGER, INTENT(OUT)   :: new_state
-        LOGICAL, INTENT(OUT)    :: is_hop
+        INTEGER, INTENT(OUT)        :: new_state
+        LOGICAL, INTENT(OUT)        :: is_hop
+        TYPE(sh_print_basket_type), INTENT(OUT) :: sh_print_basket
 
         mol = size(Stt,1)
 
@@ -434,8 +436,10 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                         TDT(i,j) = 0.0D0
                         do k=1,mol
                                 do l=1,mol
-                                        TST(i,j) = TST(i,j) + T1(i,k)*Stt(k,l)*DT(j,l)
-                                        TDT(i,j) = TDT(i,j) + T1(i,k)*DS(k,l)*T1(j,l)
+                                        !TST(i,j) = TST(i,j) + T1(i,k)*Stt(k,l)*DT(j,l)
+                                        !TDT(i,j) = TDT(i,j) + T1(i,k)*DS(k,l)*T1(j,l)
+                                        TST(i,j) = TST(i,j) + T1(k,i)*Stt(k,l)*DT(l,j)
+                                        TDT(i,j) = TDT(i,j) + T1(k,i)*DS(k,l)*T1(l,j)
                                 end do
                         end do
                 end do
@@ -444,9 +448,11 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                 do j=1,mol
                         dphi(i,j) = 0.0D0
                         do k=1,mol
-                                dphi(i,j) = dphi(i,j) + C1(i,k)*DC(j,k)
+                                !dphi(i,j) = dphi(i,j) + C1(i,k)*DC(j,k)
+                                dphi(i,j) = dphi(i,j) + C2(k,i)*DC(k,j)
                                 do l=1,mol
-                                        dphi(i,j) = dphi(i,j) + C1(i,k)*C1(j,l)*(TST(k,l) + TDT(k,l))
+                                        !dphi(i,j) = dphi(i,j) + C1(i,k)*C1(j,l)*(TST(k,l) + TDT(k,l))
+                                        dphi(i,j) = dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
                                 end do
                         end do
                 end do
@@ -458,7 +464,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
         cstate = cmplx(0.0D0, 0.0D0, dp)
         do i=1,mol
                 !cstate = cstate + dcmplx(C1(state,i), 0.0D0)*c(i)
-                cstate = cstate + cmplx(C1(old_state,i), 0.0D0,dp)*c(i)
+                cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*c(i)
         end do
         do i=1,mol
                 !calculate a and b
@@ -466,7 +472,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                 ct(i) = cmplx(0.0D0, 0.0D0,dp)
                 do j=1,mol
                 !        ct(i) = ct(i) + dcmplx(C1(i,j), 0.0D0)*c(j)
-                        ct(i) = ct(i) + cmplx(C1(i,j), 0.0D0,dp)*c(j)
+                        ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*c(j)
                 end do
                 ak(i) = ct(i)*conjg(cstate)
                 b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,old_state))
@@ -492,13 +498,26 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                         g(i) = g(i)/sumg
                         g(old_state) = 0.0D0
                 end do
+!> CHANGE_AC
+                sh_print_basket%renorm = .TRUE.
+                sh_print_basket%sumprob   = sumg        
         else
+!> CHANGE_AC
+                sh_print_basket%renorm = .FALSE.
+                sh_print_basket%sumprob   = sumg        
+print*, "sumg", sumg
                 g(old_state) = 1.0D0 - sumg
         end if
+
+
+!> CHANGE_AC
+        sh_print_basket%proba     = g
 
         !call a random number
         call init_random_seed()
         call random_number(hop)
+        sh_print_basket%hop       = hop
+        sh_print_basket%old_state = old_state
 
         !and see if this random number causes a surface hop
         sumg = 0.0D0
@@ -513,11 +532,15 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
 !PRINT                                print *, "New state: ", i
                                 decohere = .FALSE.
                                 is_hop = .TRUE.
+                                sh_print_basket%is_hop    = is_hop
+                                sh_print_basket%new_state = new_state
                                 return
                         elseif (i == old_state) then
 !                                print *, "No surface hop."
                                 new_state = old_state
                                 is_hop = .FALSE.
+                                sh_print_basket%is_hop    = is_hop
+                                sh_print_basket%new_state = new_state
                                 !aom_basket%state = state
 !                                write(24,*) state
 !                                print *, "State: ", state
@@ -537,7 +560,10 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                         end if
                 end if
         end do
-stop
+
+
+ 
+
         deallocate(ak)
         deallocate(b)
         deallocate(g)

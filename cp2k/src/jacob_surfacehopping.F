@@ -54,7 +54,9 @@ MODULE jacob_surfacehopping
                                              calcforces,       &
                                              read_listcoeff
 
-     USE jacob_types,                     ONLY: aom_basket_type
+     USE jacob_types,                     ONLY: aom_basket_type, &
+                                                sh_print_basket_type
+
      USE mixed_energy_types,              ONLY: mixed_force_type
      USE input_section_types,             ONLY: section_vals_get,&
                                                 section_vals_get_subs_vals,&
@@ -71,7 +73,8 @@ MODULE jacob_surfacehopping
                                                 adiab_print_adiabat_energies,   &
                                                 adiab_print_matrix_density,     &
                                                 adiab_print_exact_forces,       &
-                                                adiab_print_active_state
+                                                adiab_print_active_state,       &
+                                                adiab_print_sh_info
 
 
 
@@ -157,6 +160,8 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
      CHARACTER(LEN=default_string_length)         :: rescale_keyword
      REAL(KIND=dp), dimension(:,:), allocatable   :: NACE
+     TYPE(sh_print_basket_type)                   :: sh_print_basket
+
 
 
 !> cutoff to define the neighborough list
@@ -223,7 +228,9 @@ CONTAINS
        ALLOCATE(aom_basket%nacv(3,mat,mat,mat*atoms))
        aom_basket%futur_decohere = .FALSE.
     endif
-     
+
+    ALLOCATE(sh_print_basket%proba(mol))     
+
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
      IF (.NOT.ALLOCATED(ctin)) CPABORT("CTIN NOT ALLOCATED CORRECTLY.")
@@ -955,7 +962,7 @@ CONTAINS
           ELSE
               call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, old_state, decohere,  &      
                               !new_state, is_hop)
-                              new_state, is_hop, decohere_criterion)
+                              new_state, is_hop, decohere_criterion, sh_print_basket)
            !> Do the velocities rescaling if required
               IF (old_state.NE.new_state) THEN
                    CPASSERT(is_hop) !Be sure there is indeed a hop
@@ -967,6 +974,7 @@ CONTAINS
                       END IF
                    ENDDO
                    delta_energy = kinetic_energies(1)-(energies_plus(new_state)-energies_plus(old_state))
+                   sh_print_basket%delta_energy = delta_energy
                 !> If delta_energy < 0: frustrated hop, do nothing!
                    IF (delta_energy.lt.0) THEN
                       new_state = old_state
@@ -984,6 +992,7 @@ CONTAINS
                            CPABORT("There is no method to do the rescaling of the velocities.")
                       END SELECT
                    ENDIF
+                   sh_print_basket%factor = rescale_factor
               ENDIF 
           ENDIF
        ENDIF
@@ -1011,6 +1020,7 @@ CONTAINS
 
 
 !COLLAPSE IF REQUIRED
+      sh_print_basket%decohere = .FALSE.
       IF (itimes.ge.1) THEN       
                !Finally, collapse the wavefunction if called for
                !if (decohere) then
@@ -1020,6 +1030,7 @@ CONTAINS
 !> Check if the surface_hop subroutine asks us to do the decoherence
                     if (aom_basket%futur_decohere) then 
                        if (decohere) then
+                             sh_print_basket%decohere = .TRUE.
                              do i=1,mat
                                  ctin(i) = C2(old_state,i) 
                              end do
@@ -1050,9 +1061,13 @@ CONTAINS
        aom_basket%nacv        = nacv
        aom_basket%new_state = new_state
        aom_basket%old_state = old_state
+       CALL adiab_print_sh_info(adiab_section, sh_print_basket, nadiab, norbitals, deltatMD, &
+                                               times)
+
 !END PREPARE THE PRINT
 
 !DEALLOCATE
+     DEALLOCATE(sh_print_basket%proba)     
      deallocate(ext_pres, ext_elements)
      deallocate(elements)
      deallocate(scoefftot, pcoefftot)

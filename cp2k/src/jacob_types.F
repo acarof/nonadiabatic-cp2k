@@ -76,6 +76,22 @@ IMPLICIT NONE
      LOGICAL                                             :: futur_decohere
    END TYPE aom_basket_type
 
-   PUBLIC :: aom_basket_type
+
+   TYPE sh_print_basket_type
+     REAL(KIND = dp), DIMENSION(:), POINTER      :: proba
+     REAL(KIND = dp)                             :: hop
+     LOGICAL                                     :: renorm
+     REAL(KIND = dp)                             :: sumprob
+     REAL(KIND = dp)                             :: factor
+     INTEGER                                     :: old_state
+     INTEGER                                     :: new_state
+     REAL(KIND = dp)                             :: delta_energy
+     LOGICAL                                     :: is_hop
+     LOGICAL                                     :: decohere
+   END TYPE sh_print_basket_type
+
+   PUBLIC :: aom_basket_type, &
+             sh_print_basket_type
+
 
 END MODULE jacob_types
