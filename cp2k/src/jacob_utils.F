@@ -89,6 +89,14 @@ MODULE jacob_utils
        cp_sll_val_set_el_at, cp_sll_val_type
 
 
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+
+
 #include "./base/base_uses.f90"
 
 
@@ -107,9 +115,11 @@ IMPLICIT NONE
    !          matinvsqrt, &
              adiabaticity,     &
              !forces, &
-             calcforces,       &
-             read_listcoeff,   &
-             choose_firstadiabat
+             calcforces,           &
+             read_listcoeff,       & 
+             choose_firstadiabat,  &
+             simple_vel_rescaling, &
+             calc_velocities_prime
    !          calcTDT
 
 CONTAINS
@@ -219,7 +229,6 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
         X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
 
-print*, "X", X
 !> CHANGE_AC
         IF (PRESENT(NACE)) THEN
            NACE = (0.5D0/deltat)*(Sterm1 + Sterm2) 
@@ -798,7 +807,7 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
         REAL(KIND=dp), intent(in), dimension(:,:,:,:) :: nacv
         integer, intent(in), dimension(:,:) :: NN
 
-        integer :: i, j, k, m, mat, d
+        integer :: i, j, k, mat, d
         !integer :: i, j, k, m, n, mat, d
 !        integer :: i, j, k, m, mat, d
         REAL(KIND=dp) :: bohrang, kcal
@@ -809,9 +818,11 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
 
         INTEGER                                                 :: natom
         LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
-        INTEGER                                                 :: aom_iatom, iatom, num_mol
+        INTEGER                                                 :: aom_iatom, iatom, num_mol, nadiab, num_j
 
         natom = SIZE(Fin,2)
+        nadiab= SIZE(Fin,3)
+!print*, "NADIAB", nadiab
         mat = size(Hin,1)
         ctin = ctin
 
@@ -879,7 +890,7 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
                                                 if (i == j) then
                                                         DH(i,j,k,d) = Fin(d,k,i)
                                                 else
-                                                        !DH(i,j,k,d) = scaling*my_DP(i,j,k,d)/cbar
+                                                       ! DH(i,j,k,d) = scaling*my_DP(i,j,k,d)/cbar
 !> Correct the nacv
                                                         DH(i,j,k,d) = - scaling*my_DP(i,j,k,d)/cbar
                                                 end if
@@ -903,6 +914,9 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
                     exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  -  &
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
                     (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
+!print*, "ANALYTICS"
+!print*, 4*Hin(1,2) / &
+!                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
                  ELSE 
                     exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2.0  -  &
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
@@ -919,20 +933,31 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
         !remember to change this if it ever becomes not the case!
         num_mol = 0
         do d=1,3
+                num_j = -1
                 do j=1,natom
+!print*, "D",d,"J",j
                    F(d,j) = 0.0D0
+                   IF (ext_pres(j)) THEN
+                      num_j   = num_j + 1
+!print*, "NUM_J", num_j
+                      num_mol = int(num_j/atoms) + 1 
+!                       num_mol = MODULO(num_mol,nadiab) + 1
+!print*, "NUM_MOL", num_mol
+                   ENDIF
                          do i=1,mat
                                 F(d,j) = F(d,j) + (abs(C(i,state))**2)*DH(i,i,j,d)
                                 IF (ext_pres(j)) THEN
-                                   num_mol = MODULO(num_mol, mat) + 1
                                    IF (i.ne.num_mol) THEN
-                                      F(d,j) = F(d,j) + 2.0D0*((C(m,state))*DH(i,m,j,d)*C(i,state))
+                                      !F(d,j) = F(d,j) + 2.0D0*((C(m,state))*DH(i,m,j,d)*C(i,state))
+                                      F(d,j) = F(d,j) + 2.0D0*((C(num_mol,state))*DH(i,num_mol,j,d)*C(i,state))
+!print*, "NUM"
+!print*, 2.0D0*((C(num_mol,state))*C(i,state))
+!print*, 
                                    ENDIF
                                 ENDIF
                          ENDDO
                 ENDDO
         ENDDO
-
                 !do j=1,atoms
                                 !F(d,i,j) = 0.0D0
                                 !do m=i,mat
@@ -990,6 +1015,7 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
 !        open(unit=51,file='Fy',action='write')
 !        open(unit=52,file='Fz',action='write')
         forces_adiab = F
+        !forces_adiab = exact_forces
         !do i=1,mat
         !        do j=1,natom
 !                        write(50,*) kcal*bohrang*F(1,i,j)
@@ -1284,5 +1310,92 @@ end subroutine calcTDT
         ENDDO
 
    END SUBROUTINE choose_firstadiabat
+
+   SUBROUTINE simple_vel_rescaling(velocities_prime, delta_energy, kinetic_energy_prime, &
+                                   velocities_plus)
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_prime
+        REAL(kind=dp), INTENT(IN)                :: delta_energy
+        REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
+
+        CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
+        routineP = moduleN//':'//routineN
+
+        REAL(kind=dp)                            :: rescale_factor
+!> Factor to rescale the velocities (Eq. 49 of
+!PAPER_1)
+        rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
+print*, "rescale_factor 1", rescale_factor
+        velocities_plus = rescale_factor*velocities_prime
+print*, "velocities_plus"
+        
+print*, velocities_plus
+   END SUBROUTINE simple_vel_rescaling
+
+   SUBROUTINE calc_velocities_prime(velocities, forces_adiab, &
+                                    atomic_kinds, deltatMD,   &
+                                    local_particles,           &
+                                    velocities_prime, kinetic_energy_prime)
+
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: forces_adiab
+        TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+        REAL(kind=dp), INTENT(IN)                :: deltatMD
+        TYPE(distribution_1d_type), POINTER      :: local_particles
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_prime
+        REAL(kind=dp), INTENT(OUT)                :: kinetic_energy_prime
+
+        CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
+        routineP = moduleN//':'//routineN
+
+        INTEGER                                   :: iparticle_kind, nparticle_kind
+        REAL(kind=dp)                             :: dm,dt,mass
+        INTEGER                                   :: nparticle_local, iparticle_local
+        TYPE(atomic_kind_type), DIMENSION(:), &
+          POINTER                                :: atomic_kind_set
+        TYPE(atomic_kind_type), POINTER          :: atomic_kind
+        INTEGER                                  :: iparticle
+    
+    dt = deltatMD
+    nparticle_kind = atomic_kinds%n_els
+    atomic_kind_set => atomic_kinds%els
+    kinetic_energy_prime = 0.0D0
+    ! Update Verlet (second part)
+    DO iparticle_kind=1,nparticle_kind
+       atomic_kind => atomic_kind_set(iparticle_kind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       dm = 0.5_dp*dt/mass
+       nparticle_local = local_particles%n_el(iparticle_kind)
+!print*, "dm = ", dm
+       DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+!print*, "velocities:", iparticle
+!print*, velocities( 1, iparticle)
+!print*, velocities( 2, iparticle)
+!print*, velocities( 3, iparticle)
+             velocities_prime(1, iparticle) = velocities(1, iparticle) + &
+                 dm*forces_adiab(1,iparticle)
+             velocities_prime(2, iparticle) = velocities(2, iparticle) + &
+                 dm*forces_adiab(2,iparticle)
+             velocities_prime(3, iparticle) = velocities(3,iparticle) + &
+                 dm*forces_adiab(3,iparticle)
+!print*, "forces_adiab", iparticle
+!print*, forces_adiab(1, iparticle)
+!print*, forces_adiab(2, iparticle)
+!print*, forces_adiab(3, iparticle)
+!print*, "velocities_prime", iparticle
+!print*, velocities_prime( 1, iparticle)
+!print*, velocities_prime( 2, iparticle)
+!print*, velocities_prime( 3, iparticle)
+             kinetic_energy_prime = kinetic_energy_prime +   &
+                 mass*( &
+                 velocities_prime(1, iparticle)**2 + &
+                 velocities_prime(2, iparticle)**2 + &
+                 velocities_prime(3, iparticle)**2  )
+       END DO
+    END DO
+    kinetic_energy_prime = 0.5*kinetic_energy_prime
+
+   END SUBROUTINE calc_velocities_prime
 
 END MODULE jacob_utils

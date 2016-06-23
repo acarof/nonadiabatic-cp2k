@@ -60,7 +60,8 @@ MODULE integrator
        allocate_old, allocate_tmp, damp_v, damp_veps, deallocate_old, &
        get_s_ds, old_variables_type, rattle_roll_setup, set, &
        tmp_variables_type, update_dealloc_tmp, update_pv, update_veps, &
-       variable_timestep, vv_first, vv_second
+       !variable_timestep, vv_first, vv_second
+       variable_timestep, vv_first, vv_second, vv_second_if_sh_rescaling
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matmul_3x3,&
                                              transpose_3d
@@ -100,6 +101,11 @@ MODULE integrator
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
 #include "../base/base_uses.f90"
+
+!> CHANGE_AC
+  USE md_ener_types,                   ONLY: md_ener_type,&
+                                             zero_md_ener
+!> END CHANGE_AC
 
   IMPLICIT NONE
 
@@ -430,6 +436,10 @@ CONTAINS
                                                 thermostat_shell
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
+!> CHANGE_AC
+    TYPE(md_ener_type), POINTER              :: md_ener
+!> END
+
 
     NULLIFY (thermostat_coeff, tmp)
     NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
@@ -437,6 +447,9 @@ CONTAINS
     NULLIFY (shell_particles, shell_particle_set, core_particles, &
             core_particle_set, thermostat_shell, dft_control, itimes)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
+!>CHANGE_AC
+         md_ener=md_ener, &
+!>END CHANGE
          thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,&
          para_env=para_env, ehrenfest_md=ehrenfest_md, itimes=itimes)
     dt = simpar%dt
@@ -542,10 +555,19 @@ CONTAINS
 !       CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.)
 !> CHANGE_AC
 !> 1-01-25
+!> Get the kinetic energies information for the rescaling of the velocities
+       force_env%mixed_env%mixed_energy%kin = md_ener%ekin
 !> Transfer the itimes information to force_env_calc_energy_force
 !> Require for Non Adiabatic Molecular Dynamics 
+       IF (itimes.ge.1) THEN
+          !print*, "HOY"
+          force_env%mixed_env%aom_basket%velocities = tmp%vel
+          !print*, force_env%mixed_env%aom_basket%velocities
+          !print*, tmp%vel
+       ENDIF
        CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
             itimes = itimes)
+       !is_hop = force_env%mixed_env%aom_basket%is_hop
 !> END CHANGE_AC
 
        IF(ehrenfest_md)THEN
@@ -554,10 +576,21 @@ CONTAINS
 
        ! Metadynamics
        CALL metadyn_integrator(force_env, itimes, tmp%vel)
+!print*, "HOY HOY"
+!          print*, force_env%mixed_env%aom_basket%velocities
+!          print*, tmp%vel
 
        ! Velocity Verlet (second part)
-       CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
-            core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+!> CHANGE_AC
+       IF (force_env%mixed_env%aom_basket%is_hop) THEN
+          CALL vv_second_if_sh_rescaling(tmp, atomic_kind_set, local_particles, particle_set, &
+               core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt,     &
+               new_velocities=force_env%mixed_env%aom_basket%velocities_plus)
+       ELSE
+          CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
+               core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+       ENDIF
+!> END CHANGE_AC
 
        IF (simpar%constraint) CALL rattle_control(gci,local_molecules, molecule_set, &
             molecule_kind_set, particle_set, tmp%vel, dt,simpar%shake_tol,&

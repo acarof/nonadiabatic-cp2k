@@ -53,7 +53,9 @@ MODULE jacob_surfacehopping
                                              surfacehop,     &
                                              calcforces,     &
                                              read_listcoeff, &
-                                             choose_firstadiabat
+                                             choose_firstadiabat, &
+                                             calc_velocities_prime, &
+                                             simple_vel_rescaling
 
      USE jacob_types,                     ONLY: aom_basket_type, &
                                                 sh_print_basket_type
@@ -78,6 +80,13 @@ MODULE jacob_surfacehopping
                                                 adiab_print_sh_info
 
 
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+
+
+  USE distribution_1d_types,           ONLY: distribution_1d_type
 
 #include "./base/base_uses.f90"
 
@@ -93,34 +102,38 @@ MODULE jacob_surfacehopping
 CONTAINS
 
         SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-                                      positions_plus, velocities, &
-                                      energies_plus, kinetic_energies, &
+                                      positions_plus,  &
+                                      energies_plus, kinetic_energy, &
                                       aom_basket, itimes, &
-                                      is_hop, forces_adiab, global_forces, coupling_section, &
-                                      adiab_section, my_bo_keyword, rescale_factor)
+                                      is_hop, global_forces, coupling_section, &
+                                      adiab_section, my_bo_keyword, rescale_factor, energy_adiabat, &
+                                      atomic_kinds, local_particles)
 
 
         INTEGER, INTENT(IN)                            :: nadiab,  norbitals 
         INTEGER, INTENT(IN)                            :: aom_atoms
         REAL(KIND=dp), INTENT(OUT)                     :: MDtimestep
         REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_plus
-        REAL(kind=dp), DIMENSION(:,:),POINTER          :: velocities
+!        REAL(kind=dp), DIMENSION(:,:),POINTER          :: velocities
         REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_plus
-        REAL(kind=dp), DIMENSION(:),  POINTER          :: kinetic_energies
+        REAL(kind=dp), INTENT(IN)                      :: kinetic_energy
         TYPE(aom_basket_type), INTENT(INOUT)           :: aom_basket
         INTEGER, POINTER                               :: itimes
         LOGICAL, INTENT(OUT)                           :: is_hop
-        REAL(kind=dp), DIMENSION(:,:),POINTER          :: forces_adiab
         TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
         TYPE(section_vals_type), POINTER               :: coupling_section
         LOGICAL, INTENT(OUT)                           :: my_bo_keyword
         TYPE(section_vals_type), POINTER               :: adiab_section
-        REAL(KIND=dp), INTENT(OUT)                     :: rescale_factor
+        REAL(KIND=dp), INTENT(OUT)                     :: rescale_factor, energy_adiabat
+        TYPE(atomic_kind_list_type), POINTER           :: atomic_kinds
+        TYPE(distribution_1d_type), POINTER      :: local_particles
 
 
         CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
         routineP = moduleN//':'//routineN
 
+     REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
+     !REAL(kind=dp), DIMENSION(:,:),POINTER          :: velocities_plus
      integer :: coord, t2
      integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, inc, old_state, mat, orb
      integer, dimension(:), allocatable :: atomlist, elements
@@ -162,8 +175,12 @@ CONTAINS
      CHARACTER(LEN=default_string_length)         :: rescale_keyword
      REAL(KIND=dp), dimension(:,:), allocatable   :: NACE
      TYPE(sh_print_basket_type)                   :: sh_print_basket
+     REAL(KIND=dp)                                :: kinetic_energy_prime
+     REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_prime
+     REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities
 
 
+!     NULLIFY(velocities_prime, velocities)
 
 !> cutoff to define the neighborough list
         CALL section_vals_val_get(coupling_section,"CUT_OFF",&
@@ -228,10 +245,16 @@ CONTAINS
        ALLOCATE(aom_basket%bneighbour(3,0:atoms))
        ALLOCATE(aom_basket%nacv(3,mat,mat,mat*atoms))
        aom_basket%futur_decohere = .FALSE.
+!       ALLOCATE(aom_basket%velocities(3, natom))
+       ALLOCATE(aom_basket%velocities_plus(3, natom))
+       ALLOCATE(aom_basket%forces_adiab(3,natom))
     endif
 
     ALLOCATE(sh_print_basket%proba(mol))     
     ALLOCATE(sh_print_basket%pop_init(mol))     
+    ALLOCATE(my_forces_adiab(3,natom))
+     ALLOCATE(velocities_prime(3,natom))
+     ALLOCATE(velocities(3,natom))
 
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
@@ -363,6 +386,7 @@ CONTAINS
 
 
 !READ THE COORDINATES, ENERGIES AND STATE
+        velocities = aom_basket%velocities
         do coord=1,3
               if (itimes.ge.1) then
                  crds(coord,:,1) = PACK(aom_basket%rm2(:,coord), ext_pres)
@@ -374,7 +398,7 @@ CONTAINS
               else if (itimes.eq.0) then 
                  crds(coord,:,1) = PACK(positions_plus(:,coord), ext_pres)
                  crds(coord,:,2) = PACK(positions_plus(:,coord), ext_pres) -  &
-                                   PACK(velocities(:,coord), ext_pres)*deltatMD
+                                   PACK(velocities(coord,:), ext_pres)*deltatMD
                  crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
                  siteenergies(2,:) = 0.0D0 ! CHANGE_AC
                  siteenergies(3,:) = energies_plus(:) ! CHANGE_AC
@@ -948,12 +972,12 @@ CONTAINS
       !The surfacehop subroutine calculates these probabilites and decides on the
       !new (possibly unchanged) surface for simulation
       IF (my_bo_keyword) THEN
-          new_state = first_adiabat
-          old_state = first_adiabat
+          new_state = first_diabat
+          old_state = first_diabat
           decohere = .FALSE.
           is_hop = .FALSE.
           rescale_factor = 1
-       ELSE    
+      ELSE    
           IF (itimes.eq.0) THEN
               CALL choose_firstadiabat(C2, first_diabat, sh_print_basket, first_adiabat)
               new_state = first_adiabat
@@ -971,12 +995,36 @@ CONTAINS
                    CPASSERT(is_hop) !Be sure there is indeed a hop
                 !> Check that there is enough kinetic energy to hop between old_state and new_state
                 !> But first check kinetic energies are consistant between the different diabats
-                   DO imol = 2, mol
-                      IF (kinetic_energies(imol).NE.kinetic_energies(1)) THEN
-                       CPABORT("The different diabatic FF don't share the same kinetic energies")
-                      END IF
-                   ENDDO
-                   delta_energy = kinetic_energies(1)-(energies_plus(new_state)-energies_plus(old_state))
+                !   DO imol = 2, mol
+                !      IF (kinetic_energies(imol).NE.kinetic_energies(1)) THEN
+                !       CPABORT("The different diabatic FF don't share the same kinetic energies")
+                !      END IF
+                !   ENDDO
+                   !delta_energy = kinetic_energies(1)-(energies_plus(new_state)-energies_plus(old_state))
+               DO imol=1,mol
+                  DO iatom=1, natom
+                     F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
+                  ENDDO
+               ENDDO
+               call calcforces(state=old_state,Hin=-AIMAG(H2), C=C2, nacv=nacv, NN=NN, atoms=atoms, &
+                           scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
+                           ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
+                           ctin=ctin)
+print*, "kinetic_energies", kinetic_energy
+               kinetic_energy_prime = kinetic_energy + SUM(velocities*my_forces_adiab)               
+print*, "kinetic_energies_prime", kinetic_energy_prime
+               CALL calc_velocities_prime(velocities, my_forces_adiab, atomic_kinds, deltatMD, &
+                                          local_particles, &
+                                        velocities_prime, kinetic_energy_prime) 
+print*, "kinetic_energies_prime 2", kinetic_energy_prime
+print*, "potential energy a t +dt", E2(old_state)
+print*, "constant energy", kinetic_energy_prime + E2(old_state)
+                   delta_energy = kinetic_energy-(E2(new_state)-E2(old_state))
+print*, "delta_energy", delta_energy
+                   delta_energy = kinetic_energy_prime-(E2(new_state)-E2(old_state))
+print*, "delta_energy", delta_energy
+print*, "E2", E2
+print*, "states", old_state, new_state
                    sh_print_basket%delta_energy = delta_energy
                 !> If delta_energy < 0: frustrated hop, do nothing!
                    IF (delta_energy.lt.0) THEN
@@ -985,22 +1033,44 @@ CONTAINS
                       is_hop    = .FALSE.
                       rescale_factor = 1
                    ELSE
+                      rescale_factor = 0
                       CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
                       SELECT CASE(rescale_keyword)
                       CASE("SIMPLE")
-                   !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
-                           rescale_factor = SQRT( ( kinetic_energies(1) - (energies_plus(new_state) - &
-                                            energies_plus(old_state) ) ) / kinetic_energies(1) )
+                           CALL simple_vel_rescaling(velocities_prime, delta_energy, kinetic_energy_prime, &
+                                                     aom_basket%velocities_plus)
+                           !aom_basket%velocities_plus=velocities_plus
                       CASE DEFAULT
                            CPABORT("There is no method to do the rescaling of the velocities.")
                       END SELECT
                    ENDIF
-                   sh_print_basket%factor = rescale_factor
+!                   sh_print_basket%factor = rescale_factor
+              ELSE
+                 rescale_factor = 1
+               DO imol=1,mol
+                  DO iatom=1, natom
+                     F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
+                  ENDDO
+               ENDDO
+               call calcforces(state=old_state,Hin=-AIMAG(H2), C=C2, nacv=nacv, NN=NN, atoms=atoms, &
+                           scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
+                           ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
+                           ctin=ctin)
+print*, "kinetic_energies", kinetic_energy
+               kinetic_energy_prime = kinetic_energy + SUM(velocities*my_forces_adiab)
+print*, "kinetic_energies_prime", kinetic_energy_prime
+               CALL calc_velocities_prime(velocities, my_forces_adiab, atomic_kinds, deltatMD, &
+                                          local_particles, &
+                                        velocities_prime, kinetic_energy_prime)
+print*, "kinetic_energies_prime 2", kinetic_energy_prime
+print*, "potential energy a t +dt", E2(old_state)
+print*, "constant energy", kinetic_energy_prime + E2(old_state)
+
               ENDIF 
           ENDIF
-       ENDIF
-       CALL adiab_print_active_state(adiab_section, new_state, E2(new_state), &
-            C2(:,new_state), nadiab, norbitals, itimes, deltatMD)
+          CALL adiab_print_active_state(adiab_section, new_state, E2(new_state), &
+               C2(:,new_state), nadiab, norbitals, itimes, deltatMD)
+      ENDIF
 !END DO THE HOPPING TEST 
 
 
@@ -1012,10 +1082,12 @@ CONTAINS
                   ENDDO
                ENDDO
                call calcforces(state=new_state,Hin=-AIMAG(H2), C=C2, nacv=nacv, NN=NN, atoms=atoms, & 
-                           scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=forces_adiab, &
+                           scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
                            ctin=ctin)
+               aom_basket%forces_adiab=my_forces_adiab
                IF (analytics) THEN
+                   times = DBLE(itimes)
                    CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, deltatMD, times)
                ENDIF
       !ENDIF
@@ -1051,7 +1123,7 @@ CONTAINS
            aom_basket%rm1      = positions_plus
            aom_basket%energies = energies_plus
         else if (itimes.eq.0) then
-           aom_basket%rm2      = positions_plus - velocities*deltatMD
+           aom_basket%rm2      = positions_plus - TRANSPOSE(velocities)*deltatMD
            aom_basket%rm1      = positions_plus
            aom_basket%energies = energies_plus
            aom_basket%neighbourlist = neighbourlist
@@ -1059,6 +1131,8 @@ CONTAINS
 !END STORE THE COORDINATES
 
 !PREPARE THE PRINT
+       aom_basket%is_hop      = is_hop
+       aom_basket%factor      = rescale_factor
        aom_basket%ctin        = ctin
        aom_basket%hamiltonian = AIMAG(H2)
        aom_basket%nace        = NACE
@@ -1067,11 +1141,14 @@ CONTAINS
        aom_basket%old_state = old_state
        CALL adiab_print_sh_info(adiab_section, sh_print_basket, nadiab, norbitals, deltatMD, &
                                                times)
+       energy_adiabat = E2(new_state)
 
 !END PREPARE THE PRINT
 
 !DEALLOCATE
-     DEALLOCATE(sh_print_basket%proba)     
+    DEALLOCATE(velocities_prime)
+    DEALLOCATE(velocities) 
+    DEALLOCATE(sh_print_basket%proba)     
      DEALLOCATE(sh_print_basket%pop_init)     
      deallocate(ext_pres, ext_elements)
      deallocate(elements)

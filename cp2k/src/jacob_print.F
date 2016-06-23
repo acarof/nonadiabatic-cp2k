@@ -308,6 +308,8 @@ CONTAINS
                    vector((iadiab-1)*norbitals + iorbitals)
          ENDDO
        ENDDO
+       WRITE ( unit_nr, '(A)' )   "  "
+       WRITE ( unit_nr, '(A)' )   "  "
 
     END IF
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%ACTIVE_STATE_INFO")
@@ -663,10 +665,10 @@ CONTAINS
           WRITE( unit_nr, "(A,F20.10)" ) "Random number = ", hop
           IF (is_hop) THEN
              WRITE( unit_nr, "(A,I8,A,I8)" ) "ATTEMPT between old_state = ", old_state, " and new_state = ", new_state
-             WRITE( unit_nr, "(A,F20.1)" ) "Energy Differences = ", delta_energy
+             WRITE( unit_nr, "(A,F20.10)" ) "Energy Differences = ", delta_energy
              IF (delta_energy.ge.0) THEN
                 WRITE( unit_nr, "(A)") "SUCCESSFUL HOP!"
-                WRITE( unit_nr, "(A,F20.1)" ) "Rescaling factor = ", factor
+                WRITE( unit_nr, "(A,F20.10)" ) "Rescaling factor = ", factor
              ELSE
                 WRITE( unit_nr, "(A)") "FRUSTRATED HOP: NO HOP!"
              ENDIF
@@ -674,7 +676,8 @@ CONTAINS
              WRITE( unit_nr, "(A)") "NO HOP!"
           ENDIF   
           IF (decohere) WRITE( unit_nr, "(A)") "DECOHERENCE"       
-          WRITE( unit_nr, "(A)") "  "
+          WRITE( unit_nr, "(A)")     "  "
+          WRITE ( unit_nr, '(A)' )   "  "
        ENDIF   
     END IF
 

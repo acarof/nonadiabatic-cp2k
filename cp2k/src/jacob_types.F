@@ -54,7 +54,10 @@ IMPLICIT NONE
    TYPE aom_basket_type
 !> To store the coordinates in step before and the one before
      REAL(KIND = dp), DIMENSION(:,:), POINTER         :: rm1,&       ! position step min 1
-                                                         rm2         ! position step min 2
+                                                         rm2,&         ! position step min 2
+                                                         velocities_plus,&
+                                                         velocities,&
+                                                         forces_adiab
 ! To store energies in the Jacob's Method
      REAL(KIND = dp), DIMENSION(:), POINTER :: energies   
      INTEGER                                :: new_state
@@ -74,6 +77,8 @@ IMPLICIT NONE
 !> To print the NACVs
      REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER          :: nacv
      LOGICAL                                             :: futur_decohere
+     REAL(KIND = dp)                                     :: factor
+     LOGICAL                                     :: is_hop
    END TYPE aom_basket_type
 
 

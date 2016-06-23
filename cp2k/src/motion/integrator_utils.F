@@ -99,7 +99,9 @@ MODULE integrator_utils
   PUBLIC :: old_variables_type, tmp_variables_type, allocate_old, deallocate_old,&
        allocate_tmp, update_dealloc_tmp, damp_v, set, update_pv, get_s_ds,&
        rattle_roll_setup, damp_veps, update_veps, vv_first, vv_second,&
-       variable_timestep
+       variable_timestep, &
+!> CHANGE_AC 
+       vv_second_if_sh_rescaling
 
 CONTAINS
 
@@ -1474,6 +1476,11 @@ CONTAINS
              ELSE
                 DO iparticle_local=1,nparticle_local
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+!print*, "dm =", dm
+!print*, "tmp%vel init", iparticle
+!print*, tmp%vel(1, iparticle)
+!print*, tmp%vel(2, iparticle)
+!print*, tmp%vel(3, iparticle)
                    tmp%vel ( 1, iparticle) = &
                         tmp%vel ( 1, iparticle) * tmp%scale_v(1) * tmp%scale_v(1)  + &
                         tmp%scale_v(1) * tmp%poly_v(1) * dm*particle_set(iparticle)%f(1)
@@ -1483,6 +1490,14 @@ CONTAINS
                    tmp%vel ( 3, iparticle) = &
                         tmp%vel ( 3, iparticle) * tmp%scale_v(3) * tmp%scale_v(3)  + &
                         tmp%scale_v(3) * tmp%poly_v(3) * dm*particle_set(iparticle)%f(3)
+!print*, "f"
+!print*, particle_set(iparticle)%f(1)
+!print*, particle_set(iparticle)%f(2)
+!print*, particle_set(iparticle)%f(3)
+!print*, "tmp%vel", iparticle
+!print*, tmp%vel(1, iparticle)
+!print*, tmp%vel(2, iparticle)
+!print*, tmp%vel(3, iparticle)
                 END DO
              END IF
           END IF
@@ -1808,5 +1823,160 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE rescaled_vv_first
+
+! *****************************************************************************
+!> \brief Second half of the velocity-verlet algorithm : when a hop occurs in 
+!>        surface hopping calculation, the SH subroutine calculate the second 
+!>        half of the velocities
+!> \param tmp ...
+!> \param atomic_kind_set ...
+!> \param local_particles ...
+!> \param particle_set ...
+!> \param core_particle_set ...
+!> \param shell_particle_set ...
+!> \param nparticle_kind ...
+!> \param shell_adiabatic ...
+!> \param dt ...
+!> \param u ...
+!> \par History
+!>      none
+!> \author AC (June 2016)
+! *****************************************************************************
+  SUBROUTINE vv_second_if_sh_rescaling ( tmp, atomic_kind_set, local_particles, particle_set,&
+       core_particle_set, shell_particle_set, nparticle_kind,&
+       shell_adiabatic, dt, u, new_velocities)
+
+    TYPE(tmp_variables_type), POINTER        :: tmp
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set, &
+                                                core_particle_set, &
+                                                shell_particle_set
+    INTEGER, INTENT(IN)                      :: nparticle_kind
+    LOGICAL, INTENT(IN)                      :: shell_adiabatic
+    REAL(KIND=dp)                            :: dt
+    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: u
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: new_velocities
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'vv_second', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iparticle, iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_local
+                                                !nparticle_local, shell_index
+    LOGICAL                                  :: is_shell
+    REAL(KIND=dp)                            :: dm,  &
+                                                 mass
+    !REAL(KIND=dp)                            :: dm, dmc, dms, fac_massc, &
+    !                                            fac_masss, mass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(shell_kind_type), POINTER           :: shell
+
+    NULLIFY(atomic_kind,shell)
+
+    !     *** Velocity Verlet (second part) ***
+    DO iparticle_kind=1,nparticle_kind
+       atomic_kind => atomic_kind_set(iparticle_kind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,&
+            shell_active=is_shell)
+       IF (mass/=0.0_dp) THEN
+          dm = 0.5_dp*dt/mass
+          IF(is_shell .AND. shell_adiabatic) THEN
+             CPABORT('NOT IMPLEMENTED WITH SURFACE HOPPING')
+             !CALL get_atomic_kind(atomic_kind=atomic_kind, shell=shell)
+             !dms = 0.5_dp*dt/shell%mass_shell
+             !dmc = 0.5_dp*dt/shell%mass_core
+             !fac_masss = shell%mass_shell/mass
+             !fac_massc = shell%mass_core/mass
+             !nparticle_local = local_particles%n_el(iparticle_kind)
+             !IF(PRESENT(u)) THEN
+             !   DO iparticle_local=1,nparticle_local
+             !      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             !      shell_index = particle_set(iparticle)%shell_index
+             !      ! Transform velocities and forces shell
+             !      CALL transform_second(shell_particle_set,tmp%shell_vel,shell_index,&
+             !           u,dms,tmp%poly_v,tmp%scale_v)
+
+                   ! Transform velocities and forces core
+             !      CALL transform_second(core_particle_set,tmp%core_vel,shell_index,&
+             !           u,dmc,tmp%poly_v,tmp%scale_v)
+
+                   ! Derive velocties of the COM
+             !      tmp%vel(1,iparticle) = fac_masss*tmp%shell_vel(1,shell_index) + &
+             !           fac_massc*tmp%core_vel(1,shell_index)
+             !      tmp%vel(2,iparticle) = fac_masss*tmp%shell_vel(2,shell_index)+ &
+             !           fac_massc*tmp%core_vel(2,shell_index)
+             !      tmp%vel(3,iparticle) = fac_masss*tmp%shell_vel(3,shell_index) + &
+             !           fac_massc*tmp%core_vel(3,shell_index)
+             !   END DO  ! iparticle_local
+             !ELSE
+             !   DO iparticle_local=1,nparticle_local
+             !      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             !      shell_index = particle_set(iparticle)%shell_index
+             !      tmp%shell_vel (1,shell_index) = &
+             !           tmp%shell_vel (1,shell_index) * tmp%scale_v(1) * tmp%scale_v(1) + &
+             !           tmp%scale_v(1) * tmp%poly_v(1) * dms*shell_particle_set(shell_index)%f(1)
+             !      tmp%shell_vel (2,shell_index) =&
+             !           tmp%shell_vel (2,shell_index) * tmp%scale_v(2) * tmp%scale_v(2) + &
+             !           tmp%scale_v(2) * tmp%poly_v(2) * dms*shell_particle_set(shell_index)%f(2)
+             !      tmp%shell_vel (3,shell_index) =&
+             !           tmp%shell_vel (3,shell_index) * tmp%scale_v(3) * tmp%scale_v(3) + &
+             !           tmp%scale_v(3) * tmp%poly_v(3) * dms*shell_particle_set(shell_index)%f(3)
+             !      tmp%core_vel (1,shell_index) =&
+             !           tmp%core_vel (1,shell_index) * tmp%scale_v(1) * tmp%scale_v(1) + &
+             !           tmp%scale_v(1) * tmp%poly_v(1) * dmc*core_particle_set(shell_index)%f(1)
+             !      tmp%core_vel (2,shell_index) =&
+             !           tmp%core_vel (2,shell_index) * tmp%scale_v(2) * tmp%scale_v(2)+ &
+             !           tmp%scale_v(2) * tmp%poly_v(2) * dmc*core_particle_set(shell_index)%f(2)
+             !      tmp%core_vel (3,shell_index) =&
+             !           tmp%core_vel (3,shell_index) * tmp%scale_v(3) * tmp%scale_v(3)+ &
+             !           tmp%scale_v(3) * tmp%poly_v(3) * dmc*core_particle_set(shell_index)%f(3)
+
+             !      tmp%vel ( 1, iparticle) = fac_masss*tmp%shell_vel (1,shell_index)+ &
+             !           fac_massc*tmp%core_vel (1,shell_index)
+             !      tmp%vel ( 2, iparticle) = fac_masss*tmp%shell_vel (2,shell_index)+ &
+             !           fac_massc*tmp%core_vel (2,shell_index)
+             !      tmp%vel ( 3, iparticle) = fac_masss*tmp%shell_vel (3,shell_index)+ &
+             !           fac_massc*tmp%core_vel (3,shell_index)
+             !   END DO  ! iparticle_local
+             !END IF
+          ELSE
+             nparticle_local = local_particles%n_el(iparticle_kind)
+             IF(PRESENT(u)) THEN
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   CALL transform_second(particle_set,tmp%vel,iparticle,&
+                        u,dm,tmp%poly_v,tmp%scale_v)
+                END DO  ! iparticle_local
+             ELSE
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   tmp%vel = new_velocities
+                   !tmp%vel( 1, iparticle) = new_velocities( 1, iparticle, 1)
+                   !tmp%vel( 2, iparticle) = new_velocities( iparticle, 2)
+                   !tmp%vel( 3, iparticle) = new_velocities( iparticle, 3)
+print*, "tmp%vel", iparticle
+print*, tmp%vel(1, iparticle)
+print*, tmp%vel(2, iparticle)
+print*, tmp%vel(3, iparticle)
+                   !tmp%vel ( 1, iparticle) = &
+                   !     tmp%vel ( 1, iparticle) * tmp%scale_v(1) * tmp%scale_v(1)  + &
+                   !     tmp%scale_v(1) * tmp%poly_v(1) * dm*particle_set(iparticle)%f(1)
+                   !tmp%vel ( 2, iparticle) = &
+                   !     tmp%vel ( 2, iparticle) * tmp%scale_v(2) * tmp%scale_v(2)  + &
+                   !     tmp%scale_v(2) * tmp%poly_v(2) * dm*particle_set(iparticle)%f(2)
+                   !tmp%vel ( 3, iparticle) = &
+                   !     tmp%vel ( 3, iparticle) * tmp%scale_v(3) * tmp%scale_v(3)  + &
+                   !     tmp%scale_v(3) * tmp%poly_v(3) * dm*particle_set(iparticle)%f(3)
+                END DO
+             END IF
+          END IF
+       END IF
+    END DO
+
+  END SUBROUTINE vv_second_if_sh_rescaling
 
 END MODULE integrator_utils
