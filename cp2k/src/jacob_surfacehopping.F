@@ -756,10 +756,20 @@ CONTAINS
                Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
                Hsave = H1
                H2save = H2
+!print*, "Stt", Stt
+!print*, "Sttm", Sttm
+!print*, "Stmt", Stmt
+!print*, "Sttm", Sttm
+!print*, "Stmtm", Stmtm
+!print*, "Sttp", Sttp
+!print*, "Stpt", Stpt
+!print*, "Stptp", Stptp
 !PRINT               print *, "Propagating the electron for one molecular timestep..."
                do t2=1,int(deltatMD/deltatE)
 
+
                     call makeX(mat, H1, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
+
                     !create timestepped equivalents
                     H12 = H1 + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
@@ -800,7 +810,8 @@ CONTAINS
                     K2 = K2 + X12
                     
                     !third term
-                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X2, &
+                    !call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X2, &
+                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, K2, &
                     &mat, beta, K3, mat)
                     K3 = K3 + X12
      
@@ -817,7 +828,10 @@ CONTAINS
                     !alpha = dcmplx(1.0D0, 0.0D0)
                     alpha = cmplx(1.0D0, 0.0D0,dp)
                     inc = 1
+!print*, "ctin", ctin
+!print*, "Ktot", Ktot
                     call ZGEMV(zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc)
+!print*, "ctout", ctout
                     ctmag = 0.0D0
                     ctcomp = cmplx(0.0D0, 0.0D0,dp)
                     do i=1,mat
@@ -825,6 +839,7 @@ CONTAINS
                          ctcomp = ctcomp + ctotal(i)
                     end do
                     ctmag = abs(ctcomp)
+!print*, "ctmag", ctmag
                     !rescale to conserve norm = 1
                     do i=1,mat
                          ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
@@ -838,7 +853,9 @@ CONTAINS
                     end if
                     !update
                     H1 = H2
+!print*, "ctout", ctout
                     ctin = ctout
+!print*, "ctin", ctin
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
                     times = DBLE(itimes) + t2*1/DBLE(ELsteps)
@@ -1010,21 +1027,21 @@ CONTAINS
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
                            ctin=ctin)
-print*, "kinetic_energies", kinetic_energy
+!print*, "kinetic_energies", kinetic_energy
                kinetic_energy_prime = kinetic_energy + SUM(velocities*my_forces_adiab)               
-print*, "kinetic_energies_prime", kinetic_energy_prime
+!print*, "kinetic_energies_prime", kinetic_energy_prime
                CALL calc_velocities_prime(velocities, my_forces_adiab, atomic_kinds, deltatMD, &
                                           local_particles, &
                                         velocities_prime, kinetic_energy_prime) 
-print*, "kinetic_energies_prime 2", kinetic_energy_prime
-print*, "potential energy a t +dt", E2(old_state)
-print*, "constant energy", kinetic_energy_prime + E2(old_state)
+!print*, "kinetic_energies_prime 2", kinetic_energy_prime
+!print*, "potential energy a t +dt", E2(old_state)
+!print*, "constant energy", kinetic_energy_prime + E2(old_state)
                    delta_energy = kinetic_energy-(E2(new_state)-E2(old_state))
-print*, "delta_energy", delta_energy
+!print*, "delta_energy", delta_energy
                    delta_energy = kinetic_energy_prime-(E2(new_state)-E2(old_state))
-print*, "delta_energy", delta_energy
-print*, "E2", E2
-print*, "states", old_state, new_state
+!print*, "delta_energy", delta_energy
+!print*, "E2", E2
+!print*, "states", old_state, new_state
                    sh_print_basket%delta_energy = delta_energy
                 !> If delta_energy < 0: frustrated hop, do nothing!
                    IF (delta_energy.lt.0) THEN
@@ -1056,15 +1073,15 @@ print*, "states", old_state, new_state
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
                            ctin=ctin)
-print*, "kinetic_energies", kinetic_energy
+!print*, "kinetic_energies", kinetic_energy
                kinetic_energy_prime = kinetic_energy + SUM(velocities*my_forces_adiab)
-print*, "kinetic_energies_prime", kinetic_energy_prime
+!print*, "kinetic_energies_prime", kinetic_energy_prime
                CALL calc_velocities_prime(velocities, my_forces_adiab, atomic_kinds, deltatMD, &
                                           local_particles, &
                                         velocities_prime, kinetic_energy_prime)
-print*, "kinetic_energies_prime 2", kinetic_energy_prime
-print*, "potential energy a t +dt", E2(old_state)
-print*, "constant energy", kinetic_energy_prime + E2(old_state)
+!print*, "kinetic_energies_prime 2", kinetic_energy_prime
+!print*, "potential energy a t +dt", E2(old_state)
+!print*, "constant energy", kinetic_energy_prime + E2(old_state)
 
               ENDIF 
           ENDIF

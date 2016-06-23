@@ -401,7 +401,12 @@ CONTAINS
            jparticle = map_index(iparticle)
            positions_plus(jparticle,:)        = particles_mix%els(jparticle)%r(:)
            IF (my_itimes.eq.0) THEN 
-              aom_basket%velocities(:, jparticle) = particles_mix%els(jparticle)%v(:)
+              SELECT CASE(method_keyword)
+              CASE("FROZEN_HAMILTONIAN")
+                  aom_basket%velocities(:, jparticle) = 0.0D0
+              CASE DEFAULT
+                  aom_basket%velocities(:, jparticle) = particles_mix%els(jparticle)%v(:)
+              END SELECT
             ENDIF
 !           velocities(jparticle,:)           = particles_mix%els(jparticle)%v(:)
         END DO
