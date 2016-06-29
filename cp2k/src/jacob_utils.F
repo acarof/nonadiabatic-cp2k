@@ -169,7 +169,7 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
 !ADD: SYMMETRIZE NACE
         my_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2) 
-        my_NACE = (NACE - TRANSPOSE(NACE)) / 2
+        my_NACE = (my_NACE - TRANSPOSE(my_NACE)) / 2
         !X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
         X = H - my_NACE
 
