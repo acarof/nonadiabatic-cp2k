@@ -1152,7 +1152,7 @@ CONTAINS
        aom_basket%is_hop      = is_hop
        aom_basket%factor      = rescale_factor
        aom_basket%ctin        = ctin
-       aom_basket%hamiltonian = AIMAG(H2)
+       aom_basket%hamiltonian = -AIMAG(H2)
        aom_basket%nace        = NACE
        aom_basket%nacv        = nacv
        aom_basket%new_state = new_state
