@@ -53,49 +53,68 @@ IMPLICIT NONE
 
    TYPE aom_basket_type
 !> To store the coordinates in step before and the one before
-     REAL(KIND = dp), DIMENSION(:,:), POINTER         :: rm1,&       ! position step min 1
-                                                         rm2,&         ! position step min 2
-                                                         velocities_plus,&
-                                                         velocities,&
-                                                         forces_adiab
-! To store energies in the Jacob's Method
+     REAL(KIND = dp), DIMENSION(:,:), POINTER         :: rm1,&             ! position step min 1
+                                                         rm2,&             ! position step min 2
+                                                         velocities_plus,& ! velocities step
+                                                         velocities,&      ! velocities step min 1
+                                                         forces_adiab      ! forces at step 0
+!> To store energies in the Jacob's Method
      REAL(KIND = dp), DIMENSION(:), POINTER :: energies   
+!> Old and new state number
      INTEGER                                :: new_state
      INTEGER                                :: old_state
-     LOGICAL                                :: inrun
+!     LOGICAL                                :: inrun
 !> To store the previous overlap matrix
      REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Stmt, Sttm, Stmtm
+!> To store some connectivity information
      integer, dimension(:,:), POINTER       :: connlist1, connlist2, bneighbour
 !> To store the previous coefficients
      COMPLEX(KIND=dp), DIMENSION(:),POINTER              :: ctin
 !> To print the populations
      REAL(KIND=dp), DIMENSION(:), POINTER                :: population
+!> To store some connectivity information
      INTEGER, DIMENSION(:,:,:,:), POINTER                  :: neighbourlist
 !> To print the Hamiltonian
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: hamiltonian
+!> To print the NACEs
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: nace
 !> To print the NACVs
      REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER          :: nacv
+!> Store information of a previous hop- required for the decoherence
+!procedure
      LOGICAL                                             :: futur_decohere
      REAL(KIND = dp)                                     :: factor
+!> If hop
      LOGICAL                                     :: is_hop
    END TYPE aom_basket_type
 
 
    TYPE sh_print_basket_type
+!> The probability array for the hop
      REAL(KIND = dp), DIMENSION(:), POINTER      :: proba
+!> Random number for test hop
      REAL(KIND = dp)                             :: hop
+!> If renormalization occurs
      LOGICAL                                     :: renorm
+!> If renormalization occurs: the sum of probabilities
      REAL(KIND = dp)                             :: sumprob
      REAL(KIND = dp)                             :: factor
+!> Old and new state number
      INTEGER                                     :: old_state
      INTEGER                                     :: new_state
+!> Delta energy between old_state and putative new_state
      REAL(KIND = dp)                             :: delta_energy
+!> If hop occurs
      LOGICAL                                     :: is_hop
+!> If decoherence occurs
      LOGICAL                                     :: decohere
+!> If it's the initial step
      LOGICAL                                     :: is_first
+!> Random number for initial choice
      REAL(KIND = dp)                             :: initrandom
+!> Initial population in the adiabatic states
      REAL(KIND = dp), DIMENSION(:), POINTER      :: pop_init
+!> First adiabat after the random choice
      INTEGER                                     :: first_adiabat
    END TYPE sh_print_basket_type
 

@@ -1164,6 +1164,7 @@ CONTAINS
 !END PREPARE THE PRINT
 
 !DEALLOCATE
+    DEALLOCATE(NACE)
     DEALLOCATE(velocities_prime)
     DEALLOCATE(velocities) 
     DEALLOCATE(sh_print_basket%proba)     
