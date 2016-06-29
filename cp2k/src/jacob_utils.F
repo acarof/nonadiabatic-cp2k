@@ -914,21 +914,38 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
                     exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  -  &
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
                     (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
-!print*, "ANALYTICS"
-!print*, 4*Hin(1,2) / &
-!                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
                  ELSE 
-                    exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2.0  -  &
+                    exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2.0  +  &
                     ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
-                    2.0*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*H(1,2)**2 )
+                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
+!print*, "DH, 1", 1,DH(1,1,j,d)
+!print*, "DH, 2", 2,DH(2,2,j,d)
+!print*, "H, 2", 1,Hin(1,1)
+!print*, "H, 2", 2,Hin(2,2)
+!print*, "C 1", (1.0/2) - (Hin(2,2)-Hin(1,1))/ &
+!                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
+!print*, "F 1", ((1.0/2) - (Hin(2,2)-Hin(1,1))/ &
+!                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )))*DH(1,1,j,d)
+
+!print*, "C 2", (1.0/2) + (Hin(2,2)-Hin(1,1))/ &
+!                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
+!print*, "F 2", ((1.0/2) + (Hin(2,2)-Hin(1,1))/ &
+!                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )))*DH(2,2,j,d)
+!print*, "ANALYTICS"
+!print*, (4*Hin(1,2) / &
+!                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 )) ) * DH(1,2,j,d)
                  ENDIF
+!print*, "F d j",d,j,exact_forces(d,j)
+!print*, "  "
               ENDDO 
            ENDDO
         ELSE
            exact_forces = 0.0D0
         ENDIF
         !begin shortcut formula 
-
+!print*, "   "
+!print*, " NUMERICAL"
+!print*, "   "
         !conjugates and realpart commands have been omitted, as everything should be real
         !remember to change this if it ever becomes not the case!
         num_mol = 0
@@ -945,17 +962,25 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
 !print*, "NUM_MOL", num_mol
                    ENDIF
                          do i=1,mat
+!print*, "DH, i", i,i,DH(i,i,j,d)
                                 F(d,j) = F(d,j) + (abs(C(i,state))**2)*DH(i,i,j,d)
+!print*, "C, i", i,i,(abs(C(i,state))**2)
+!print*, "F, i", i,i,(abs(C(i,state))**2)*DH(i,i,j,d)
                                 IF (ext_pres(j)) THEN
                                    IF (i.ne.num_mol) THEN
                                       !F(d,j) = F(d,j) + 2.0D0*((C(m,state))*DH(i,m,j,d)*C(i,state))
                                       F(d,j) = F(d,j) + 2.0D0*((C(num_mol,state))*DH(i,num_mol,j,d)*C(i,state))
+!print*, "i num mol j d", i, num_mol, j,d
 !print*, "NUM"
+!print*, DH(i,num_mol,j,d)
 !print*, 2.0D0*((C(num_mol,state))*C(i,state))
-!print*, 
+!print*, 2.0D0*((C(num_mol,state))*C(i,state))*DH(i,num_mol,j,d)
                                    ENDIF
                                 ENDIF
+!print*, "F d j i",d,j,i,F(d,j)
                          ENDDO
+!print*, "F d j",d,j,F(d,j)
+!print*, 
                 ENDDO
         ENDDO
                 !do j=1,atoms

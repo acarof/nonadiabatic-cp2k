@@ -967,6 +967,7 @@ CONTAINS
                     end if !(NN(i,k) == 1
                end do !loop over k
          enddo !loop-over i
+         nacv = cbar*nacv
          DO t2=1,int(deltatMD/deltatE)
                     times = DBLE(itimes) + t2*1/DBLE(ELsteps)
                     CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, times)
