@@ -531,7 +531,7 @@ CONTAINS
            DO j=1,3
               WRITE( unit_nr, *) "Atom = ",i,"Dimension = ", j
               DO k=1,norbitals*nadiab
-                 WRITE( unit_nr, *) nacv(j, k, 1:(norbitals*nadiab), i)
+                 WRITE( unit_nr, *) unit_conv*nacv(j, k, 1:(norbitals*nadiab), i)
               ENDDO
            ENDDO
         ENDDO
