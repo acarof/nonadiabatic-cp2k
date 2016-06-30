@@ -46,7 +46,7 @@ MODULE jacob_utils
    USE kinds,                           ONLY: default_string_length,&
                                                dp
    USE machine,                         ONLY: m_getpid
-   USE jacob_types,                     ONLY: sh_print_basket_type
+   USE jacob_types,                     ONLY: sh_print_env_type
 
   USE cp_parser_methods,               ONLY: read_float_object
 
@@ -184,7 +184,7 @@ end subroutine makeX
 
 
 subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, & 
-                      decohere, new_state, is_hop, decohere_criterion, sh_print_basket)
+                      decohere, new_state, is_hop, decohere_criterion, sh_print_env)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -208,7 +208,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
         logical, intent(out) :: decohere
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: is_hop
-        TYPE(sh_print_basket_type), INTENT(OUT) :: sh_print_basket
+        TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
 
         mol = size(Stt,1)
 
@@ -300,24 +300,24 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                         g(old_state) = 0.0D0
                 end do
 !> CHANGE_AC
-                sh_print_basket%renorm = .TRUE.
-                sh_print_basket%sumprob   = sumg        
+                sh_print_env%renorm = .TRUE.
+                sh_print_env%sumprob   = sumg        
         else
 !> CHANGE_AC
-                sh_print_basket%renorm = .FALSE.
-                sh_print_basket%sumprob   = sumg        
+                sh_print_env%renorm = .FALSE.
+                sh_print_env%sumprob   = sumg        
                 g(old_state) = 1.0D0 - sumg
         end if
 
 
 !> CHANGE_AC
-        sh_print_basket%proba     = g
+        sh_print_env%proba     = g
 
         !call a random number
         call init_random_seed()
         call random_number(hop)
-        sh_print_basket%hop       = hop
-        sh_print_basket%old_state = old_state
+        sh_print_env%hop       = hop
+        sh_print_env%old_state = old_state
 
         !and see if this random number causes a surface hop
         sumg = 0.0D0
@@ -329,14 +329,14 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
 !                                write(24,*) i                        
                                 decohere = .FALSE.
                                 is_hop = .TRUE.
-                                sh_print_basket%is_hop    = is_hop
-                                sh_print_basket%new_state = new_state
+                                sh_print_env%is_hop    = is_hop
+                                sh_print_env%new_state = new_state
                                 return
                         elseif (i == old_state) then
                                 new_state = old_state
                                 is_hop = .FALSE.
-                                sh_print_basket%is_hop    = is_hop
-                                sh_print_basket%new_state = new_state
+                                sh_print_env%is_hop    = is_hop
+                                sh_print_env%new_state = new_state
 !                                write(24,*) state
                                 
                                 !if there has not been any surfacehop, we need to consider the possibility of the decoherence correction
@@ -843,10 +843,10 @@ end subroutine calcTDT
    END SUBROUTINE read_listcoeff
 
 
-   SUBROUTINE choose_firstadiabat(C, init, sh_print_basket, first_adiabat)
+   SUBROUTINE choose_firstadiabat(C, init, sh_print_env, first_adiabat)
         REAL(KIND=dp), dimension(:,:), intent(in) :: C
         INTEGER, INTENT(IN)                       :: init
-        TYPE(sh_print_basket_type), INTENT(OUT)   :: sh_print_basket
+        TYPE(sh_print_env_type), INTENT(OUT)   :: sh_print_env
         INTEGER, INTENT(OUT)                      :: first_adiabat
 
         CHARACTER(len=*), PARAMETER :: routineN = 'choose_firstadiabat', &
@@ -855,19 +855,19 @@ end subroutine calcTDT
         INTEGER                                   :: i
         REAL( KIND =dp)                           :: random, sumc
 
-        sh_print_basket%is_first = .TRUE. 
+        sh_print_env%is_first = .TRUE. 
         CALL init_random_seed()
         CALL random_number(random)
-        sh_print_basket%initrandom = random
+        sh_print_env%initrandom = random
         sumc = 0.0D0
         DO i=1, SIZE(C(init,:))
-           sh_print_basket%pop_init(i) = C(init,i)*C(init,i)
+           sh_print_env%pop_init(i) = C(init,i)*C(init,i)
         ENDDO
         DO i=1, SIZE(C(init,:))
            sumc = sumc + C(init,i)*C(init,i)
            IF (random.le.sumc) THEN
               first_adiabat = i
-              sh_print_basket%first_adiabat = i
+              sh_print_env%first_adiabat = i
               return
            ENDIF
         ENDDO

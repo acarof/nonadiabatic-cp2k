@@ -560,14 +560,10 @@ CONTAINS
 !> Transfer the itimes information to force_env_calc_energy_force
 !> Require for Non Adiabatic Molecular Dynamics 
        IF (itimes.ge.1) THEN
-          !print*, "HOY"
-          force_env%mixed_env%aom_basket%velocities = tmp%vel
-          !print*, force_env%mixed_env%aom_basket%velocities
-          !print*, tmp%vel
+          force_env%mixed_env%aom_env%velocities = tmp%vel
        ENDIF
        CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
             itimes = itimes)
-       !is_hop = force_env%mixed_env%aom_basket%is_hop
 !> END CHANGE_AC
 
        IF(ehrenfest_md)THEN
@@ -576,16 +572,13 @@ CONTAINS
 
        ! Metadynamics
        CALL metadyn_integrator(force_env, itimes, tmp%vel)
-!print*, "HOY HOY"
-!          print*, force_env%mixed_env%aom_basket%velocities
-!          print*, tmp%vel
 
        ! Velocity Verlet (second part)
 !> CHANGE_AC
-       IF (force_env%mixed_env%aom_basket%is_hop) THEN
+       IF (force_env%mixed_env%aom_env%is_hop) THEN
           CALL vv_second_if_sh_rescaling(tmp, atomic_kind_set, local_particles, particle_set, &
                core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt,     &
-               new_velocities=force_env%mixed_env%aom_basket%velocities_plus)
+               new_velocities=force_env%mixed_env%aom_env%velocities_plus)
        ELSE
           CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
                core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)

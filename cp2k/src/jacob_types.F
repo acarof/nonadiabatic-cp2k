@@ -51,7 +51,7 @@ IMPLICIT NONE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'jacob_types'
 
-   TYPE aom_basket_type
+   TYPE aom_env_type
 !> To store the coordinates in step before and the one before
      REAL(KIND = dp), DIMENSION(:,:), POINTER         :: rm1,&             ! position step min 1
                                                          rm2,&             ! position step min 2
@@ -86,10 +86,10 @@ IMPLICIT NONE
      REAL(KIND = dp)                                     :: factor
 !> If hop
      LOGICAL                                     :: is_hop
-   END TYPE aom_basket_type
+   END TYPE aom_env_type
 
 
-   TYPE sh_print_basket_type
+   TYPE sh_print_env_type
 !> The probability array for the hop
      REAL(KIND = dp), DIMENSION(:), POINTER      :: proba
 !> Random number for test hop
@@ -116,10 +116,10 @@ IMPLICIT NONE
      REAL(KIND = dp), DIMENSION(:), POINTER      :: pop_init
 !> First adiabat after the random choice
      INTEGER                                     :: first_adiabat
-   END TYPE sh_print_basket_type
+   END TYPE sh_print_env_type
 
-   PUBLIC :: aom_basket_type, &
-             sh_print_basket_type
+   PUBLIC :: aom_env_type, &
+             sh_print_env_type
 
 
 END MODULE jacob_types

@@ -56,8 +56,8 @@ MODULE jacob_print
        cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
        cp_sll_val_set_el_at, cp_sll_val_type
 
-  USE jacob_types,                     ONLY: aom_basket_type, &
-                                             sh_print_basket_type
+  USE jacob_types,                     ONLY: aom_env_type, &
+                                             sh_print_env_type
 !  USE timings,                         ONLY: timeset,&
 !                                             timestop
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -579,9 +579,9 @@ CONTAINS
    END SUBROUTINE adiab_print_stateno
 
 
-   SUBROUTINE adiab_print_sh_info(adiab_section, sh_print_basket, nadiab, norbitals, deltatMD, times)
+   SUBROUTINE adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, times)
     TYPE(section_vals_type), POINTER         :: adiab_section
-    TYPE(sh_print_basket_type), INTENT(IN)   :: sh_print_basket
+    TYPE(sh_print_env_type), INTENT(IN)   :: sh_print_env
     INTEGER, INTENT(IN)                      :: nadiab, norbitals
     REAL(KIND=dp), INTENT(IN)                :: times
     REAL(KIND=dp), INTENT(IN)                :: deltatMD
@@ -624,20 +624,20 @@ CONTAINS
        unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
        time = times*deltatMD*unit_conv_fs
 
-       sumg         = sh_print_basket%sumprob
-       renorm       = sh_print_basket%renorm
-       proba        = sh_print_basket%proba
-       hop          = sh_print_basket%hop
-       is_hop       = sh_print_basket%is_hop
-       old_state    = sh_print_basket%old_state
-       new_state    = sh_print_basket%new_state
-       delta_energy = sh_print_basket%delta_energy
-       factor       = sh_print_basket%factor
-       decohere     = sh_print_basket%decohere
-       is_first     = sh_print_basket%is_first
-       initrandom   = sh_print_basket%initrandom
-       pop_init     = sh_print_basket%pop_init
-       first_adiabat= sh_print_basket%first_adiabat    
+       sumg         = sh_print_env%sumprob
+       renorm       = sh_print_env%renorm
+       proba        = sh_print_env%proba
+       hop          = sh_print_env%hop
+       is_hop       = sh_print_env%is_hop
+       old_state    = sh_print_env%old_state
+       new_state    = sh_print_env%new_state
+       delta_energy = sh_print_env%delta_energy
+       factor       = sh_print_env%factor
+       decohere     = sh_print_env%decohere
+       is_first     = sh_print_env%is_first
+       initrandom   = sh_print_env%initrandom
+       pop_init     = sh_print_env%pop_init
+       first_adiabat= sh_print_env%first_adiabat    
 
        IF (is_first) THEN
           WRITE( unit_nr, "(A)")   "LET'S START. "

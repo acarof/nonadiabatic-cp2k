@@ -51,7 +51,7 @@ MODULE mixed_environment_types
 !> 15-12-11
 !> Add a new object into the mixed_environment_type
 !> Require for Non Adiabatic Molecular Dynamics
-  USE jacob_types,                     ONLY: aom_basket_type
+  USE jacob_types,                     ONLY: aom_env_type
 !> End CHANGE_AC
 
 #include "./base/base_uses.f90"
@@ -87,7 +87,7 @@ MODULE mixed_environment_types
 !> 15-12-11
 !> Add a new object into the mixed_environment_type
 !> Require for Non Adiabatic Molecular Dynamics
-     TYPE (aom_basket_type)                           :: aom_basket
+     TYPE (aom_env_type)                           :: aom_env
 !> End CHANGE_AC
 
 

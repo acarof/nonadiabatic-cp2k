@@ -138,11 +138,8 @@ MODULE force_env_methods
                                              get_atomic_kind,&
                                              get_atomic_kind_set
  
-   USE adiabatic_methods,             ONLY: adiab_fssh_routines
+  USE adiabatic_methods,             ONLY: adiab_fssh_routines
   USE distribution_1d_types,           ONLY: distribution_1d_type
-   !USE adiabatic_methods,             ONLY: adiab_fssh_routines,&
-   !                                         adiab_classicalpath_routines
-   !USE adiabatic_methods,             ONLY:  adiab_classicalpath_routines
 !> End CHANGE_AC
 
   IMPLICIT NONE
@@ -176,7 +173,6 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, calc_force, &
        consistent_energies, skip_external_control, eval_energy_forces, &
-!      require_consistent_energy_force, linres, calc_stress_tensor)
 !> CHANGE_AC
 !> 1-01-25
 !> Get the itimes information
@@ -274,9 +270,7 @@ CONTAINS
                calculate_forces,energy_consistency,linres=linres_run,&
                require_consistent_energy_force=require_consistent_energy_force)
        CASE ( use_mixed_force )
-          !CALL mixed_energy_forces(force_env,calculate_forces)
           CALL mixed_energy_forces(force_env,calculate_forces, my_itimes) !CHANGE_AC
-!          CALL mixed_energy_forces_print(force_env,calculate_forces)  !CHANGE_AC
        CASE default
           CPABORT("")
        END SELECT
@@ -810,7 +804,6 @@ CONTAINS
 !>       04.08  reorganizing the genmix structure (collecting common code)
 !> \author Florian Schiffmann
 ! *****************************************************************************
-  !SUBROUTINE mixed_energy_forces(force_env, calculate_forces)
   SUBROUTINE mixed_energy_forces(force_env, calculate_forces, my_itimes) !CHANGE_AC
 
     TYPE(force_env_type), POINTER            :: force_env
@@ -855,7 +848,6 @@ CONTAINS
 !> 15-12-11
 !> To create a new way to combine the force
 !> To get the adiabatic force 
-!    TYPE(mixed_force_type), POINTER          :: global_positions
     TYPE(section_vals_type), POINTER         :: adiab_section
     CHARACTER(LEN=default_string_length)     :: adiab_keyword
     TYPE(mixed_environment_type), POINTER    :: mixed_env
@@ -863,10 +855,6 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
 
     NULLIFY(atomic_kinds, local_particles)
-
-!    REAL(KIND=dp), POINTER                   :: kinetic_energy
-!    LOGICAL                                  :: frozen_hamil
-!    INTEGER, POINTER                         :: my_itimes !CHANGE_AC
 !> End CHANGE_AC
 
 
@@ -894,7 +882,6 @@ CONTAINS
     ! Local Info to sync
     ALLOCATE(global_forces(nforce_eval))
     ALLOCATE(energies(nforce_eval))
-    !ALLOCATE(kinetic_energies(nforce_eval)) !CHANGE_AC
     ALLOCATE(glob_natoms(nforce_eval))
     ALLOCATE(virials(nforce_eval))
     ALLOCATE(results(nforce_eval))
@@ -946,15 +933,6 @@ CONTAINS
           CALL cp_subsys_get(subsystems(iforce_eval)%subsys,&
                              virial=loc_virial, results=loc_results)
           energies(iforce_eval)    = energy
-!> CHANGE_AC
-!> 16-03-15
-          !CALL force_env_get(force_env,&
-          !                   kinetic_energy=energy)
-          !CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env,&
-          !                   kinetic_energy=energy)
-!          kinetic_energy    = force_env%mixed_env%mixed_energy%kin
-!print*, "KINETIC", kinetic_energy
-!> END CHANGE_AC
           glob_natoms(iforce_eval) = natom
           CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
           CALL cp_result_copy(loc_results, results(iforce_eval)%results)
@@ -970,7 +948,6 @@ CONTAINS
     CALL mp_sync(force_env%para_env%group)
     ! Let's transfer energy, natom, forces, virials
     CALL mp_sum(energies, force_env%para_env%group)
-    !CALL mp_sum(kinetic_energies, force_env%para_env%group) !CHANGE_AC
     CALL mp_sum(glob_natoms, force_env%para_env%group)
     ! Transfer forces
     DO iforce_eval = 1, nforce_eval
@@ -1114,8 +1091,8 @@ CONTAINS
         adiab_section => section_vals_get_subs_vals(mixed_section, "ADIABATIC")
         CALL section_vals_val_get(adiab_section,"METHOD_PROPAGATION",c_val=adiab_keyword)
         mixed_env => force_env%mixed_env
-        SELECT CASE(adiab_keyword)
-        CASE("CLASSICAL_PATH")
+        !SELECT CASE(adiab_keyword)
+        !CASE("CLASSICAL_PATH")
            !Check that all the FF have the same number of atoms than the 1st FF
            !because in the subroutine the number of atoms will be the one of 1st
            !FF
@@ -1129,58 +1106,51 @@ CONTAINS
                 map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
                 mixed_energy%kin, adiab_keyword, mixed_energy%pot,atomic_kinds, &
                 local_particles)
-           !CALL adiab_classicalpath_routines(particles_mix, virial_mix, results_mix,   &
-           !     global_forces, energies, virials, results, nforce_eval,&
-           !     map_index, mapping_section,adiab_section,mixed_env,my_itimes) 
-        CASE("FROZEN_HAMILTONIAN")
+        !CASE("FROZEN_HAMILTONIAN")
            !Check that all the FF have the same number of atoms than the 1st FF
            !because in the subroutine the number of atoms will be the one of 1st
            !FF
-           DO iforce_eval = 2, nforce_eval
-              IF (glob_natoms(iforce_eval).NE.glob_natoms(1)) THEN
-                 CPABORT("Illegal use of FROZEN_HAMILTONIAN methods")
-              END IF
-           ENDDO
-           CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
-                global_forces, energies, virials, results, nforce_eval,&
-                map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
-                mixed_energy%kin, adiab_keyword, mixed_energy%pot, atomic_kinds,& 
-                local_particles)
-           !frozen_hamil = .TRUE.
-           !CALL adiab_classicalpath_routines(particles_mix, virial_mix, results_mix,   &
-           !     global_forces, energies, virials, results, nforce_eval,&
-           !     map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
-        CASE("FSSH")
+        !   DO iforce_eval = 2, nforce_eval
+        !      IF (glob_natoms(iforce_eval).NE.glob_natoms(1)) THEN
+        !         CPABORT("Illegal use of FROZEN_HAMILTONIAN methods")
+        !      END IF
+        !   ENDDO
+        !   CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
+        !        global_forces, energies, virials, results, nforce_eval,&
+        !        map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
+        !        mixed_energy%kin, adiab_keyword, mixed_energy%pot, atomic_kinds,& 
+        !        local_particles)
+        !CASE("FSSH")
            !Check that all the FF have the same number of atoms than the 1st FF
            !because in the subroutine the number of atoms wil be the one of 1st
            !FF
-           DO iforce_eval = 2, nforce_eval
-              IF (glob_natoms(iforce_eval).NE.glob_natoms(1)) THEN
-                 CPABORT("Illegal use of FSSH_ATOMS methods")
-              END IF
-           ENDDO 
-           CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
-                global_forces, energies, virials, results, nforce_eval,&
-                map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
-                mixed_energy%kin, adiab_keyword, mixed_energy%pot, atomic_kinds,&
-                local_particles)
-        CASE("BORN_OPPENHEIMER")
+        !   DO iforce_eval = 2, nforce_eval
+        !      IF (glob_natoms(iforce_eval).NE.glob_natoms(1)) THEN
+        !         CPABORT("Illegal use of FSSH_ATOMS methods")
+        !      END IF
+        !   ENDDO 
+        !   CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
+        !        global_forces, energies, virials, results, nforce_eval,&
+        !        map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
+        !        mixed_energy%kin, adiab_keyword, mixed_energy%pot, atomic_kinds,&
+        !        local_particles)
+        !CASE("BORN_OPPENHEIMER")
            !Check that all the FF have the same number of atoms than the 1st FF
            !because in the subroutine the number of atoms wil be the one of 1st
            !FF
-           DO iforce_eval = 2, nforce_eval
-              IF (glob_natoms(iforce_eval).NE.glob_natoms(1)) THEN
-                 CPABORT("Illegal use of BORN_OPPENHEIMER methods")
-              END IF
-           ENDDO
-           CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
-                global_forces, energies, virials, results, nforce_eval,&
-                map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
-                mixed_energy%kin, adiab_keyword, mixed_energy%pot, atomic_kinds,&
-                local_particles)
-        CASE DEFAULT
-           CPABORT("There is no method to calculate the adiabatic force")
-        END SELECT
+        !   DO iforce_eval = 2, nforce_eval
+        !      IF (glob_natoms(iforce_eval).NE.glob_natoms(1)) THEN
+        !         CPABORT("Illegal use of BORN_OPPENHEIMER methods")
+        !      END IF
+        !   ENDDO
+        !   CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
+        !        global_forces, energies, virials, results, nforce_eval,&
+        !        map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
+        !        mixed_energy%kin, adiab_keyword, mixed_energy%pot, atomic_kinds,&
+        !        local_particles)
+        !CASE DEFAULT
+        !   CPABORT("There is no method to calculate the adiabatic force")
+        !END SELECT
 !> End CHANGE_AC
     CASE DEFAULT
        CPABORT("")
@@ -1195,7 +1165,6 @@ CONTAINS
     DEALLOCATE(subsystems)
     DEALLOCATE(particles)
     DEALLOCATE(energies)
-    !DEALLOCATE(kinetic_energies) !CHANGE_AC
     DEALLOCATE(glob_natoms)
     DEALLOCATE(virials)
     DEALLOCATE(results)
