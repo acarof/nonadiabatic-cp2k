@@ -55,13 +55,25 @@ MODULE integrator
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: ehrenfest,&
                                              npe_f_ensemble,&
-                                             npe_i_ensemble
+!CHANGE_AC
+                                             !npe_i_ensemble
+                                             npe_i_ensemble, &
+                                             mix_adiab
+  USE force_env_types,                 ONLY: use_mixed_force
+
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+!CHANGE_AC
+                                             
   USE integrator_utils,                ONLY: &
        allocate_old, allocate_tmp, damp_v, damp_veps, deallocate_old, &
        get_s_ds, old_variables_type, rattle_roll_setup, set, &
        tmp_variables_type, update_dealloc_tmp, update_pv, update_veps, &
+!CHANGE_AC
        !variable_timestep, vv_first, vv_second
        variable_timestep, vv_first, vv_second, vv_second_if_sh_rescaling
+!CHANGE_AC
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matmul_3x3,&
                                              transpose_3d
@@ -437,7 +449,9 @@ CONTAINS
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
 !> CHANGE_AC
-    TYPE(md_ener_type), POINTER              :: md_ener
+    INTEGER                                  :: mixing_type
+    TYPE(section_vals_type), POINTER         :: mixed_section, force_env_section
+!    TYPE(md_ener_type), POINTER              :: md_ener
 !> END
 
 
@@ -448,7 +462,7 @@ CONTAINS
             core_particle_set, thermostat_shell, dft_control, itimes)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
 !>CHANGE_AC
-         md_ener=md_ener, &
+ !        md_ener=md_ener, &
 !>END CHANGE
          thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,&
          para_env=para_env, ehrenfest_md=ehrenfest_md, itimes=itimes)
@@ -551,37 +565,67 @@ CONTAINS
           CALL propagation_step(force_env%qs_env, rtp, dft_control%rtp_control)
        END IF
 
-       ![NB] let nve work with force mixing which does not have consistent energies and forces
-!       CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.)
 !> CHANGE_AC
 !> 1-01-25
-!> Get the kinetic energies information for the rescaling of the velocities
-       force_env%mixed_env%mixed_energy%kin = md_ener%ekin
-!> Transfer the itimes information to force_env_calc_energy_force
-!> Require for Non Adiabatic Molecular Dynamics 
-       IF (itimes.ge.1) THEN
-          force_env%mixed_env%aom_env%velocities_t = tmp%vel
-       ENDIF
-       CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
-            itimes = itimes)
-!> END CHANGE_AC
+!> Check if we do Surface Hopping Calculation
+       IF (force_env%in_use.eq.use_mixed_force) THEN
+          CALL force_env_get(force_env = force_env, &
+                             force_env_section=force_env_section)
+          mixed_section => section_vals_get_subs_vals(force_env_section,"MIXED")
+          CALL section_vals_val_get(mixed_section,"MIXING_TYPE",i_val=mixing_type)
+          IF (mixing_type.eq.mix_adiab) THEN
+             IF (itimes.ge.1) THEN
+                force_env%mixed_env%aom_env%velocities_t = tmp%vel
+             ENDIF
+             CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
+                  itimes = itimes)
+             IF(ehrenfest_md)THEN
+                  CALL rt_prop_output(force_env%qs_env,ehrenfest,delta_iter=force_env%qs_env%rtp%delta_iter)
+             ENDIF
 
-       IF(ehrenfest_md)THEN
-          CALL rt_prop_output(force_env%qs_env,ehrenfest,delta_iter=force_env%qs_env%rtp%delta_iter)
-       ENDIF
+             ! Metadynamics
+             CALL metadyn_integrator(force_env, itimes, tmp%vel)
 
-       ! Metadynamics
-       CALL metadyn_integrator(force_env, itimes, tmp%vel)
+             ! Velocity Verlet (second part)
+             IF (force_env%mixed_env%aom_env%is_hop) THEN
+                 CALL vv_second_if_sh_rescaling(tmp, atomic_kind_set, local_particles, particle_set, &
+                      core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt,     &
+                      new_velocities=force_env%mixed_env%aom_env%velocities_tp)
+             ELSE
+                 CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
+                                core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+             ENDIF
+          ELSE 
+             ![NB] let nve work with force mixing which does not have consistent
+             !energies and forces
+             CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.)
 
-       ! Velocity Verlet (second part)
-!> CHANGE_AC
-       IF (force_env%mixed_env%aom_env%is_hop) THEN
-          CALL vv_second_if_sh_rescaling(tmp, atomic_kind_set, local_particles, particle_set, &
-               core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt,     &
-               new_velocities=force_env%mixed_env%aom_env%velocities_tp)
+             IF(ehrenfest_md)THEN
+               CALL rt_prop_output(force_env%qs_env,ehrenfest,delta_iter=force_env%qs_env%rtp%delta_iter)
+             ENDIF
+
+             ! Metadynamics
+             CALL metadyn_integrator(force_env, itimes, tmp%vel)
+
+             ! Velocity Verlet (second part)
+             CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
+                            core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+          ENDIF
        ELSE
+!> END CHANGE_AC
+          ![NB] let nve work with force mixing which does not have consistent energies and forces
+          CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.)
+
+          IF(ehrenfest_md)THEN
+             CALL rt_prop_output(force_env%qs_env,ehrenfest,delta_iter=force_env%qs_env%rtp%delta_iter)
+          ENDIF
+
+          ! Metadynamics
+          CALL metadyn_integrator(force_env, itimes, tmp%vel)
+
+          ! Velocity Verlet (second part)
           CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
-               core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+                         core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
        ENDIF
 !> END CHANGE_AC
 

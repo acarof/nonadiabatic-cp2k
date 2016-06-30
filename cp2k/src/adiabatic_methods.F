@@ -133,7 +133,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
     INTEGER                                  :: old_state, new_state
-    REAL(KIND=dp)                            :: rescale_factor, energy_adiabat
+    REAL(KIND=dp)                            :: energy_adiabat
     LOGICAL                                  :: is_hop
     LOGICAL                                  :: my_bo_keyword
 
@@ -187,7 +187,7 @@ CONTAINS
         CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
              positions_tp, energies_tp, aom_env, itimes, &
              is_hop, global_forces, coupling_section, adiab_section,& 
-             my_bo_keyword, rescale_factor, energy_adiabat, atomic_kinds, &
+             my_bo_keyword, energy_adiabat, atomic_kinds, &
              local_particles)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN

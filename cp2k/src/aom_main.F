@@ -103,12 +103,12 @@ MODULE aom_main
 CONTAINS
 
     SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-                                      positions_tp,  &
-                                      energies_tp,  &
-                                      aom_env, itimes, &
-                                      is_hop, global_forces, coupling_section, &
-                                      adiab_section, my_bo_keyword, rescale_factor, energy_adiabat, &
-                                      atomic_kinds, local_particles)
+                                  positions_tp,  &
+                                  energies_tp,  &
+                                  aom_env, itimes, &
+                                  is_hop, global_forces, coupling_section, &
+                                  adiab_section, my_bo_keyword, energy_adiabat, &
+                                  atomic_kinds, local_particles)
 
 
      INTEGER, INTENT(IN)                            :: nadiab,  norbitals 
@@ -123,7 +123,7 @@ CONTAINS
      TYPE(section_vals_type), POINTER               :: coupling_section
      LOGICAL, INTENT(OUT)                           :: my_bo_keyword
      TYPE(section_vals_type), POINTER               :: adiab_section
-     REAL(KIND=dp), INTENT(OUT)                     :: rescale_factor, energy_adiabat
+     REAL(KIND=dp), INTENT(OUT)                     :: energy_adiabat
      TYPE(atomic_kind_list_type), POINTER           :: atomic_kinds
      TYPE(distribution_1d_type), POINTER            :: local_particles
 
@@ -885,7 +885,6 @@ CONTAINS
           old_state = first_diabat
           decohere = .FALSE.
           is_hop = .FALSE.
-          rescale_factor = 1
       ELSE    
           IF (itimes.eq.0) THEN
               CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
@@ -893,7 +892,6 @@ CONTAINS
               old_state = first_adiabat
               decohere = .FALSE.
               is_hop = .FALSE.
-              rescale_factor = 1
           ELSE
               sh_print_env%is_first = .FALSE.
               call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, old_state, decohere,  &      
@@ -921,9 +919,7 @@ CONTAINS
                       new_state = old_state
                       decohere  = .FALSE.
                       is_hop    = .FALSE.
-                      rescale_factor = 1
                    ELSE
-                      rescale_factor = 0
                       CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
                       SELECT CASE(rescale_keyword)
                       CASE("SIMPLE")
@@ -934,7 +930,6 @@ CONTAINS
                       END SELECT
                    ENDIF
               ELSE
-                 rescale_factor = 1
                  DO imol=1,mol
                     DO iatom=1, natom
                        F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
@@ -1005,7 +1000,6 @@ CONTAINS
 
 !PREPARE THE PRINT
        aom_env%is_hop      = is_hop
-       aom_env%factor      = rescale_factor
        aom_env%ctin        = ctin
        aom_env%hamiltonian = -AIMAG(H_tp)
        aom_env%nace        = NACE
