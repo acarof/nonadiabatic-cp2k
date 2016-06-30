@@ -14,7 +14,7 @@
 ! *****************************************************************************
 
 
-MODULE jacob_print
+MODULE aom_print
 
   USE cp_parser_methods,               ONLY: read_float_object
 
@@ -43,8 +43,8 @@ MODULE jacob_print
                                              virial_type,&
                                              zero_virial
  
-  USE mixed_environment_utils,        ONLY: get_subsys_map_index
-  USE mixed_environment_types,        ONLY: mixed_environment_type
+  USE mixed_environment_utils,         ONLY: get_subsys_map_index
+  USE mixed_environment_types,         ONLY: mixed_environment_type
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
   USE string_table,                    ONLY: id2str,&
@@ -56,10 +56,8 @@ MODULE jacob_print
        cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
        cp_sll_val_set_el_at, cp_sll_val_type
 
-  USE jacob_types,                     ONLY: aom_env_type, &
+  USE aom_types,                     ONLY: aom_env_type, &
                                              sh_print_env_type
-!  USE timings,                         ONLY: timeset,&
-!                                             timestop
   USE cp_units,                        ONLY: cp_unit_from_cp2k
 
 
@@ -69,7 +67,7 @@ IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'jacob_print'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'aom_print'
    
    PUBLIC :: adiab_print_coeff,          &
              adiab_print_pop,            &
@@ -686,5 +684,5 @@ CONTAINS
    END SUBROUTINE adiab_print_sh_info
 
 
-END MODULE jacob_print
+END MODULE aom_print
 

@@ -43,8 +43,8 @@ MODULE adiabatic_methods
                                              virial_type,&
                                              zero_virial
  
-  USE mixed_environment_utils,        ONLY: get_subsys_map_index
-  USE mixed_environment_types,        ONLY: mixed_environment_type
+  USE mixed_environment_utils,         ONLY: get_subsys_map_index
+  USE mixed_environment_types,         ONLY: mixed_environment_type
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
   USE string_table,                    ONLY: id2str,&
@@ -56,23 +56,18 @@ MODULE adiabatic_methods
        cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
        cp_sll_val_set_el_at, cp_sll_val_type
 
-  USE jacob_types,                     ONLY: aom_env_type 
-!  USE timings,                         ONLY: timeset,&
-!                                             timestop
-!  USE jacob_classicalpath, ONLY: &
-!                 construct_ham_X_SH_full_degen_classicalpath
+  USE aom_types,                       ONLY: aom_env_type 
 
-  USE jacob_surfacehopping,            ONLY:  &
-                 construct_ham_X_SH
+  USE aom_main,                        ONLY: construct_ham_X_SH
   USE cp_units,                        ONLY: cp_unit_from_cp2k
 
-  USE jacob_print,                     ONLY: adiab_print_hamiltonian, &
+  USE aom_print,                       ONLY: adiab_print_hamiltonian, &
                                              adiab_print_nace,        &
                                              adiab_print_nacv,        &
                                              adiab_print_stateno
   USE distribution_1d_types,           ONLY: distribution_1d_type
 
-  USE jacob_utils,                     ONLY: read_listcoeff
+  USE aom_utils,                       ONLY: read_listcoeff
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -93,7 +88,7 @@ IMPLICIT NONE
 CONTAINS
 
     SUBROUTINE  adiab_fssh_routines(particles_mix, virial_mix, results_mix,      &
-                global_forces, energies_plus, virials, results, nforce_eval,     &
+                global_forces, energies_tp, virials, results, nforce_eval,     &
                 map_index, mapping_section, adiab_section, mixed_env, my_itimes, &
                 kinetic_energy, method_keyword, final_energy, atomic_kinds,      &
                 local_particles)
@@ -102,7 +97,7 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial_mix
     TYPE(cp_result_type), POINTER            :: results_mix
     TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: energies_plus
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: energies_tp
     REAL(KIND=dp), INTENT(OUT)               :: kinetic_energy
     TYPE(virial_p_type), DIMENSION(:), &
       POINTER                                :: virials
@@ -128,7 +123,7 @@ CONTAINS
     INTEGER                                  :: nadiab
     INTEGER                                  :: norbitals, aom_atoms, init
     REAL(KIND=dp)                            :: MDtimestep
-    REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions_plus
+    REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions_tp
     REAL(kind=dp), DIMENSION(:,:),POINTER    :: forces_adiab
     REAL(kind=dp)                            :: factor
     TYPE(section_vals_type), POINTER         :: coupling_section
@@ -144,7 +139,7 @@ CONTAINS
     LOGICAL                                  :: my_bo_keyword
 
     natom = SIZE(global_forces(1)%forces,2)
-    ALLOCATE(positions_plus(natom,3))
+    ALLOCATE(positions_tp(3,natom))
     ALLOCATE(forces_adiab(3,natom))
     factor = 1
 
@@ -164,17 +159,17 @@ CONTAINS
 !> Get the information for the previous timesteps
         aom_env = mixed_env%aom_env
         IF (my_itimes.eq.0) THEN
-           ALLOCATE(aom_env%velocities(3, natom))
+           ALLOCATE(aom_env%velocities_t(3, natom))
         ENDIF
         DO iparticle = 1, natom
            jparticle = map_index(iparticle)
-           positions_plus(jparticle,:)        = particles_mix%els(jparticle)%r(:)
+           positions_tp(:,jparticle)        = particles_mix%els(jparticle)%r(:)
            IF (my_itimes.eq.0) THEN 
               SELECT CASE(method_keyword)
               CASE("FROZEN_HAMILTONIAN")
-                  aom_env%velocities(:, jparticle) = 0.0D0
+                  aom_env%velocities_t(:, jparticle) = 0.0D0
               CASE DEFAULT
-                  aom_env%velocities(:, jparticle) = particles_mix%els(jparticle)%v(:)
+                  aom_env%velocities_t(:, jparticle) = particles_mix%els(jparticle)%v(:)
               END SELECT
             ENDIF
         END DO
@@ -191,7 +186,7 @@ CONTAINS
         itimes => my_itimes
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-             positions_plus, energies_plus, kinetic_energy, aom_env, itimes, &
+             positions_tp, energies_tp, kinetic_energy, aom_env, itimes, &
              is_hop, global_forces, coupling_section, adiab_section,& 
              my_bo_keyword, rescale_factor, energy_adiabat, atomic_kinds, &
              local_particles)
@@ -232,7 +227,7 @@ CONTAINS
           CALL section_vals_val_get(coupling_section,"FIRST_DIABAT",&
                i_val=init)
           particles_mix%els(jparticle)%f(:)= global_forces(init)%forces(:,iparticle)
-          final_energy = energies_plus(init)
+          final_energy = energies_tp(init)
       CASE("FROZEN_HAMILTONIAN")
           particles_mix%els(jparticle)%f(:)= 0.0D0
           particles_mix%els(jparticle)%v(:)= 0.0D0
@@ -267,7 +262,7 @@ CONTAINS
     END IF
     
     DEALLOCATE(hamiltonian, nacv, nace)
-    DEALLOCATE(positions_plus, forces_adiab)
+    DEALLOCATE(positions_tp, forces_adiab)
 
    END SUBROUTINE adiab_fssh_routines
 

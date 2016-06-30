@@ -42,11 +42,11 @@
 ! the molecular dynamics and the trajectory moves forward another time step.
 ! *****************************************************************************
 
-MODULE jacob_utils
-   USE kinds,                           ONLY: default_string_length,&
+MODULE aom_utils
+   USE kinds,                          ONLY: default_string_length,&
                                                dp
-   USE machine,                         ONLY: m_getpid
-   USE jacob_types,                     ONLY: sh_print_env_type
+   USE machine,                        ONLY: m_getpid
+   USE aom_types,                      ONLY: sh_print_env_type
 
   USE cp_parser_methods,               ONLY: read_float_object
 
@@ -75,8 +75,8 @@ MODULE jacob_utils
                                              virial_type,&
                                              zero_virial
 
-  USE mixed_environment_utils,        ONLY: get_subsys_map_index
-  USE mixed_environment_types,        ONLY: mixed_environment_type
+  USE mixed_environment_utils,         ONLY: get_subsys_map_index
+  USE mixed_environment_types,         ONLY: mixed_environment_type
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
   USE string_table,                    ONLY: id2str,&
@@ -105,7 +105,7 @@ IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'jacob_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'aom_utils'
 
    PUBLIC :: makeX,            &
              surfacehop,       &
@@ -943,4 +943,4 @@ end subroutine calcTDT
 
    END SUBROUTINE calc_velocities_prime
 
-END MODULE jacob_utils
+END MODULE aom_utils

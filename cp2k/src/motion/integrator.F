@@ -560,7 +560,7 @@ CONTAINS
 !> Transfer the itimes information to force_env_calc_energy_force
 !> Require for Non Adiabatic Molecular Dynamics 
        IF (itimes.ge.1) THEN
-          force_env%mixed_env%aom_env%velocities = tmp%vel
+          force_env%mixed_env%aom_env%velocities_t = tmp%vel
        ENDIF
        CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
             itimes = itimes)
@@ -578,7 +578,7 @@ CONTAINS
        IF (force_env%mixed_env%aom_env%is_hop) THEN
           CALL vv_second_if_sh_rescaling(tmp, atomic_kind_set, local_particles, particle_set, &
                core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt,     &
-               new_velocities=force_env%mixed_env%aom_env%velocities_plus)
+               new_velocities=force_env%mixed_env%aom_env%velocities_tp)
        ELSE
           CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
                core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)

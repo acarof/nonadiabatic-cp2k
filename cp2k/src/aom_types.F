@@ -42,24 +42,24 @@
 ! the molecular dynamics and the trajectory moves forward another time step.
 ! *****************************************************************************
 
-MODULE jacob_types
+MODULE aom_types
   USE kinds,                           ONLY: dp
 
 IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'jacob_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'aom_types'
 
    TYPE aom_env_type
 !> To store the coordinates in step before and the one before
-     REAL(KIND = dp), DIMENSION(:,:), POINTER         :: rm1,&             ! position step min 1
-                                                         rm2,&             ! position step min 2
-                                                         velocities_plus,& ! velocities step
-                                                         velocities,&      ! velocities step min 1
+     REAL(KIND = dp), DIMENSION(:,:), POINTER         :: rm_t,&             ! position step min 1
+                                                         rm_tm,&             ! position step min 2
+                                                         velocities_tp,& ! velocities step
+                                                         velocities_t,&      ! velocities step min 1
                                                          forces_adiab      ! forces at step 0
 !> To store energies in the Jacob's Method
-     REAL(KIND = dp), DIMENSION(:), POINTER :: energies   
+     REAL(KIND = dp), DIMENSION(:), POINTER :: energies_t   
 !> Old and new state number
      INTEGER                                :: new_state
      INTEGER                                :: old_state
@@ -122,4 +122,4 @@ IMPLICIT NONE
              sh_print_env_type
 
 
-END MODULE jacob_types
+END MODULE aom_types

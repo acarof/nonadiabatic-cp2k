@@ -14,7 +14,7 @@
 ! *****************************************************************************
 
 
-module jacob_overlapfinal
+module aom_overlapfinal
   USE kinds,                           ONLY: default_string_length,&
                                              dp
 #include "./base/base_uses.f90"
@@ -1700,4 +1700,4 @@ contains
       return
   end subroutine calc_sab_with_s
 
-end module jacob_overlapfinal
+end module aom_overlapfinal

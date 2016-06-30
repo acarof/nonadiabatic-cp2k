@@ -37,27 +37,27 @@
 ! the molecular dynamics and the trajectory moves forward another time step.
 ! *****************************************************************************
 
-MODULE jacob_surfacehopping 
+MODULE aom_main 
 
      USE kinds,                           ONLY: default_string_length,&
-                                               dp
+                                                dp
 
 
-     USE jacob_overlapfinal,                 ONLY:  connect_list2, &
-                                             calc_sab, &
-                                             sab_screen_new, &
-                                             calc_dRSab
+     USE aom_overlapfinal,                ONLY:  connect_list2, &
+                                                 calc_sab, &
+                                                 sab_screen_new, &
+                                                 calc_dRSab
 
-     USE jacob_utils,                        ONLY: makeX,    &
-                                             adiabaticity,   &
-                                             surfacehop,     &
-                                             calcforces,     &
-                                             read_listcoeff, &
-                                             choose_firstadiabat, &
-                                             calc_velocities_prime, &
-                                             simple_vel_rescaling
+     USE aom_utils,                       ONLY: makeX,    &
+                                                adiabaticity,   &
+                                                surfacehop,     &
+                                                calcforces,     &
+                                                read_listcoeff, &
+                                                choose_firstadiabat, &
+                                                calc_velocities_prime, &
+                                                simple_vel_rescaling
 
-     USE jacob_types,                     ONLY: aom_env_type, &
+     USE aom_types,                       ONLY: aom_env_type, &
                                                 sh_print_env_type
 
      USE mixed_energy_types,              ONLY: mixed_force_type
@@ -71,7 +71,7 @@ MODULE jacob_surfacehopping
          cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
          cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
          cp_sll_val_set_el_at, cp_sll_val_type
-     USE jacob_print,                     ONLY: adiab_print_coeff,              &
+     USE aom_print,                       ONLY: adiab_print_coeff,              &
                                                 adiab_print_pop,                &
                                                 adiab_print_adiabat_energies,   &
                                                 adiab_print_matrix_density,     &
@@ -79,14 +79,12 @@ MODULE jacob_surfacehopping
                                                 adiab_print_active_state,       &
                                                 adiab_print_sh_info
 
+     USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+     USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                                get_atomic_kind,&
+                                                get_atomic_kind_set
 
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
-
-
-  USE distribution_1d_types,           ONLY: distribution_1d_type
+     USE distribution_1d_types,           ONLY: distribution_1d_type
 
 #include "./base/base_uses.f90"
 
@@ -95,15 +93,15 @@ MODULE jacob_surfacehopping
 
         PRIVATE
  
-        CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN ='jacob_surfacehopping'   
+        CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN ='aom_main'   
 
         PUBLIC :: construct_ham_X_SH
 
 CONTAINS
 
     SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-                                      positions_plus,  &
-                                      energies_plus, kinetic_energy, &
+                                      positions_tp,  &
+                                      energies_tp, kinetic_energy, &
                                       aom_env, itimes, &
                                       is_hop, global_forces, coupling_section, &
                                       adiab_section, my_bo_keyword, rescale_factor, energy_adiabat, &
@@ -113,8 +111,8 @@ CONTAINS
      INTEGER, INTENT(IN)                            :: nadiab,  norbitals 
      INTEGER, INTENT(IN)                            :: aom_atoms
      REAL(KIND=dp), INTENT(OUT)                     :: MDtimestep
-     REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_plus
-     REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_plus
+     REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_tp
+     REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_tp
      REAL(kind=dp), INTENT(IN)                      :: kinetic_energy
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
      INTEGER, POINTER                               :: itimes
@@ -155,8 +153,8 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
-     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C1, C2
-     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E1, E2
+     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
      LOGICAL                                      :: decohere, collapse, analytics
      INTEGER                                      :: new_state , ELsteps   
      REAL(KIND=dp)                                :: dR, times, delta_energy 
@@ -171,8 +169,8 @@ CONTAINS
      REAL(KIND=dp), dimension(:,:), allocatable   :: NACE
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(KIND=dp)                                :: kinetic_energy_prime
-     REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_prime
-     REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities
+     REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
+     REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF",&
@@ -227,12 +225,12 @@ CONTAINS
        ALLOCATE(aom_env%Stmt(mat,mat))
        ALLOCATE(aom_env%Sttm(mat,mat))
        ALLOCATE(aom_env%Stmtm(mat,mat))
-       ALLOCATE(aom_env%rm1(c,3))
-       ALLOCATE(aom_env%rm2(c,3))
-       ALLOCATE(aom_env%energies(mol))
+       ALLOCATE(aom_env%rm_t(3,c))
+       ALLOCATE(aom_env%rm_tm(3,c))
+       ALLOCATE(aom_env%energies_t(mol))
        ALLOCATE(aom_env%bneighbour(3,0:atoms))
        ALLOCATE(aom_env%nacv(3,mat,mat,mat*atoms))
-       ALLOCATE(aom_env%velocities_plus(3, natom))
+       ALLOCATE(aom_env%velocities_tp(3, natom))
        ALLOCATE(aom_env%forces_adiab(3,natom))
        aom_env%futur_decohere = .FALSE.
      endif
@@ -240,8 +238,8 @@ CONTAINS
      ALLOCATE(sh_print_env%proba(mol))     
      ALLOCATE(sh_print_env%pop_init(mol))     
      ALLOCATE(my_forces_adiab(3,natom))
-     ALLOCATE(velocities_prime(3,natom))
-     ALLOCATE(velocities(3,natom))
+     ALLOCATE(velocities_t_prime(3,natom))
+     ALLOCATE(velocities_t(3,natom))
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
      IF (.NOT.ALLOCATED(ctin)) CPABORT("CTIN NOT ALLOCATED CORRECTLY.")
@@ -269,7 +267,7 @@ CONTAINS
      !then the complex ones i.e. H matrices; combinations of H and S
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
      !For ease of calculation therefore, in this program,
-     !H1 etc are always -i*H.
+     !H_t etc are always -i*H.
      !This is why they're complex variables
      allocate(H_t(mat,mat))
      allocate(H_tp(mat,mat))
@@ -378,23 +376,23 @@ CONTAINS
 
 
 !READ THE COORDINATES, ENERGIES AND STATE
-     velocities = aom_env%velocities
+     velocities_t = aom_env%velocities_t
      do coord=1,3
            if (itimes.ge.1) then
-              crds(coord,:,1) = PACK(aom_env%rm2(:,coord), ext_pres)
-              crds(coord,:,2) = PACK(aom_env%rm1(:,coord), ext_pres)
-              crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
-              siteenergies(2,:) = aom_env%energies(:) ! CHANGE_AC
-              siteenergies(3,:) = energies_plus(:) ! CHANGE_AC
+              crds(coord,:,1) = PACK(aom_env%rm_tm(coord,:), ext_pres)
+              crds(coord,:,2) = PACK(aom_env%rm_t(coord,:), ext_pres)
+              crds(coord,:,3) = PACK(positions_tp(coord,:), ext_pres)
+              siteenergies(2,:) = aom_env%energies_t(:) ! CHANGE_AC
+              siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
               old_state = aom_env%new_state
            else if (itimes.eq.0) then 
-              crds(coord,:,1) = PACK(positions_plus(:,coord), ext_pres)
+              crds(coord,:,1) = PACK(positions_tp(coord,:), ext_pres)
 !At time 0, we must guess the positions at time -1 with the inital velocities
-              crds(coord,:,2) = PACK(positions_plus(:,coord), ext_pres) -  &
-                                PACK(velocities(coord,:), ext_pres)*deltatMD
-              crds(coord,:,3) = PACK(positions_plus(:,coord), ext_pres)
+              crds(coord,:,2) = PACK(positions_tp(coord,:), ext_pres) -  &
+                                PACK(velocities_t(coord,:), ext_pres)*deltatMD
+              crds(coord,:,3) = PACK(positions_tp(coord,:), ext_pres)
               siteenergies(2,:) = 0.0D0 ! CHANGE_AC
-              siteenergies(3,:) = energies_plus(:) ! CHANGE_AC
+              siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
               old_state = 1
            endif
      enddo
@@ -515,8 +513,8 @@ CONTAINS
                                         Stptp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
                                         Sttp(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
                                         Stpt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
-                                        H1(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(2,k)), dp)
-                                        H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
+                                        H_t(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(2,k)), dp)
+                                        H_tp(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
                                    end do
                               end do
 
@@ -540,9 +538,9 @@ CONTAINS
                               if (k < i) then
                                    do m=1,orb
                                         do d=1,orb
-                                             H1(orb*(i-1)+d,orb*(k-1)+m) = H1(orb*(k-1)+m,orb*(i-1)+d)
-                                             H2(orb*(i-1)+d,orb*(k-1)+m) = H2(orb*(k-1)+m,orb*(i-1)+d)
-                                             Stt(orb*(i-1)+d,orb*(k-1)+m) = Stt(orb*(k-1)+m,orb*(i-1)+d)
+                                             H_t(orb*(i-1)+d,orb*(k-1)+m)   = H_t(orb*(k-1)+m,orb*(i-1)+d)
+                                             H_tp(orb*(i-1)+d,orb*(k-1)+m)  = H_tp(orb*(k-1)+m,orb*(i-1)+d)
+                                             Stt(orb*(i-1)+d,orb*(k-1)+m)   = Stt(orb*(k-1)+m,orb*(i-1)+d)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
                                              Stmtm(orb*(i-1)+d,orb*(k-1)+m) = Stmtm(orb*(k-1)+m,orb*(i-1)+d)
                                              !A cross symmetry for Sttp, Stpt,
@@ -561,7 +559,7 @@ CONTAINS
                                              call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
                                              & S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
-                                             H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
+                                             H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
                                              !Calcul of the NACV
                                              call calc_dRSab(Atp, atomlist, connlist1, &
@@ -591,7 +589,7 @@ CONTAINS
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Bt, connlist2,&
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                                   Stt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
-                                                  H1(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
+                                                  H_t(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
                                                   call calc_sab(Atm, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, Btm, connlist2,&
@@ -617,10 +615,10 @@ CONTAINS
                          do d=1,orb
                               do m=1,orb
                                    !fill in elements of non-overlapping pairs with 0
-                                   H1(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, 0.0D0,dp)
-                                   H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, 0.0D0,dp)
-                                   Stt(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
-                                   Sttp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
+                                   H_t(orb*(i-1)+d,orb*(k-1)+m)   = cmplx(0.0D0, 0.0D0,dp)
+                                   H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, 0.0D0,dp)
+                                   Stt(orb*(i-1)+d,orb*(k-1)+m)   = 0.0D0
+                                   Sttp(orb*(i-1)+d,orb*(k-1)+m)  = 0.0D0
                                    Stptp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
                                    Stpt(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
                                    Sttm(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
@@ -639,7 +637,7 @@ CONTAINS
                     do j=1,mat
                                         Stt(j,i) = aom_env%Stt(j,i)
                          if (i .ne. j) then
-                              H1(j,i) = cmplx(0.0D0, -1.0D0*scaling*Stt(j,i)/cbar,dp)
+                              H_t(j,i) = cmplx(0.0D0, -1.0D0*scaling*Stt(j,i)/cbar,dp)
                          end if
                                         Sttm(j,i)  = aom_env%Sttm(j,i)
                                         Stmt(j,i)  = aom_env%Stmt(j,i)
@@ -668,33 +666,33 @@ CONTAINS
           !MD is done on a molecular timestep of femtoseconds: however electron dynamics happen on attoseconds
           !so for each molecular timestep, the program calculates for multiple electronic timesteps
           !during this process, the H and S matrices are found by linear interpolation between the original S1 and S2
-          Hdiff = (deltatE/deltatMD)*(H2 - H1)
+          Hdiff = (deltatE/deltatMD)*(H_tp - H_t)
           Sttdiff = (deltatE/deltatMD)*(Stptp - Stt)
           Sttpdiff = (deltatE/deltatMD)*(Sttp - Stmt)
           Sttmdiff = (deltatE/deltatMD)*(Stpt - Sttm)
           Stptpdiff = Sttdiff
           Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
-          Hsave = H1
-          H2save = H2
+          H_t_save  = H_t
+          H_tp_save = H_tp
 
           do t2=1,int(deltatMD/deltatE)
-                    call makeX(mat, H1, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
+                    call makeX(mat, H_t, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
                     !create timestepped equivalents
-                    H12 = H1 + 0.5D0*Hdiff
+                    H_int = H_t + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
                     Sttp = Sttp + 0.5D0*Sttpdiff
                     Sttm = Sttm + 0.5D0*Sttmdiff
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
-                    call makeX(mat, H12, Stt, Sttp, Sttm, Stptp, Stmtm, X12, deltatMD)
+                    call makeX(mat, H_int, Stt, Sttp, Sttm, Stptp, Stmtm, X12, deltatMD)
      
-                    H2 = H12 + 0.5D0*Hdiff
+                    H_tp = H_int + 0.5D0*Hdiff
                     Stt = Stt + 0.5D0*Sttdiff
                     Sttp = Sttp + 0.5D0*Sttpdiff
                     Sttm = Sttm + 0.5D0*Sttmdiff
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
-                    call makeX(mat, H2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD, NACE)
+                    call makeX(mat, H_tp, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD, NACE)
      
                     K2 = cmplx(0.0D0, 0.0D0,dp)
                     K3 = cmplx(0.0D0, 0.0D0,dp)
@@ -756,7 +754,7 @@ CONTAINS
                                             abs(ctotal(1:mat)) 
                     end if
                     !update
-                    H1 = H2
+                    H_t = H_tp
                     ctin = ctout
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
@@ -770,8 +768,8 @@ CONTAINS
 
           end do
 !END PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
-          H1 = Hsave
-          H2 = H2save
+          H_t  = H_t_save
+          H_tp = H_tp_save
 
       ELSE IF (itimes.eq.0) THEN
           !for each molecule
@@ -811,7 +809,7 @@ CONTAINS
                               do d=1,orb
                                    do m=1,orb
                                         !These diagonals are 1 by definition
-                                        H2(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
+                                        H_tp(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
                                    end do
                               end do
 
@@ -822,7 +820,7 @@ CONTAINS
                               if (k < i) then
                                    do m=1,orb
                                         do d=1,orb
-                                             H2(orb*(i-1)+d,orb*(k-1)+m) = H2(orb*(k-1)+m,orb*(i-1)+d)
+                                             H_tp(orb*(i-1)+d,orb*(k-1)+m)  = H_tp(orb*(k-1)+m,orb*(i-1)+d)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
                                         end do
                                    end do
@@ -832,7 +830,7 @@ CONTAINS
                                              call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
                                               S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
-                                             H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
+                                             H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, -scaling*S,dp)
 
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
@@ -848,7 +846,7 @@ CONTAINS
                          do d=1,orb
                               do m=1,orb
                                    !fill in elements of non-overlapping pairs with 0
-                                   H2(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, 0.0D0,dp)
+                                   H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, 0.0D0,dp)
                                    Stptp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
                               end do
                          end do
@@ -870,9 +868,9 @@ CONTAINS
 !DO THE HOPPING TEST 
                !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
                !It gives us back the eigenvalues and eigenvectors
-      IF (itimes.ge.1) call adiabaticity(-AIMAG(H1), mat, C1, E1, .false.)
-      call adiabaticity(-AIMAG(H2), mat, C2, E2, .true.)
-      CALL adiab_print_adiabat_energies(adiab_section, E2,nadiab,deltatMD, times)
+      IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
+      call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true.)
+      CALL adiab_print_adiabat_energies(adiab_section, E_tp,nadiab,deltatMD, times)
 
       !The eigenvectors are needed to calculate the surface hopping probabilities
       !The surfacehop subroutine calculates these probabilites and decides on the
@@ -885,7 +883,7 @@ CONTAINS
           rescale_factor = 1
       ELSE    
           IF (itimes.eq.0) THEN
-              CALL choose_firstadiabat(C2, first_diabat, sh_print_env, first_adiabat)
+              CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
               new_state = first_adiabat
               old_state = first_adiabat
               decohere = .FALSE.
@@ -893,7 +891,7 @@ CONTAINS
               rescale_factor = 1
           ELSE
               sh_print_env%is_first = .FALSE.
-              call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C1, C2, deltatMD, old_state, decohere,  &      
+              call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, old_state, decohere,  &      
                               !new_state, is_hop)
                               new_state, is_hop, decohere_criterion, sh_print_env)
            !> Do the velocities rescaling if required
@@ -904,14 +902,14 @@ CONTAINS
                          F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
                       ENDDO
                    ENDDO
-                   call calcforces(state=old_state,Hin=-AIMAG(H2), C=C2, nacv=nacv, NN=NN, atoms=atoms, &
+                   call calcforces(state=old_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, &
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
                            ctin=ctin)
-                   CALL calc_velocities_prime(velocities, my_forces_adiab, atomic_kinds, deltatMD, &
+                   CALL calc_velocities_prime(velocities_t, my_forces_adiab, atomic_kinds, deltatMD, &
                                           local_particles, &
-                                        velocities_prime, kinetic_energy_prime) 
-                   delta_energy = kinetic_energy_prime-(E2(new_state)-E2(old_state))
+                                        velocities_t_prime, kinetic_energy_prime) 
+                   delta_energy = kinetic_energy_prime-(E_tp(new_state)-E_tp(old_state))
                    sh_print_env%delta_energy = delta_energy
                 !> If delta_energy < 0: frustrated hop, do nothing!
                    IF (delta_energy.lt.0) THEN
@@ -924,8 +922,8 @@ CONTAINS
                       CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
                       SELECT CASE(rescale_keyword)
                       CASE("SIMPLE")
-                           CALL simple_vel_rescaling(velocities_prime, delta_energy, kinetic_energy_prime, &
-                                                     aom_env%velocities_plus)
+                           CALL simple_vel_rescaling(velocities_t_prime, delta_energy, kinetic_energy_prime, &
+                                                     aom_env%velocities_tp)
                       CASE DEFAULT
                            CPABORT("There is no method to do the rescaling of the velocities.")
                       END SELECT
@@ -937,18 +935,10 @@ CONTAINS
                        F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
                     ENDDO
                  ENDDO
-               !call calcforces(state=old_state,Hin=-AIMAG(H2), C=C2, nacv=nacv, NN=NN, atoms=atoms, &
-               !            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
-               !            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
-               !            ctin=ctin)
-               !kinetic_energy_prime = kinetic_energy + SUM(velocities*my_forces_adiab)
-               !CALL calc_velocities_prime(velocities, my_forces_adiab, atomic_kinds, deltatMD, &
-               !                           local_particles, &
-               !                         velocities_prime, kinetic_energy_prime)
               ENDIF 
           ENDIF
-          CALL adiab_print_active_state(adiab_section, new_state, E2(new_state), &
-               C2(:,new_state), nadiab, norbitals, itimes, deltatMD)
+          CALL adiab_print_active_state(adiab_section, new_state, E_tp(new_state), &
+               C_tp(:,new_state), nadiab, norbitals, itimes, deltatMD)
       ENDIF
 !END DO THE HOPPING TEST 
 
@@ -960,7 +950,7 @@ CONTAINS
                      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
                   ENDDO
                ENDDO
-               call calcforces(state=new_state,Hin=-AIMAG(H2), C=C2, nacv=nacv, NN=NN, atoms=atoms, & 
+               call calcforces(state=new_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
                            ctin=ctin)
@@ -986,7 +976,7 @@ CONTAINS
                        if (decohere) then
                              sh_print_env%decohere = .TRUE.
                              do i=1,mat
-                                 ctin(i) = C2(i,old_state) 
+                                 ctin(i) = C_tp(i,old_state) 
                              end do
                              aom_env%futur_decohere = .FALSE. 
                        end if
@@ -997,13 +987,13 @@ CONTAINS
 
 !STORE THE COORDINATES
         if (itimes.ge.1) then
-           aom_env%rm2      = aom_env%rm1
-           aom_env%rm1      = positions_plus
-           aom_env%energies = energies_plus
+           aom_env%rm_tm      = aom_env%rm_t
+           aom_env%rm_t       = positions_tp
+           aom_env%energies_t = energies_tp
         else if (itimes.eq.0) then
-           aom_env%rm2      = positions_plus - TRANSPOSE(velocities)*deltatMD
-           aom_env%rm1      = positions_plus
-           aom_env%energies = energies_plus
+           aom_env%rm_tm      = positions_tp - TRANSPOSE(velocities_t)*deltatMD
+           aom_env%rm_t       = positions_tp
+           aom_env%energies_t = energies_tp
            aom_env%neighbourlist = neighbourlist
         endif
 !END STORE THE COORDINATES
@@ -1012,20 +1002,20 @@ CONTAINS
        aom_env%is_hop      = is_hop
        aom_env%factor      = rescale_factor
        aom_env%ctin        = ctin
-       aom_env%hamiltonian = -AIMAG(H2)
+       aom_env%hamiltonian = -AIMAG(H_tp)
        aom_env%nace        = NACE
        aom_env%nacv        = nacv
        aom_env%new_state = new_state
        aom_env%old_state = old_state
        CALL adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, &
                                                times)
-       energy_adiabat = E2(new_state)
+       energy_adiabat = E_tp(new_state)
 !END PREPARE THE PRINT
 
 !DEALLOCATE
        DEALLOCATE(NACE)
-       DEALLOCATE(velocities_prime)
-       DEALLOCATE(velocities) 
+       DEALLOCATE(velocities_t_prime)
+       DEALLOCATE(velocities_t) 
        DEALLOCATE(sh_print_env%proba)     
        DEALLOCATE(sh_print_env%pop_init)     
        deallocate(ext_pres, ext_elements)
@@ -1049,7 +1039,7 @@ CONTAINS
        deallocate(atomlist_mask)
        deallocate(connlist1)
        deallocate(connlist2)
-       deallocate(H1, H2, H12, Hdiff, Hsave, H2save,X1, X2, X12, Ktot, K2, K3, K4)
+       deallocate(H_t, H_tp, H_int, Hdiff, H_t_save, H_tp_save,X1, X2, X12, Ktot, K2, K3, K4)
        deallocate(Stt, Stptp, Stmtm, Sttp, Sttm, Stpt, Stmt)
        deallocate(Sttdiff, Stptpdiff, Stmtmdiff, Sttpdiff, Sttmdiff, nacv, dist)
        deallocate(exact_forces)
@@ -1058,4 +1048,4 @@ CONTAINS
 
     END SUBROUTINE construct_ham_X_SH
 
-END MODULE jacob_surfacehopping
+END MODULE aom_main
