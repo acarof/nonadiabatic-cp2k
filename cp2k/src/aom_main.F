@@ -39,52 +39,55 @@
 
 MODULE aom_main 
 
-     USE kinds,                           ONLY: default_string_length,&
-                                                dp
+     USE kinds,                        ONLY: default_string_length,&
+                                             dp
 
 
-     USE aom_overlapfinal,                ONLY:  connect_list2, &
-                                                 calc_sab, &
-                                                 sab_screen_new, &
-                                                 calc_dRSab
+     USE aom_overlapfinal,             ONLY:  connect_list2, &
+                                              calc_sab, &
+                                              sab_screen_new, &
+                                              calc_dRSab
 
-     USE aom_utils,                       ONLY: makeX,    &
-                                                adiabaticity,   &
-                                                surfacehop,     &
-                                                calcforces,     &
-                                                read_listcoeff, &
-                                                choose_firstadiabat, &
-                                                calc_velocities_prime, &
-                                                simple_vel_rescaling
+     USE aom_utils,                    ONLY: makeX,    &
+                                             adiabaticity,   &
+                                             surfacehop,     &
+                                             calcforces,     &
+                                             read_listcoeff, &
+                                             choose_firstadiabat, &
+                                             calc_velocities_prime, &
+                                             simple_vel_rescaling
 
-     USE aom_types,                       ONLY: aom_env_type, &
+     USE aom_types,                    ONLY: aom_env_type, &
                                                 sh_print_env_type
 
-     USE mixed_energy_types,              ONLY: mixed_force_type
-     USE input_section_types,             ONLY: section_vals_get,&
-                                                section_vals_get_subs_vals,&
-                                                section_vals_type,&
-                                                section_vals_list_get,&
-                                                section_vals_val_get
-     USE cp_linked_list_val,              ONLY: &
+     USE mixed_energy_types,           ONLY: mixed_force_type
+     USE input_section_types,          ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_list_get,&
+                                              section_vals_val_get
+
+     USE cp_linked_list_val,           ONLY: &
          cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, &
          cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
          cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
          cp_sll_val_set_el_at, cp_sll_val_type
-     USE aom_print,                       ONLY: adiab_print_coeff,              &
-                                                adiab_print_pop,                &
-                                                adiab_print_adiabat_energies,   &
-                                                adiab_print_matrix_density,     &
-                                                adiab_print_exact_forces,       &
-                                                adiab_print_active_state,       &
-                                                adiab_print_sh_info
 
-     USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-     USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                                get_atomic_kind,&
-                                                get_atomic_kind_set
+     USE aom_print,                    ONLY: adiab_print_coeff,              &
+                                             adiab_print_pop,                &
+                                             adiab_print_adiabat_energies,   &
+                                             adiab_print_matrix_density,     &
+                                             adiab_print_exact_forces,       &
+                                             adiab_print_active_state,       &
+                                             adiab_print_sh_info
 
-     USE distribution_1d_types,           ONLY: distribution_1d_type
+
+     USE atomic_kind_list_types,       ONLY: atomic_kind_list_type
+     USE atomic_kind_types,            ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+
+     USE distribution_1d_types,        ONLY: distribution_1d_type
 
 #include "./base/base_uses.f90"
 
@@ -101,7 +104,7 @@ CONTAINS
 
     SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
                                       positions_tp,  &
-                                      energies_tp, kinetic_energy, &
+                                      energies_tp,  &
                                       aom_env, itimes, &
                                       is_hop, global_forces, coupling_section, &
                                       adiab_section, my_bo_keyword, rescale_factor, energy_adiabat, &
@@ -113,7 +116,6 @@ CONTAINS
      REAL(KIND=dp), INTENT(OUT)                     :: MDtimestep
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_tp
      REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_tp
-     REAL(kind=dp), INTENT(IN)                      :: kinetic_energy
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
      INTEGER, POINTER                               :: itimes
      LOGICAL, INTENT(OUT)                           :: is_hop
@@ -135,7 +137,7 @@ CONTAINS
      integer, dimension(:), allocatable :: atomlist, elements
      integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
      integer, dimension(:,:,:,:), allocatable :: neighbourlist
-     REAL(KIND=dp) :: cutoff, scaling, deltatMD, deltatE
+     REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
      character(len=1) :: zgemm_type
      REAL(KIND=dp) :: ctmag,  cbar, minao
@@ -173,8 +175,11 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
 
 !> cutoff to define the neighborough list
-     CALL section_vals_val_get(coupling_section,"CUT_OFF",&
-             r_val=cutoff)
+     CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
+             r_val=cutoff_sites)
+!> cutoff to define the neighborough list
+     CALL section_vals_val_get(coupling_section,"CUT_OFF_CONNECTIVITY",&
+             r_val=cutoff_connect)
 !> Scaling factor Hab = scaling*Sab_bar
      CALL section_vals_val_get(coupling_section,"SCALING_FACTOR",&
              r_val=scaling)
@@ -420,7 +425,7 @@ CONTAINS
           do j=1,mol
                dist(i,j) = ((coms(1,i) - coms(1,j))*(coms(1,i) - coms(1,j)) + (coms(2,i) - coms(2,j))*&
                &(coms(2,i) - coms(2,j)) + (coms(3,i) - coms(3,j))*(coms(3,i) - coms(3,j)))
-               if (dist(i,j) < cutoff*cutoff) then
+               if (dist(i,j) < cutoff_sites*cutoff_sites) then
                     do d=1,orb
                          do m=1,orb
                               NN(orb*(i-1)+d,orb*(j-1)+m) = 1
@@ -441,7 +446,7 @@ CONTAINS
      !we fill out the connlist arrays before calculating the nacv
      if (itimes.eq.0) then
          At(2:4,1:atoms) = crds(1:3,1:atoms,3)
-         call connect_list2(At(2:4,:), atomlist, connlist1, connlist2)
+         call connect_list2(At(2:4,:), atomlist, connlist1, connlist2, cutoff_connect)
          aom_env%connlist1  = connlist1
          aom_env%connlist2  = connlist2
      else

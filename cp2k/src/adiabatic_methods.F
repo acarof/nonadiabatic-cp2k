@@ -90,7 +90,7 @@ CONTAINS
     SUBROUTINE  adiab_fssh_routines(particles_mix, virial_mix, results_mix,      &
                 global_forces, energies_tp, virials, results, nforce_eval,     &
                 map_index, mapping_section, adiab_section, mixed_env, my_itimes, &
-                kinetic_energy, method_keyword, final_energy, atomic_kinds,      &
+                method_keyword, final_energy, atomic_kinds,      &
                 local_particles)
 
     TYPE(particle_list_type), POINTER        :: particles_mix
@@ -98,7 +98,6 @@ CONTAINS
     TYPE(cp_result_type), POINTER            :: results_mix
     TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energies_tp
-    REAL(KIND=dp), INTENT(OUT)               :: kinetic_energy
     TYPE(virial_p_type), DIMENSION(:), &
       POINTER                                :: virials
     TYPE(cp_result_p_type), DIMENSION(:), &
@@ -186,7 +185,7 @@ CONTAINS
         itimes => my_itimes
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-             positions_tp, energies_tp, kinetic_energy, aom_env, itimes, &
+             positions_tp, energies_tp, aom_env, itimes, &
              is_hop, global_forces, coupling_section, adiab_section,& 
              my_bo_keyword, rescale_factor, energy_adiabat, atomic_kinds, &
              local_particles)

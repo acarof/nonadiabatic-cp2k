@@ -59,7 +59,8 @@ contains
       return
   end subroutine
 
-  subroutine connect_list(xyz, atomlist, connectlist)
+  !subroutine connect_list(xyz, atomlist, connectlist)
+  subroutine connect_list(xyz, atomlist, connectlist, cutoff_connect)
 
 !     Calculates connectivity list for atoms identifying their
 !     nearest neighbours for the sake of calculating local conjugation plane
@@ -67,6 +68,7 @@ contains
       REAL(KIND=dp), intent(in) :: xyz(:,:) 
       integer, intent(in) :: atomlist(:)
       integer, intent(out) :: connectlist(:,:)
+      REAL(KIND=dp), intent(in) :: cutoff_connect 
       integer :: i,j,k
       REAL(KIND=dp) :: distvec(3), DNRM2
 
@@ -77,7 +79,7 @@ contains
          do k=1,size(xyz,2)
             distvec=xyz(:,atomlist(i)) - xyz(:,k)
 !           Current nearest neighbour cutoff is 3.00 angs
-            if (atomlist(i) .ne. k .and. DNRM2(3,distvec,1) < 3.00D0) then
+            if (atomlist(i) .ne. k .and. DNRM2(3,distvec,1) < cutoff_connect) then
                                j = j + 1
                 connectlist(j,i) = k
             end if
@@ -97,7 +99,8 @@ contains
                distvec=xyz(:,connectlist(2,i)) - xyz(:,k)
 !           Current nearest neighbour cutoff is 3.00 a. u.
             if (DNRM2(3,distvec,1) > 1.0D0 .and. atomlist(i) .ne. k &
-               .and. DNRM2(3,distvec,1) < 3.00D0) then
+               !.and. DNRM2(3,distvec,1) < 3.00D0) then
+               .and. DNRM2(3,distvec,1) < cutoff_connect) then
                                j = j + 1
                 connectlist(j,i) = k
             end if
@@ -111,7 +114,7 @@ contains
 
   end subroutine
 
-  subroutine connect_list2(xyz, atomlist, connectlist1, connectlist2)
+  subroutine connect_list2(xyz, atomlist, connectlist1, connectlist2, cutoff_connect)
 
 !     Very similar to connect_list but also creates a connectlist2 array 
 !     where the neighbours are at their true position rather than the one 
@@ -123,6 +126,7 @@ contains
       REAL(KIND=dp), intent(in) :: xyz(:,:)
       integer, intent(in) :: atomlist(:)
       integer, intent(out) :: connectlist1(:,:), connectlist2(:,:)
+      REAL(KIND=dp), intent(in)        :: cutoff_connect
       integer :: i,j,k,l
       REAL(KIND=dp) :: distvec(3), DNRM2
 
@@ -138,7 +142,8 @@ contains
          do k=1,size(xyz,2)
             distvec=xyz(:,atomlist(i)) - xyz(:,k)
 !           Current nearest neighbour cutoff is 3.00 a. u.
-            if (atomlist(i) .ne. k .and. DNRM2(3,distvec,1) < 3.5D0) then
+            !if (atomlist(i) .ne. k .and. DNRM2(3,distvec,1) < 3.5D0) then
+            if (atomlist(i) .ne. k .and. DNRM2(3,distvec,1) < cutoff_connect) then
                                j = j + 1
                                connectlist1(j,l) = k
                                connectlist2(j,i) = k
@@ -160,7 +165,8 @@ contains
 
 !              Current nearest neighbour cutoff is 3.00 a. u.
                if (DNRM2(3,distvec,1) > 1.0D0 .and. atomlist(i) .ne. k &
-                   .and. DNRM2(3,distvec,1) < 3.5D0) then
+                   !.and. DNRM2(3,distvec,1) < 3.5D0) then
+                   .and. DNRM2(3,distvec,1) < cutoff_connect) then
 
                                j = j + 1
                                connectlist1(j,l) = k

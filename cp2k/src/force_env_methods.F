@@ -1104,7 +1104,7 @@ CONTAINS
            CALL adiab_fssh_routines(particles_mix, virial_mix, results_mix,   &
                 global_forces, energies, virials, results, nforce_eval,&
                 map_index, mapping_section,adiab_section,mixed_env,my_itimes, &
-                mixed_energy%kin, adiab_keyword, mixed_energy%pot,atomic_kinds, &
+                adiab_keyword, mixed_energy%pot,atomic_kinds, &
                 local_particles)
         !CASE("FROZEN_HAMILTONIAN")
            !Check that all the FF have the same number of atoms than the 1st FF

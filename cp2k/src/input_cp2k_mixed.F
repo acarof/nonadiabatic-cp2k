@@ -218,12 +218,20 @@ CONTAINS
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="CUT_OFF",&
+    CALL keyword_create(keyword, name="CUT_OFF_BETWEEN_SITES",&
          description="Distance cut-off for H_ab calculation",&
          usage="6.0D0", type_of_var=real_t, &
          unit_str="angstrom")
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CUT_OFF_CONNECTIVITY",&
+         description="Distance cut-off for H_ab calculation",&
+         usage="3.50D0", type_of_var=real_t, &
+         unit_str="bohr")
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
+
 
     CALL keyword_create(keyword, name="SCALING_FACTOR",&
          description="Hab = scaling*Sab",&
@@ -240,12 +248,6 @@ CONTAINS
 
     CALL keyword_create(keyword, name="FIRST_DIABAT",&
          description="starting molecule number",&
-         usage="1", type_of_var=integer_t)
-    CALL section_add_keyword(sub2section,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="FIRST_ADIABAT",&
-         description="In B.O. case, decide in which state propagates the electrons.",&
          usage="1", type_of_var=integer_t)
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
@@ -277,8 +279,6 @@ CONTAINS
 
     CALL keyword_create(keyword, name="COLLAPSE",&
          description="Decide if we use the decoherence procedure",&
-         !usage="True", & 
-         !default_l_val=.TRUE., &
          usage="True", & 
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
@@ -286,24 +286,14 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="ANALYTICS",&
-         description="Decide if we use the analytical equation rather than the &
-                      the numerical expression. Only for 2x2 systems.",&
-         !usage="True", & 
-         !default_l_val=.TRUE., &
+         description="Decide if we use the analytical equation rather than "//&
+                      "the numerical expression. Only for 2x2 systems.",&
          usage="True", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
-
-!    CALL keyword_create(keyword, name="SHORTCUT",&
-!         description="Decide if we use the shortcut algorithm to do the matrix products.",&
-!         usage="True", &
-!         default_l_val=.TRUE., &
-!         lone_keyword_l_val=.TRUE.)
-!    CALL section_add_keyword(sub2section,keyword)
-!    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="METHOD_RESCALING",&
          description="Defines the methods to rescale the velocities if required.",&
