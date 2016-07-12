@@ -54,7 +54,6 @@ MODULE aom_main
                                              calcforces,     &
                                              read_listcoeff, &
                                              choose_firstadiabat, &
-                                             calc_velocities_prime, &
                                              simple_vel_rescaling
 
      USE aom_types,                    ONLY: aom_env_type, &
@@ -106,7 +105,7 @@ CONTAINS
                                   positions_tp,  &
                                   energies_tp,  &
                                   aom_env, itimes, &
-                                  is_hop, global_forces, coupling_section, &
+                                  attempt_hop, global_forces, coupling_section, &
                                   adiab_section, my_bo_keyword, energy_adiabat, &
                                   atomic_kinds, local_particles)
 
@@ -118,7 +117,7 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_tp
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
      INTEGER, POINTER                               :: itimes
-     LOGICAL, INTENT(OUT)                           :: is_hop
+     LOGICAL, INTENT(OUT)                           :: attempt_hop
      TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
      TYPE(section_vals_type), POINTER               :: coupling_section
      LOGICAL, INTENT(OUT)                           :: my_bo_keyword
@@ -133,7 +132,7 @@ CONTAINS
 
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      integer :: coord, t2
-     integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, inc, old_state, mat, orb
+     integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, inc, active_state, mat, orb
      integer, dimension(:), allocatable :: atomlist, elements
      integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
      integer, dimension(:,:,:,:), allocatable :: neighbourlist
@@ -159,7 +158,8 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
      LOGICAL                                      :: decohere, collapse, analytics
      INTEGER                                      :: new_state , ELsteps   
-     REAL(KIND=dp)                                :: dR, times, delta_energy 
+     !REAL(KIND=dp)                                :: dR, times, delta_energy 
+     REAL(KIND=dp)                                :: dR, times 
      REAL(KIND=dp)                                :: decohere_criterion
      INTEGER                                      :: imol, iatom, natom
      integer, dimension(:), ALLOCATABLE           :: ext_elements
@@ -167,12 +167,13 @@ CONTAINS
      TYPE(cp_sll_val_type), POINTER               :: listcoeff
      INTEGER                                      :: first_adiabat
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
-     CHARACTER(LEN=default_string_length)         :: rescale_keyword
+!     CHARACTER(LEN=default_string_length)         :: rescale_keyword
      REAL(KIND=dp), dimension(:,:), allocatable   :: NACE
      TYPE(sh_print_env_type)                      :: sh_print_env
-     REAL(KIND=dp)                                :: kinetic_energy_prime
+ !    REAL(KIND=dp)                                :: kinetic_energy_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
+     LOGICAL                                      :: successful_hop
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -233,12 +234,16 @@ CONTAINS
        ALLOCATE(aom_env%rm_t(3,c))
        ALLOCATE(aom_env%rm_tm(3,c))
        ALLOCATE(aom_env%energies_t(mol))
+       ALLOCATE(aom_env%adiab_energies_t(mat))
        ALLOCATE(aom_env%bneighbour(3,0:atoms))
        ALLOCATE(aom_env%nacv(3,mat,mat,mat*atoms))
        ALLOCATE(aom_env%velocities_tp(3, natom))
        ALLOCATE(aom_env%forces_adiab(3,natom))
        aom_env%futur_decohere = .FALSE.
      endif
+
+     ALLOCATE(E_t(mat))
+     ALLOCATE(E_tp(mat))
 
      ALLOCATE(sh_print_env%proba(mol))     
      ALLOCATE(sh_print_env%pop_init(mol))     
@@ -389,7 +394,7 @@ CONTAINS
               crds(coord,:,3) = PACK(positions_tp(coord,:), ext_pres)
               siteenergies(2,:) = aom_env%energies_t(:) ! CHANGE_AC
               siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
-              old_state = aom_env%new_state
+              active_state = aom_env%active_state
            else if (itimes.eq.0) then 
               crds(coord,:,1) = PACK(positions_tp(coord,:), ext_pres)
 !At time 0, we must guess the positions at time -1 with the inital velocities
@@ -398,7 +403,7 @@ CONTAINS
               crds(coord,:,3) = PACK(positions_tp(coord,:), ext_pres)
               siteenergies(2,:) = 0.0D0 ! CHANGE_AC
               siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
-              old_state = 1
+              !old_state = 1
            endif
      enddo
 !READ THE COORDINATES, ENERGIES AND STATE
@@ -455,6 +460,9 @@ CONTAINS
      endif
 !END CONSTRUCT THE CONNLIST
 
+
+!CHECK IF WE ARE IN A POST-HOP RUN
+     successful_hop = aom_env%successful_hop
 
      !used to give correct commands to ZGEMX subroutines later
      zgemm_type = 'N'
@@ -671,16 +679,18 @@ CONTAINS
           !MD is done on a molecular timestep of femtoseconds: however electron dynamics happen on attoseconds
           !so for each molecular timestep, the program calculates for multiple electronic timesteps
           !during this process, the H and S matrices are found by linear interpolation between the original S1 and S2
-          Hdiff = (deltatE/deltatMD)*(H_tp - H_t)
-          Sttdiff = (deltatE/deltatMD)*(Stptp - Stt)
-          Sttpdiff = (deltatE/deltatMD)*(Sttp - Stmt)
-          Sttmdiff = (deltatE/deltatMD)*(Stpt - Sttm)
-          Stptpdiff = Sttdiff
-          Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
-          H_t_save  = H_t
-          H_tp_save = H_tp
+          IF (.NOT.successful_hop) THEN
 
-          do t2=1,int(deltatMD/deltatE)
+             Hdiff = (deltatE/deltatMD)*(H_tp - H_t)
+             Sttdiff = (deltatE/deltatMD)*(Stptp - Stt)
+             Sttpdiff = (deltatE/deltatMD)*(Sttp - Stmt)
+             Sttmdiff = (deltatE/deltatMD)*(Stpt - Sttm)
+             Stptpdiff = Sttdiff
+             Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
+             H_t_save  = H_t
+             H_tp_save = H_tp
+
+             do t2=1,int(deltatMD/deltatE)
                     call makeX(mat, H_t, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
                     !create timestepped equivalents
                     H_int = H_t + 0.5D0*Hdiff
@@ -771,10 +781,11 @@ CONTAINS
                     CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes,deltatMD, &
                                                     times)
 
-          end do
+             end do
 !END PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
-          H_t  = H_t_save
-          H_tp = H_tp_save
+             H_t  = H_t_save
+             H_tp = H_tp_save
+          ENDIF !ONLY IF NOT POST-HOP RUN
 
       ELSE IF (itimes.eq.0) THEN
           !for each molecule
@@ -881,64 +892,66 @@ CONTAINS
       !The surfacehop subroutine calculates these probabilites and decides on the
       !new (possibly unchanged) surface for simulation
       IF (my_bo_keyword) THEN
-          new_state = first_diabat
-          old_state = first_diabat
+          !new_state = first_diabat
+          active_state = first_diabat
           decohere = .FALSE.
-          is_hop = .FALSE.
+          attempt_hop = .FALSE.
       ELSE    
           IF (itimes.eq.0) THEN
               CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
-              new_state = first_adiabat
-              old_state = first_adiabat
+              !new_state = first_adiabat
+              active_state = first_adiabat
               decohere = .FALSE.
-              is_hop = .FALSE.
+              attempt_hop = .FALSE.
           ELSE
               sh_print_env%is_first = .FALSE.
-              call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, old_state, decohere,  &      
-                              !new_state, is_hop)
-                              new_state, is_hop, decohere_criterion, sh_print_env)
+              IF (.NOT.successful_hop) THEN
+                  call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, decohere,  &      
+                                !new_state, is_hop)
+                                  new_state, attempt_hop, decohere_criterion, sh_print_env)
+              ENDIF
            !> Do the velocities rescaling if required
-              IF (old_state.NE.new_state) THEN
-                   CPASSERT(is_hop) !Be sure there is indeed a hop
-                   DO imol=1,mol
-                      DO iatom=1, natom
-                         F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
-                      ENDDO
-                   ENDDO
-                   call calcforces(state=old_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, &
-                           scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
-                           ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
-                           ctin=ctin)
-                   CALL calc_velocities_prime(velocities_t, my_forces_adiab, atomic_kinds, deltatMD, &
-                                          local_particles, &
-                                        velocities_t_prime, kinetic_energy_prime) 
-                   delta_energy = kinetic_energy_prime-(E_tp(new_state)-E_tp(old_state))
-                   sh_print_env%delta_energy = delta_energy
+              !IF (old_state.NE.new_state) THEN
+              !     CPASSERT(is_hop) !Be sure there is indeed a hop
+                   !DO imol=1,mol
+                   !   DO iatom=1, natom
+                   !      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
+                   !   ENDDO
+                   !ENDDO
+                   !call calcforces(state=old_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, &
+                   !        scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
+                   !        ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
+                   !        ctin=ctin)
+                   !CALL calc_velocities_prime(velocities_t, my_forces_adiab, atomic_kinds, deltatMD, &
+                   !                       local_particles, &
+                   !                     velocities_t_prime, kinetic_energy_prime) 
+                   !delta_energy = kinetic_energy_prime-(E_tp(new_state)-E_tp(old_state))
+                   !sh_print_env%delta_energy = delta_energy
                 !> If delta_energy < 0: frustrated hop, do nothing!
-                   IF (delta_energy.lt.0) THEN
-                      new_state = old_state
-                      decohere  = .FALSE.
-                      is_hop    = .FALSE.
-                   ELSE
-                      CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
-                      SELECT CASE(rescale_keyword)
-                      CASE("SIMPLE")
-                           CALL simple_vel_rescaling(velocities_t_prime, delta_energy, kinetic_energy_prime, &
-                                                     aom_env%velocities_tp)
-                      CASE DEFAULT
-                           CPABORT("There is no method to do the rescaling of the velocities.")
-                      END SELECT
-                   ENDIF
-              ELSE
-                 DO imol=1,mol
-                    DO iatom=1, natom
-                       F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
-                    ENDDO
-                 ENDDO
-              ENDIF 
+                   !IF (delta_energy.lt.0) THEN
+                   !   new_state = old_state
+                   !   decohere  = .FALSE.
+                   !   is_hop    = .FALSE.
+                   !ELSE
+                   !   CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
+                   !   SELECT CASE(rescale_keyword)
+                   !   CASE("SIMPLE")
+                   !        CALL simple_vel_rescaling(velocities_t_prime, delta_energy, kinetic_energy_prime, &
+                   !                                  aom_env%velocities_tp)
+                   !   CASE DEFAULT
+                   !        CPABORT("There is no method to do the rescaling of the velocities.")
+                   !   END SELECT
+                   !ENDIF
+              !ELSE
+              !   DO imol=1,mol
+              !      DO iatom=1, natom
+              !         F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
+              !      ENDDO
+              !   ENDDO
+              !ENDIF 
           ENDIF
-          CALL adiab_print_active_state(adiab_section, new_state, E_tp(new_state), &
-               C_tp(:,new_state), nadiab, norbitals, itimes, deltatMD)
+          !CALL adiab_print_active_state(adiab_section, new_state, E_tp(new_state), &
+          !     C_tp(:,new_state), nadiab, norbitals, itimes, deltatMD)
       ENDIF
 !END DO THE HOPPING TEST 
 
@@ -948,13 +961,22 @@ CONTAINS
                DO imol=1,mol
                   DO iatom=1, natom
                      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
+!print*, "global forces"
+!print*, "imol iatom", F(:,iatom,imol)
                   ENDDO
                ENDDO
-               call calcforces(state=new_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
+               call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
                            ctin=ctin)
                aom_env%forces_adiab=my_forces_adiab
+!print*, "Forces in aom_main.F"
+print*, "State", active_state
+!print*, my_forces_adiab
+!print*, "exact_forces"
+!print*, exact_forces
+!print*, "forces in aom_env"
+!print*, aom_env%forces_adiab
                IF (analytics) THEN
                    times = DBLE(itimes)
                    CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, deltatMD, times)
@@ -968,7 +990,7 @@ CONTAINS
       IF (itimes.ge.1) THEN       
                !Finally, collapse the wavefunction if called for
                !if (decohere) then
-               if (is_hop) aom_env%futur_decohere = .TRUE.
+               if (successful_hop) aom_env%futur_decohere = .TRUE.
 !> Check if the collapse key word is TRUE in the input
                if (collapse) then
 !> Check if the surface_hop subroutine asks us to do the decoherence
@@ -976,7 +998,7 @@ CONTAINS
                        if (decohere) then
                              sh_print_env%decohere = .TRUE.
                              do i=1,mat
-                                 ctin(i) = C_tp(i,old_state) 
+                                 ctin(i) = C_tp(i,active_state) 
                              end do
                              aom_env%futur_decohere = .FALSE. 
                        end if
@@ -985,11 +1007,14 @@ CONTAINS
       ENDIF
 !END COLLAPSE IF REQUIRED
 
-!STORE THE COORDINATES
-        if (itimes.ge.1) then
-           aom_env%rm_tm      = aom_env%rm_t
-           aom_env%rm_t       = positions_tp
-           aom_env%energies_t = energies_tp
+!STORE THE COORDINATES IF NOT SUCCESSFUL RUN
+        if (times.ge.1) then
+           if (.NOT.successful_hop) THEN
+               aom_env%rm_tm      = aom_env%rm_t
+               aom_env%rm_t       = positions_tp
+               aom_env%energies_t = energies_tp
+               aom_env%adiab_energies_t = E_tp
+           endif
         else if (itimes.eq.0) then
            aom_env%rm_tm      = positions_tp - TRANSPOSE(velocities_t)*deltatMD
            aom_env%rm_t       = positions_tp
@@ -999,16 +1024,18 @@ CONTAINS
 !END STORE THE COORDINATES
 
 !PREPARE THE PRINT
-       aom_env%is_hop      = is_hop
-       aom_env%ctin        = ctin
-       aom_env%hamiltonian = -AIMAG(H_tp)
-       aom_env%nace        = NACE
-       aom_env%nacv        = nacv
-       aom_env%new_state = new_state
-       aom_env%old_state = old_state
-       CALL adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, &
-                                               times)
-       energy_adiabat = E_tp(new_state)
+       IF (.NOT.successful_hop) THEN 
+          aom_env%ctin        = ctin
+          aom_env%attempt_hop  = attempt_hop
+          aom_env%hamiltonian = -AIMAG(H_tp)
+          aom_env%nace        = NACE
+          aom_env%nacv        = nacv
+          aom_env%new_state = new_state
+          aom_env%active_state = active_state
+       ENDIF
+       !CALL adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, &
+       !                                        times)
+       energy_adiabat = E_tp(active_state)
 !END PREPARE THE PRINT
 
 !DEALLOCATE

@@ -96,6 +96,9 @@ MODULE aom_utils
 
   USE distribution_1d_types,           ONLY: distribution_1d_type
 
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
+!  USE integrator_utils,                ONLY: tmp_variables_type 
 
 #include "./base/base_uses.f90"
 
@@ -114,7 +117,7 @@ IMPLICIT NONE
              read_listcoeff,       & 
              choose_firstadiabat,  &
              simple_vel_rescaling, &
-             calc_velocities_prime
+             check_hop_attempt
 
 CONTAINS
   
@@ -874,20 +877,23 @@ end subroutine calcTDT
 
    END SUBROUTINE choose_firstadiabat
 
-   SUBROUTINE simple_vel_rescaling(velocities_prime, delta_energy, kinetic_energy_prime, &
-                                   velocities_plus)
-        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_prime
+   SUBROUTINE simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime)
+        !TYPE(tmp_variables_type), POINTER        :: tmp
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
         REAL(kind=dp), INTENT(IN)                :: delta_energy
         REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime
-        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
+        !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
 
         CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
         routineP = moduleN//':'//routineN
 
         REAL(kind=dp)                            :: rescale_factor
+
 !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
         rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
-        velocities_plus = rescale_factor*velocities_prime
+        print*, "rescale_factor = ", rescale_factor
+        velocities = rescale_factor*velocities
+
    END SUBROUTINE simple_vel_rescaling
 
    SUBROUTINE calc_velocities_prime(velocities, forces_adiab, &
@@ -942,5 +948,82 @@ end subroutine calcTDT
     kinetic_energy_prime = 0.5*kinetic_energy_prime
 
    END SUBROUTINE calc_velocities_prime
+
+
+   SUBROUTINE check_hop_attempt(velocities, atomic_kind_set, nparticle_kind, local_particles, force_env)
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
+        !TYPE(tmp_variables_type), POINTER        :: tmp
+        TYPE(atomic_kind_type), DIMENSION(:), &
+             POINTER                                :: atomic_kind_set
+        INTEGER, INTENT(IN)                      :: nparticle_kind
+        TYPE(distribution_1d_type), POINTER      :: local_particles
+        TYPE(force_env_type), POINTER            :: force_env
+
+
+        CHARACTER(len=*), PARAMETER :: routineN = 'check_hop_attempt', &
+        routineP = moduleN//':'//routineN
+
+        INTEGER                                  :: iparticle_kind
+        REAL(kind=dp)                            :: mass, kinetic_energy_prime
+        REAL(kind=dp)                            :: delta_energy
+        INTEGER                                  :: nparticle_local, iparticle_local
+        TYPE(atomic_kind_type), POINTER          :: atomic_kind
+        INTEGER                                  :: iparticle
+        CHARACTER(LEN=default_string_length)     :: rescale_keyword
+        INTEGER                                  :: old_state, new_state
+        TYPE(section_vals_type), POINTER         :: mixed_section, adiab_section, coupling_section
+        TYPE(section_vals_type), POINTER         :: force_env_section
+
+        CALL force_env_get(force_env=force_env,&
+                       force_env_section=force_env_section)
+        mixed_section => section_vals_get_subs_vals(force_env_section,"MIXED")
+        adiab_section => section_vals_get_subs_vals(mixed_section, "ADIABATIC")
+        coupling_section => section_vals_get_subs_vals(adiab_section, "AOM")
+        CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
+        SELECT CASE(rescale_keyword)
+        CASE("SIMPLE")
+           kinetic_energy_prime = 0.0D0
+           ! Update Verlet (second part)
+           DO iparticle_kind=1,nparticle_kind
+              atomic_kind => atomic_kind_set(iparticle_kind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+              nparticle_local = local_particles%n_el(iparticle_kind)
+              DO iparticle_local=1,nparticle_local
+                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                 kinetic_energy_prime = kinetic_energy_prime +   &
+                    mass*( &
+                    velocities(1, iparticle)**2 + &
+                    velocities(2, iparticle)**2 + &
+                    velocities(3, iparticle)**2  )
+                    !tmp%vel(3, iparticle)**2  )
+              END DO
+           END DO
+           kinetic_energy_prime = 0.5*kinetic_energy_prime
+    
+           new_state = force_env%mixed_env%aom_env%new_state    
+           old_state = force_env%mixed_env%aom_env%active_state    
+           delta_energy = kinetic_energy_prime-( &
+                     force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
+                     force_env%mixed_env%aom_env%adiab_energies_t(old_state))
+
+print*, "kinetic_enrgy_prime = ", kinetic_energy_prime
+print*, "energy_old_state = ", force_env%mixed_env%aom_env%adiab_energies_t(old_state)
+print*, "energy_new_state = ", force_env%mixed_env%aom_env%adiab_energies_t(new_state)
+
+           IF (delta_energy.lt.0) THEN
+              force_env%mixed_env%aom_env%successful_hop = .FALSE.
+           ELSE 
+              force_env%mixed_env%aom_env%successful_hop = .TRUE.
+              force_env%mixed_env%aom_env%active_state   = force_env%mixed_env%aom_env%new_state
+              force_env%mixed_env%aom_env%new_state = -1
+              CALL simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime)
+           ENDIF
+        CASE DEFAULT
+                CPABORT("There is no method to do the rescaling of the velocities.")
+        END SELECT
+
+
+   END SUBROUTINE check_hop_attempt
+
 
 END MODULE aom_utils

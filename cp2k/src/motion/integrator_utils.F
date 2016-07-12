@@ -99,9 +99,9 @@ MODULE integrator_utils
   PUBLIC :: old_variables_type, tmp_variables_type, allocate_old, deallocate_old,&
        allocate_tmp, update_dealloc_tmp, damp_v, set, update_pv, get_s_ds,&
        rattle_roll_setup, damp_veps, update_veps, vv_first, vv_second,&
-       variable_timestep, &
+       variable_timestep 
 !> CHANGE_AC 
-       vv_second_if_sh_rescaling
+!       vv_second_if_sh_rescaling, update_forces_newstate
 
 CONTAINS
 
@@ -1316,6 +1316,11 @@ CONTAINS
              ELSE
                 DO iparticle_local=1,nparticle_local
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+!print*, "forces in integrator_utils.F vv_first"
+!print*, particle_set(iparticle)%f(1)
+!print*, particle_set(iparticle)%f(2)
+!print*, particle_set(iparticle)%f(3)
+
                    tmp%vel (1,iparticle) = &
                         particle_set(iparticle)%v(1) * tmp%scale_v(1) * tmp%scale_v(1)+&
                         tmp%scale_v(1) * tmp%poly_v(1) * dm * particle_set(iparticle)%f(1)
@@ -1490,7 +1495,7 @@ CONTAINS
                    tmp%vel ( 3, iparticle) = &
                         tmp%vel ( 3, iparticle) * tmp%scale_v(3) * tmp%scale_v(3)  + &
                         tmp%scale_v(3) * tmp%poly_v(3) * dm*particle_set(iparticle)%f(3)
-!print*, "f"
+!print*, "forces in integrator_utils.F vv_second"
 !print*, particle_set(iparticle)%f(1)
 !print*, particle_set(iparticle)%f(2)
 !print*, particle_set(iparticle)%f(3)
@@ -1978,5 +1983,46 @@ print*, tmp%vel(3, iparticle)
     END DO
 
   END SUBROUTINE vv_second_if_sh_rescaling
+
+!  SUBROUTINE update_forces_newstate ( atomic_kind_set, local_particles, particle_set,&
+!       nparticle_kind, new_forces)
+!
+!    TYPE(atomic_kind_type), DIMENSION(:), &
+!      POINTER                                :: atomic_kind_set
+!    TYPE(distribution_1d_type), POINTER      :: local_particles
+!    TYPE(particle_type), DIMENSION(:), &
+!      POINTER                                :: particle_set
+!    INTEGER, INTENT(IN)                      :: nparticle_kind
+!    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: new_velocities
+!
+!    CHARACTER(len=*), PARAMETER :: routineN = 'update_forces_newstate', &
+!      routineP = moduleN//':'//routineN
+!
+!    INTEGER                                  :: iparticle, iparticle_kind, &
+!                                                iparticle_local, &
+!                                                nparticle_local
+!                                                !nparticle_local, shell_index
+!    LOGICAL                                  :: is_shell
+!    REAL(KIND=dp)                            :: dm,  &
+!                                                mass
+!    !REAL(KIND=dp)                            :: dm, dmc, dms, fac_massc, &
+!    !                                            fac_masss, mass
+!    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+!    TYPE(shell_kind_type), POINTER           :: shell
+!
+!    NULLIFY(atomic_kind,shell)
+!
+!    DO iparticle_kind=1,nparticle_kind
+!       nparticle_local = local_particles%n_el(iparticle_kind)
+!       DO iparticle_local=1,nparticle_local
+!                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+!                   particle_set(iparticle)%f(1) =  new_forces( 1, iparticle)
+!                   particle_set(iparticle)%f(2) =  new_forces( 2, iparticle)
+!                   particle_set(iparticle)%f(3) =  new_forces( 3, iparticle)
+!       END DO
+!    END DO
+!
+!  END SUBROUTINE update_forces_newstate
+
 
 END MODULE integrator_utils

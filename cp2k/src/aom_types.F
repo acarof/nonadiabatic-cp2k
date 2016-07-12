@@ -60,9 +60,10 @@ IMPLICIT NONE
                                                          forces_adiab      ! forces at step 0
 !> To store energies in the Jacob's Method
      REAL(KIND = dp), DIMENSION(:), POINTER :: energies_t   
+     REAL(KIND = dp), DIMENSION(:), POINTER :: adiab_energies_t   
 !> Old and new state number
      INTEGER                                :: new_state
-     INTEGER                                :: old_state
+     INTEGER                                :: active_state
 !     LOGICAL                                :: inrun
 !> To store the previous overlap matrix
      REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Stmt, Sttm, Stmtm
@@ -85,8 +86,12 @@ IMPLICIT NONE
      LOGICAL                                             :: futur_decohere
      REAL(KIND = dp)                                     :: factor
 !> If hop
-     LOGICAL                                     :: is_hop
+     LOGICAL                                     :: attempt_hop
+     LOGICAL                                     :: successful_hop
    END TYPE aom_env_type
+
+
+
 
 
    TYPE sh_print_env_type

@@ -70,9 +70,9 @@ MODULE integrator
        allocate_old, allocate_tmp, damp_v, damp_veps, deallocate_old, &
        get_s_ds, old_variables_type, rattle_roll_setup, set, &
        tmp_variables_type, update_dealloc_tmp, update_pv, update_veps, &
+       variable_timestep, vv_first, vv_second
 !CHANGE_AC
-       !variable_timestep, vv_first, vv_second
-       variable_timestep, vv_first, vv_second, vv_second_if_sh_rescaling
+       !variable_timestep, vv_first, vv_second, vv_second_if_sh_rescaling, update_forces_newstate
 !CHANGE_AC
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matmul_3x3,&
@@ -117,6 +117,7 @@ MODULE integrator
 !> CHANGE_AC
   USE md_ener_types,                   ONLY: md_ener_type,&
                                              zero_md_ener
+  USE aom_utils,                       ONLY: check_hop_attempt
 !> END CHANGE_AC
 
   IMPLICIT NONE
@@ -483,7 +484,9 @@ CONTAINS
     nparticle = particles%n_els
     particle_set => particles%els
     molecule_set => molecules%els
-
+!print*, "forces at the beginning in integrator.F"
+!print*, particle_set(1)%f(:)
+!print*, particle_set(2)%f(:)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          shell_present=shell_present,shell_adiabatic=shell_adiabatic,&
          shell_check_distance=shell_check_distance)
@@ -587,14 +590,28 @@ CONTAINS
              CALL metadyn_integrator(force_env, itimes, tmp%vel)
 
              ! Velocity Verlet (second part)
-             IF (force_env%mixed_env%aom_env%is_hop) THEN
-                 CALL vv_second_if_sh_rescaling(tmp, atomic_kind_set, local_particles, particle_set, &
-                      core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt,     &
-                      new_velocities=force_env%mixed_env%aom_env%velocities_tp)
-             ELSE
-                 CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
-                                core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+
+             !IF (force_env%mixed_env%aom_env%is_hop) THEN
+             !    CALL vv_second_if_sh_rescaling(tmp, atomic_kind_set, local_particles, particle_set, &
+             !         core_particle_set, shell_particle_set, nparticle_kind,shell_adiabatic, dt,     &
+             !         new_velocities=force_env%mixed_env%aom_env%velocities_tp)
+             !ELSE
+              CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
+                             core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+             !ENDIF
+             IF (force_env%mixed_env%aom_env%attempt_hop) THEN
+print*, "Attempt hop in integrator.F"
+                CALL check_hop_attempt(tmp%vel, atomic_kind_set, nparticle_kind, local_particles, force_env)
+                IF (force_env%mixed_env%aom_env%successful_hop) THEN
+print*, "Successful hop in integrator.F"
+                   CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
+                                                    itimes = itimes)
+!stop
+                ENDIF
              ENDIF
+
+                !CALL update_forces_newstate ( atomic_kind_set, local_particles, particle_set,&
+                !                              nparticle_kind, new_forces=force_env%mixed_env%aom_env%new_forces_adiab) 
           ELSE 
              ![NB] let nve work with force mixing which does not have consistent
              !energies and forces

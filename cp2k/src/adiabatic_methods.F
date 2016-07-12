@@ -132,7 +132,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:),POINTER    :: nace
     REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
-    INTEGER                                  :: old_state, new_state
+    !INTEGER                                  :: old_state, new_state
     REAL(KIND=dp)                            :: energy_adiabat
     LOGICAL                                  :: is_hop
     LOGICAL                                  :: my_bo_keyword
@@ -195,20 +195,22 @@ CONTAINS
         ALLOCATE(nace(norbitals*nadiab, norbitals*nadiab))
         ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*aom_atoms))
 
+        IF (.NOT.aom_env%successful_hop) THEN
 !> Get the renewed information from aom_env
-        hamiltonian  = aom_env%hamiltonian
-        nace         = aom_env%nace
-        nacv         = aom_env%nacv
-        new_state    = aom_env%new_state
-        old_state    = aom_env%old_state
-        forces_adiab = aom_env%forces_adiab
+           hamiltonian  = aom_env%hamiltonian
+           nace         = aom_env%nace
+           nacv         = aom_env%nacv
+           !new_state    = aom_env%new_state
+           !old_state    = aom_env%old_state
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
-        CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes, MDtimestep)
-        CALL adiab_print_nace(adiab_section, nace, nadiab,norbitals,itimes, MDtimestep)
-        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, MDtimestep)        
-        CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes, MDtimestep)
-
+           CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes, MDtimestep)
+           CALL adiab_print_nace(adiab_section, nace, nadiab,norbitals,itimes, MDtimestep)
+           CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, MDtimestep)        
+           !CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes, MDtimestep)
+        ELSE
+           aom_env%successful_hop = .FALSE.
+        ENDIF
 
 !> IMPORTANT: store all aom_env for the future timesteps
         mixed_env%aom_env=aom_env
@@ -219,6 +221,7 @@ CONTAINS
     END SELECT
 
 !> IMPORTANT : GIVE BACK THE FORCES TO FIST
+    forces_adiab = aom_env%forces_adiab
     DO iparticle = 1, natom
       jparticle = map_index(iparticle)
       SELECT CASE(method_keyword)
@@ -236,6 +239,8 @@ CONTAINS
         final_energy = energy_adiabat
       CASE("FSSH")
         particles_mix%els(jparticle)%f(:)= forces_adiab(:,iparticle)
+!print*, "Forces in adiabatic_fssh_routines"
+!print*, jparticle, particles_mix%els(jparticle)%f(:)
         final_energy = energy_adiabat
       END SELECT
     END DO
