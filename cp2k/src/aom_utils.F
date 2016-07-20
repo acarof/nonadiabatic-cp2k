@@ -158,7 +158,7 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         call matinvsqrt(mol, .TRUE., Stptpinvsqrt)
         Stmtminvsqrt = Stmtm
         call matinvsqrt(mol, .TRUE., Stmtminvsqrt)
-        
+
         !subroutine DGEMM multiplies two matrices, from the BLAS
         !use to build the S terms in the X matrix
 

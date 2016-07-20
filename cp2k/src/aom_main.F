@@ -173,7 +173,7 @@ CONTAINS
  !    REAL(KIND=dp)                                :: kinetic_energy_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
-     LOGICAL                                      :: successful_hop
+     LOGICAL                                      :: successful_hop, select_first_adiabat
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -201,6 +201,7 @@ CONTAINS
              r_val=dR)
      CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
      CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
+     CALL section_vals_val_get(coupling_section,"SELECT_FIRST_ADIABAT", l_val=select_first_adiabat)
 
 !> Number of sites
      mol = nadiab ! CHANGE_AC
@@ -898,8 +899,13 @@ CONTAINS
           attempt_hop = .FALSE.
       ELSE    
           IF (itimes.eq.0) THEN
-              CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
-              !new_state = first_adiabat
+              IF (select_first_adiabat) THEN
+                 CALL section_vals_val_get(coupling_section,"FIRST_ADIABAT",&
+                                           i_val=first_adiabat)
+              ELSE
+                 CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
+                 !new_state = first_adiabat
+              ENDIF
               active_state = first_adiabat
               decohere = .FALSE.
               attempt_hop = .FALSE.
