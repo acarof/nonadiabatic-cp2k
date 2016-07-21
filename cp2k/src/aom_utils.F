@@ -187,7 +187,7 @@ end subroutine makeX
 
 
 subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, & 
-                      decohere, new_state, is_hop, decohere_criterion, sh_print_env)
+                      decohere, new_state, attempt_hop, decohere_criterion, sh_print_env)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -197,7 +197,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
         REAL(KIND=dp), INTENT(IN) :: decohere_criterion
 
         integer :: i, j, mol, k, l
-        integer, intent(inout) :: old_state
+        integer, intent(in) :: old_state
         REAL(KIND=dp) :: hop, sumg
         REAL(KIND=dp), intent(in) :: deltat
         REAL(KIND=dp), dimension(:,:), allocatable :: dphi
@@ -210,7 +210,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
         COMPLEX(KIND=dp) :: cstate
         logical, intent(out) :: decohere
         INTEGER, INTENT(OUT)        :: new_state
-        LOGICAL, INTENT(OUT)        :: is_hop
+        LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
 
         mol = size(Stt,1)
@@ -321,7 +321,6 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
         call random_number(hop)
         sh_print_env%hop       = hop
         sh_print_env%old_state = old_state
-
         !and see if this random number causes a surface hop
         sumg = 0.0D0
         do i=1,mol
@@ -331,14 +330,14 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                                 new_state = i
 !                                write(24,*) i                        
                                 decohere = .FALSE.
-                                is_hop = .TRUE.
-                                sh_print_env%is_hop    = is_hop
+                                attempt_hop = .TRUE.
+                                sh_print_env%attempt_hop    = attempt_hop
                                 sh_print_env%new_state = new_state
                                 return
                         elseif (i == old_state) then
                                 new_state = old_state
-                                is_hop = .FALSE.
-                                sh_print_env%is_hop    = is_hop
+                                attempt_hop = .FALSE.
+                                sh_print_env%attempt_hop    = attempt_hop
                                 sh_print_env%new_state = new_state
 !                                write(24,*) state
                                 
@@ -1006,16 +1005,15 @@ end subroutine calcTDT
                      force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
                      force_env%mixed_env%aom_env%adiab_energies_t(old_state))
 
-print*, "kinetic_enrgy_prime = ", kinetic_energy_prime
-print*, "energy_old_state = ", force_env%mixed_env%aom_env%adiab_energies_t(old_state)
-print*, "energy_new_state = ", force_env%mixed_env%aom_env%adiab_energies_t(new_state)
-
            IF (delta_energy.lt.0) THEN
               force_env%mixed_env%aom_env%successful_hop = .FALSE.
            ELSE 
               force_env%mixed_env%aom_env%successful_hop = .TRUE.
+              force_env%mixed_env%aom_env%old_state      = force_env%mixed_env%aom_env%active_state
               force_env%mixed_env%aom_env%active_state   = force_env%mixed_env%aom_env%new_state
-              force_env%mixed_env%aom_env%new_state = -1
+              force_env%mixed_env%aom_env%kinetic_energy = kinetic_energy_prime
+              force_env%mixed_env%aom_env%delta_energy   = delta_energy
+              !force_env%mixed_env%aom_env%new_state = -1
               CALL simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime)
            ENDIF
         CASE DEFAULT

@@ -248,6 +248,7 @@ CONTAINS
 
      ALLOCATE(sh_print_env%proba(mol))     
      ALLOCATE(sh_print_env%pop_init(mol))     
+     ALLOCATE(sh_print_env%adiab_energies_t(mol))     
      ALLOCATE(my_forces_adiab(3,natom))
      ALLOCATE(velocities_t_prime(3,natom))
      ALLOCATE(velocities_t(3,natom))
@@ -915,6 +916,7 @@ CONTAINS
                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, decohere,  &      
                                 !new_state, is_hop)
                                   new_state, attempt_hop, decohere_criterion, sh_print_env)
+print*, "print", sh_print_env%old_state
               ENDIF
            !> Do the velocities rescaling if required
               !IF (old_state.NE.new_state) THEN
@@ -1038,9 +1040,24 @@ print*, "State", active_state
           aom_env%nacv        = nacv
           aom_env%new_state = new_state
           aom_env%active_state = active_state
+          sh_print_env%successful_hop = successful_hop
+          sh_print_env%adiab_energies_t = aom_env%adiab_energies_t
+          sh_print_env%new_state = aom_env%new_state
+          sh_print_env%old_state = aom_env%active_state
+          CALL adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, &
+                                               times)
+       ELSE
+          sh_print_env%adiab_energies_t = aom_env%adiab_energies_t
+          sh_print_env%kinetic_energy = aom_env%kinetic_energy 
+          sh_print_env%delta_energy   = aom_env%delta_energy 
+          sh_print_env%successful_hop = successful_hop
+          sh_print_env%new_state = aom_env%new_state
+          sh_print_env%old_state = aom_env%old_state
+          CALL adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, &
+                                               times)
+          aom_env%new_state = -1
+          aom_env%old_state = -1
        ENDIF
-       !CALL adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, &
-       !                                        times)
        energy_adiabat = E_tp(active_state)
 !END PREPARE THE PRINT
 
@@ -1050,6 +1067,7 @@ print*, "State", active_state
        DEALLOCATE(velocities_t) 
        DEALLOCATE(sh_print_env%proba)     
        DEALLOCATE(sh_print_env%pop_init)     
+       DEALLOCATE(sh_print_env%adiab_energies_t)     
        deallocate(ext_pres, ext_elements)
        deallocate(elements)
        deallocate(scoefftot, pcoefftot)

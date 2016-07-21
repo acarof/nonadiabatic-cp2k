@@ -61,9 +61,12 @@ IMPLICIT NONE
 !> To store energies in the Jacob's Method
      REAL(KIND = dp), DIMENSION(:), POINTER :: energies_t   
      REAL(KIND = dp), DIMENSION(:), POINTER :: adiab_energies_t   
+     REAL(KIND = dp)                             :: kinetic_energy
+     REAL(KIND = dp)                             :: delta_energy
 !> Old and new state number
      INTEGER                                :: new_state
      INTEGER                                :: active_state
+     INTEGER                                :: old_state
 !     LOGICAL                                :: inrun
 !> To store the previous overlap matrix
      REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Stmt, Sttm, Stmtm
@@ -95,6 +98,11 @@ IMPLICIT NONE
 
 
    TYPE sh_print_env_type
+!> If hop
+     LOGICAL                                     :: attempt_hop
+     LOGICAL                                     :: successful_hop
+!> To store energies in the Jacob's Method
+     REAL(KIND = dp), DIMENSION(:), POINTER      :: adiab_energies_t   
 !> The probability array for the hop
      REAL(KIND = dp), DIMENSION(:), POINTER      :: proba
 !> Random number for test hop
@@ -103,14 +111,14 @@ IMPLICIT NONE
      LOGICAL                                     :: renorm
 !> If renormalization occurs: the sum of probabilities
      REAL(KIND = dp)                             :: sumprob
-     REAL(KIND = dp)                             :: factor
 !> Old and new state number
      INTEGER                                     :: old_state
      INTEGER                                     :: new_state
 !> Delta energy between old_state and putative new_state
      REAL(KIND = dp)                             :: delta_energy
+     REAL(KIND = dp)                             :: kinetic_energy
 !> If hop occurs
-     LOGICAL                                     :: is_hop
+!     LOGICAL                                     :: is_hop
 !> If decoherence occurs
      LOGICAL                                     :: decohere
 !> If it's the initial step

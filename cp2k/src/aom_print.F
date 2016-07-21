@@ -594,22 +594,24 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_format
     TYPE(cp_logger_type), POINTER            :: logger
 
-     REAL(KIND = dp), DIMENSION(:), POINTER      :: proba, pop_init
-     REAL(KIND = dp)                             :: hop
-     LOGICAL                                     :: renorm
-     REAL(KIND = dp)                             :: sumg
-     REAL(KIND = dp)                             :: factor
-     INTEGER                                     :: old_state
-     INTEGER                                     :: new_state, first_adiabat
-     REAL(KIND = dp)                             :: delta_energy, initrandom
-     LOGICAL                                     :: is_hop
-     LOGICAL                                     :: decohere, is_first
+    REAL(KIND = dp), DIMENSION(:), POINTER      :: proba, pop_init
+    REAL(KIND = dp)                             :: hop
+    LOGICAL                                     :: renorm
+    REAL(KIND = dp)                             :: sumg
+    INTEGER                                     :: old_state
+    INTEGER                                     :: new_state, first_adiabat
+    REAL(KIND = dp)                             :: delta_energy, initrandom, kinetic_energy
+    LOGICAL                                     :: attempt_hop, successful_hop
+    LOGICAL                                     :: decohere, is_first
+    REAL(KIND = dp), ALLOCATABLE, DIMENSION(:)  :: adiab_energies_t
    
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
+print*, "print 3", sh_print_env%adiab_energies_t
     ALLOCATE(proba(nadiab))
     ALLOCATE(pop_init(nadiab))
+    ALLOCATE(adiab_energies_t(nadiab))
 
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%SH_INFO",&
                extension=".log", middle_name="sh",log_filename=.FALSE.)
@@ -626,17 +628,19 @@ CONTAINS
        renorm       = sh_print_env%renorm
        proba        = sh_print_env%proba
        hop          = sh_print_env%hop
-       is_hop       = sh_print_env%is_hop
+       attempt_hop  = sh_print_env%attempt_hop
        old_state    = sh_print_env%old_state
        new_state    = sh_print_env%new_state
-       delta_energy = sh_print_env%delta_energy
-       factor       = sh_print_env%factor
        decohere     = sh_print_env%decohere
        is_first     = sh_print_env%is_first
        initrandom   = sh_print_env%initrandom
        pop_init     = sh_print_env%pop_init
        first_adiabat= sh_print_env%first_adiabat    
-
+       adiab_energies_t = sh_print_env%adiab_energies_t
+       delta_energy     = sh_print_env%delta_energy
+       successful_hop   = sh_print_env%successful_hop
+       kinetic_energy   = sh_print_env%kinetic_energy
+print*, "print 4", adiab_energies_t
        IF (is_first) THEN
           WRITE( unit_nr, "(A)")   "LET'S START. "
           WRITE( unit_nr, "(A)")   "Adiabatic Initial Population = "
@@ -648,31 +652,43 @@ CONTAINS
           WRITE( unit_nr, "(A,I8)" ) "First Adiabatic State = ", first_adiabat
           WRITE( unit_nr, "(A)") "  "
        ELSE        
-          WRITE ( unit_nr, "( A,I8,A,I8)" ) "Surface Hopping Info,  nadiab =", nadiab, &
+          IF (successful_hop) THEN
+             WRITE( unit_nr, "(A,F20.10)" ) "Energy old state = ", adiab_energies_t(old_state)
+             WRITE( unit_nr, "(A,F20.10)" ) "Energy new state = ", adiab_energies_t(new_state)
+             WRITE( unit_nr, "(A,F20.10)" ) "Energy difference   = ", delta_energy
+             WRITE( unit_nr, "(A,F20.10)" ) "Kinetic energy   = ", kinetic_energy
+             WRITE( unit_nr, "(A)") "SUCCESSFUL HOP!"
+             WRITE( unit_nr, "(A,I8)" ) "Final state   = ", new_state
+          ELSE
+             WRITE ( unit_nr, "( A,I8,A,I8)" ) "Surface Hopping Info,  nadiab =", nadiab, &
                                                 " , norbitals = ", norbitals
-          WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",INT(times),", time = ",time, " (fs)"
-          WRITE( unit_nr, "(A,F20.10)" ) "Sum of probability = ", sumg
+             WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",INT(times),", time = ",time, " (fs)"
+             WRITE( unit_nr, "(A,F20.10)" ) "Sum of probability = ", sumg
 
-          IF (renorm)  WRITE( unit_nr, "(A)" ) "RE-NORMALIZATION!"
+             IF (renorm)  WRITE( unit_nr, "(A)" ) "RE-NORMALIZATION!"
 
-          WRITE( unit_nr, "(A)" ) "Probability = "
-          DO iadiab=1, nadiab
-             my_format="(I4,"
-             WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, proba(iadiab)
-          ENDDO
-          WRITE( unit_nr, "(A,F20.10)" ) "Random number = ", hop
-          IF (is_hop) THEN
+             WRITE( unit_nr, "(A)" ) "Probability = "
+             DO iadiab=1, nadiab
+                my_format="(I4,"
+                WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, proba(iadiab)
+             ENDDO
+             WRITE( unit_nr, "(A,F20.10)" ) "Random number = ", hop
+!stop
+          IF (attempt_hop) THEN
              WRITE( unit_nr, "(A,I8,A,I8)" ) "ATTEMPT between old_state = ", old_state, " and new_state = ", new_state
-             WRITE( unit_nr, "(A,F20.10)" ) "Energy Differences = ", delta_energy
-             IF (delta_energy.ge.0) THEN
-                WRITE( unit_nr, "(A)") "SUCCESSFUL HOP!"
-                WRITE( unit_nr, "(A,F20.10)" ) "Rescaling factor = ", factor
-             ELSE
-                WRITE( unit_nr, "(A)") "FRUSTRATED HOP: NO HOP!"
-             ENDIF
-          ELSE 
-             WRITE( unit_nr, "(A)") "NO HOP!"
-          ENDIF   
+          ELSE
+             WRITE( unit_nr, "(A)" ) "NO HOP!"
+             WRITE( unit_nr, "(A,I8)" ) "Final state   = ", old_state
+          ENDIF
+          ENDIF
+          !ELSE
+          !   ELSE
+          !      WRITE( unit_nr, "(A)") "FRUSTRATED HOP: NO HOP!"
+          !   ENDIF
+          !   WRITE( unit_nr, "(A,F20.10)" ) "Final state   = ", new_state
+          !ELSE 
+          !   WRITE( unit_nr, "(A)") "NO HOP!"
+          !ENDIF   
           IF (decohere) WRITE( unit_nr, "(A)") "DECOHERENCE"       
           WRITE( unit_nr, "(A)")     "  "
           WRITE ( unit_nr, '(A)' )   "  "
@@ -681,6 +697,7 @@ CONTAINS
 
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%SH_INFO")
     DEALLOCATE(proba)
+    DEALLOCATE(adiab_energies_t)
    END SUBROUTINE adiab_print_sh_info
 
 
