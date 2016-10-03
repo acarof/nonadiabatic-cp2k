@@ -1234,7 +1234,8 @@ print*, "HERE 3", hop_nacv(1,1)
                   force_env%mixed_env%aom_env%kinetic_energy = kinetic_energy_prime
                   force_env%mixed_env%aom_env%delta_energy   = delta_energy
                   !force_env%mixed_env%aom_env%new_state = -1
-                  CALL hop_nacv_vel_rescaling(velocities, delta_energy, A, B, hop_nacv, atomic_kind_set, local_particles)
+                  CALL hop_nacv_vel_rescaling(nparticle_kind, velocities, delta_energy, A, B, hop_nacv, &
+                                              atomic_kind_set, local_particles)
               ENDIF
            ENDIF 
         CASE DEFAULT
@@ -1243,7 +1244,9 @@ print*, "HERE 3", hop_nacv(1,1)
 
    END SUBROUTINE check_hop_attempt
 
-   SUBROUTINE hop_nacv_vel_rescaling(velocities, delta_energy, A, B, hop_nacv, atomic_kind_set, local_particles)
+   SUBROUTINE hop_nacv_vel_rescaling(nparticle_kind, velocities, delta_energy, A, B, hop_nacv, atomic_kind_set, &
+                                     local_particles)
+        INTEGER, INTENT(IN)                      :: nparticle_kind
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
         REAL(kind=dp), INTENT(IN)                :: delta_energy, A, B
         REAL(kind=dp), DIMENSION(:,:), INTENT(IN)   :: hop_nacv
@@ -1257,7 +1260,7 @@ print*, "HERE 3", hop_nacv(1,1)
         REAL(kind=dp)                            :: rescale_factor
         REAL(kind=dp)                            :: mass
         INTEGER                                  :: iparticle_kind
-        INTEGER                                  :: nparticle_local, nparticle_kind
+        INTEGER                                  :: nparticle_local 
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
@@ -1265,6 +1268,7 @@ print*, "HERE 3", hop_nacv(1,1)
 !     Chem Phys 2008, 349:334–347.
 ! B = -B, compare to the paper
 
+print*, "Hey"
         IF (B < 0) THEN
            rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
         ELSE
@@ -1276,7 +1280,12 @@ print*, "HERE 3", hop_nacv(1,1)
            nparticle_local = local_particles%n_el(iparticle_kind)
            DO iparticle_local=1,nparticle_local
               iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-              velocities(:, iparticle ) = velocities(:, iparticle) + (rescale_factor/mass) * hop_nacv(:, iparticle)
+print*, "velocities(:, iparticle)", iparticle, velocities(:, iparticle)
+              IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
+                   velocities(3, iparticle)**2 ).NE.0.0d0) THEN
+                 velocities(:, iparticle ) = velocities(:, iparticle) + (rescale_factor/mass) * hop_nacv(:, iparticle)
+              ENDIF
+print*, "velocities(:, iparticle)", iparticle, velocities(:, iparticle)
            ENDDO
         END DO
 
@@ -1318,7 +1327,10 @@ print*, "HERE 3", hop_nacv(1,1)
                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
 
                  DO coord = 1, 3
-                    A = A + hop_nacv(coord, iparticle)**2 / mass
+                    IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
+                       velocities(3, iparticle)**2 ).NE.0.0d0) THEN
+                       A = A + hop_nacv(coord, iparticle)**2 / mass
+                    ENDIF
                     B = B + velocities(coord, iparticle) * hop_nacv(coord, iparticle)
 !print*, "mass = ", mass
 !print*, "A = ", iparticle, coord, A
