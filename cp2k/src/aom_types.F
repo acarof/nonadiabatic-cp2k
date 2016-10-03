@@ -61,15 +61,15 @@ IMPLICIT NONE
 !> To store energies in the Jacob's Method
      REAL(KIND = dp), DIMENSION(:), POINTER :: energies_t   
      REAL(KIND = dp), DIMENSION(:), POINTER :: adiab_energies_t   
-     REAL(KIND = dp)                             :: kinetic_energy
-     REAL(KIND = dp)                             :: delta_energy
+     REAL(KIND = dp)                        :: kinetic_energy
+     REAL(KIND = dp)                        :: delta_energy, scaling, cbar
 !> Old and new state number
      INTEGER                                :: new_state
      INTEGER                                :: active_state
      INTEGER                                :: old_state
 !     LOGICAL                                :: inrun
 !> To store the previous overlap matrix
-     REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Stmt, Sttm, Stmtm
+     REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Stmt, Sttm, Stmtm, Stptp
 !> To store some connectivity information
      integer, dimension(:,:), POINTER       :: connlist1, connlist2, bneighbour
 !> To store the previous coefficients
@@ -80,6 +80,10 @@ IMPLICIT NONE
      INTEGER, DIMENSION(:,:,:,:), POINTER                  :: neighbourlist
 !> To print the Hamiltonian
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: hamiltonian
+     REAL(KIND=dp), DIMENSION(:,:), POINTER              :: eigenvector_matrix
+     INTEGER, DIMENSION(:,:), POINTER                    :: NN
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER            :: diabatic_forces
+     LOGICAL, DIMENSION(:), POINTER                      :: ext_pres
 !> To print the NACEs
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: nace
 !> To print the NACVs

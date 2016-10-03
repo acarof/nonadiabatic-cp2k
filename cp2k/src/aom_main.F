@@ -225,19 +225,24 @@ CONTAINS
        ALLOCATE(aom_env%population(mat))
        ALLOCATE(aom_env%ctin(mat))
        ALLOCATE(aom_env%hamiltonian(mat,mat))
+       ALLOCATE(aom_env%eigenvector_matrix(mat,mat))
        ALLOCATE(aom_env%nace(mat,mat))
        ALLOCATE(aom_env%connlist1(4,atoms))
        ALLOCATE(aom_env%neighbourlist(mol,mol,0:atoms,0:atoms))
        ALLOCATE(aom_env%Stt(mat,mat))
+       ALLOCATE(aom_env%Stptp(mat,mat))
        ALLOCATE(aom_env%Stmt(mat,mat))
        ALLOCATE(aom_env%Sttm(mat,mat))
        ALLOCATE(aom_env%Stmtm(mat,mat))
+       ALLOCATE(aom_env%NN(mat, mat))
        ALLOCATE(aom_env%rm_t(3,c))
        ALLOCATE(aom_env%rm_tm(3,c))
        ALLOCATE(aom_env%energies_t(mol))
        ALLOCATE(aom_env%adiab_energies_t(mat))
        ALLOCATE(aom_env%bneighbour(3,0:atoms))
        ALLOCATE(aom_env%nacv(3,mat,mat,mat*atoms))
+       ALLOCATE(aom_env%diabatic_forces(3,natom, mat))
+       ALLOCATE(aom_env%ext_pres(natom))
        ALLOCATE(aom_env%velocities_tp(3, natom))
        ALLOCATE(aom_env%forces_adiab(3,natom))
        aom_env%futur_decohere = .FALSE.
@@ -915,7 +920,10 @@ CONTAINS
               IF (.NOT.successful_hop) THEN
                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, decohere,  &      
                                 !new_state, is_hop)
-                                  new_state, attempt_hop, decohere_criterion, sh_print_env)
+                                  new_state, &
+                                  attempt_hop, &
+                                  decohere_criterion, &
+                                  sh_print_env)
 print*, "print", sh_print_env%old_state
               ENDIF
            !> Do the velocities rescaling if required
@@ -964,7 +972,8 @@ print*, "print", sh_print_env%old_state
 !END DO THE HOPPING TEST 
 
 
-!CALCULATE THE FORCES IN THE NEW ADIABATIC STATE!
+!CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE RESULT OF THE SURFACE
+!HOP ROUTINE IS. 
       !IF (itimes.ge.1) THEN       
                DO imol=1,mol
                   DO iatom=1, natom
@@ -1044,6 +1053,16 @@ print*, "State", active_state
           sh_print_env%adiab_energies_t = aom_env%adiab_energies_t
           sh_print_env%new_state = aom_env%new_state
           sh_print_env%old_state = aom_env%active_state
+          IF (attempt_hop) THEN
+             aom_env%active_state = active_state
+             aom_env%NN = NN
+             aom_env%Stptp = Stptp
+             aom_env%eigenvector_matrix = C_tp
+             aom_env%diabatic_forces = F
+             aom_env%ext_pres = ext_pres
+             aom_env%scaling  = scaling
+             aom_env%cbar     = cbar
+          ENDIF
           CALL adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, &
                                                times)
        ELSE
