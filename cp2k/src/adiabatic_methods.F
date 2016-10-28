@@ -136,16 +136,20 @@ CONTAINS
     REAL(KIND=dp)                            :: energy_adiabat
     LOGICAL                                  :: is_hop
     LOGICAL                                  :: my_bo_keyword
+    LOGICAL                                  :: my_test_keyword
 
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_tp(3,natom))
     ALLOCATE(forces_adiab(3,natom))
     factor = 1
 
+    my_bo_keyword = .TRUE.
+    my_test_keyword = .FALSE.
     IF (method_keyword.eq."FSSH") THEN
        my_bo_keyword = .FALSE.
-    ELSE 
-       my_bo_keyword = .TRUE.
+    ELSE IF (method_keyword.eq."TEST_HOP") THEN
+       my_bo_keyword = .FALSE.
+       my_test_keyword = .TRUE. 
     ENDIF
 
 
@@ -188,7 +192,7 @@ CONTAINS
              positions_tp, energies_tp, aom_env, itimes, &
              is_hop, global_forces, coupling_section, adiab_section,& 
              my_bo_keyword, energy_adiabat, atomic_kinds, &
-             local_particles)
+             local_particles, my_test_keyword)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
         ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))

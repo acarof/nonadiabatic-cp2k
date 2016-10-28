@@ -107,7 +107,8 @@ CONTAINS
                                   aom_env, itimes, &
                                   attempt_hop, global_forces, coupling_section, &
                                   adiab_section, my_bo_keyword, energy_adiabat, &
-                                  atomic_kinds, local_particles)
+                                  atomic_kinds, local_particles,                &
+                                  my_test_keyword)
 
 
      INTEGER, INTENT(IN)                            :: nadiab,  norbitals 
@@ -120,11 +121,12 @@ CONTAINS
      LOGICAL, INTENT(OUT)                           :: attempt_hop
      TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
      TYPE(section_vals_type), POINTER               :: coupling_section
-     LOGICAL, INTENT(OUT)                           :: my_bo_keyword
+     LOGICAL, INTENT(IN)                            :: my_bo_keyword
      TYPE(section_vals_type), POINTER               :: adiab_section
      REAL(KIND=dp), INTENT(OUT)                     :: energy_adiabat
      TYPE(atomic_kind_list_type), POINTER           :: atomic_kinds
      TYPE(distribution_1d_type), POINTER            :: local_particles
+     LOGICAL, INTENT(IN)                            :: my_test_keyword
 
 
      CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
@@ -235,8 +237,8 @@ CONTAINS
        ALLOCATE(aom_env%Sttm(mat,mat))
        ALLOCATE(aom_env%Stmtm(mat,mat))
        ALLOCATE(aom_env%NN(mat, mat))
-       ALLOCATE(aom_env%rm_t(3,c))
-       ALLOCATE(aom_env%rm_tm(3,c))
+       ALLOCATE(aom_env%rm_t(3, natom))
+       ALLOCATE(aom_env%rm_tm(3, natom))
        ALLOCATE(aom_env%energies_t(mol))
        ALLOCATE(aom_env%adiab_energies_t(mat))
        ALLOCATE(aom_env%bneighbour(3,0:atoms))
@@ -465,6 +467,8 @@ CONTAINS
          connlist1 = aom_env%connlist1
          connlist2 = aom_env%connlist2
      endif
+print*, "connlist"
+print*, connlist1
 !END CONSTRUCT THE CONNLIST
 
 
@@ -520,7 +524,11 @@ CONTAINS
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
                     end if
+print*, "aomneighbourlist"
+print*, aom_env%neighbourlist
                     neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
+print*, "neighbourlist"
+print*, neighbourlist
                     !only call overlap if neighbours list says so
                     if (NN(i,k) == 1) then
                          !first the diagonals
@@ -581,6 +589,7 @@ CONTAINS
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
+print*, "For molecules:", i,k
                                              !Calcul of the NACV
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
@@ -588,6 +597,7 @@ CONTAINS
                                              &nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
                                              &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR)
+!stop
                                         end do
                                    end do
 
@@ -826,6 +836,8 @@ CONTAINS
                     end do
                     neighbourlist(i,k,:,1:atoms) = bneighbour(:,1:atoms)
                     neighbourlist(k,i,:,1:atoms) = aneighbour(:,1:atoms)
+print*, "neighbourlist first"
+print*, neighbourlist
                     if (NN(i,k) == 1) then
                          !first the diagonals
                          if (i == k) then
@@ -855,6 +867,7 @@ CONTAINS
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, -scaling*S,dp)
 
+print*, "For molecules:", i,k
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
                                              nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
@@ -924,6 +937,11 @@ CONTAINS
                                   attempt_hop, &
                                   decohere_criterion, &
                                   sh_print_env)
+                  IF (my_test_keyword) THEN
+                     attempt_hop = .TRUE.
+                     new_state = mod(active_state + 1, mat)
+                     IF ((new_state).EQ.0) new_state = mat
+                  ENDIF
 print*, "print", sh_print_env%old_state
               ENDIF
            !> Do the velocities rescaling if required
@@ -1025,18 +1043,23 @@ print*, "State", active_state
 !END COLLAPSE IF REQUIRED
 
 !STORE THE COORDINATES IF NOT SUCCESSFUL RUN
-        if (times.ge.1) then
+print*, "ITIMES", itimes
+        if (itimes.ge.1) then
            if (.NOT.successful_hop) THEN
                aom_env%rm_tm      = aom_env%rm_t
                aom_env%rm_t       = positions_tp
                aom_env%energies_t = energies_tp
-               aom_env%adiab_energies_t = E_tp
+               aom_env%adiab_energies_t = E_t
            endif
         else if (itimes.eq.0) then
-           aom_env%rm_tm      = positions_tp - TRANSPOSE(velocities_t)*deltatMD
+           aom_env%rm_tm      = positions_tp - velocities_t*deltatMD
            aom_env%rm_t       = positions_tp
            aom_env%energies_t = energies_tp
+print*, "save neighbourlist"
+print*, neighbourlist
            aom_env%neighbourlist = neighbourlist
+print*, "saved aomneighbourlist"
+print*, aom_env%neighbourlist
         endif
 !END STORE THE COORDINATES
 

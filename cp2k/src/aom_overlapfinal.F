@@ -211,6 +211,7 @@ contains
 
       do i=1,size(connectlist,2)
          do k = 2,size(connectlist,1)
+print*, "i k connectlist", k,i, connectlist(k,i)
               neighbourlist(:,k-1) = xyz(:,connectlist(k,i))
          end do
 
@@ -816,7 +817,9 @@ contains
       allocate(rvecsa(3, size(prexyza,2)),stat=stat_err)
       allocate(stc(size(prexyza,2)),stat=stat_err) !????? or b
       allocate(minicon(4,size(linecol)),stat=stat_err)
+!print*, "minicon allo =", 4, size(linecol)
       allocate(minipre(3,size(prervecsa,2)),stat=stat_err)
+!print*, "minipre allo=", 3,size(prervecsa,2)
 
       do i=1,size(linecol)
          j=linecol(i)
@@ -829,6 +832,11 @@ contains
       do i=1,size(linecol)
            prervecsa(:,linecol(i))=minipre(:,linecol(i))
       end do
+
+!print*, "minipre"
+!print*, minipre
+!print*, "minicon"
+!print*, minicon
 
       deallocate(minipre)
       deallocate(minicon)
@@ -1027,6 +1035,11 @@ contains
               sarrayodr=sarrayo
               rvecsadr=rvecsa
 
+print*, "atom coord", i,j
+print*, "connlistal"
+print*, connlistal
+print*, "linecol"
+print*, linecol
               call calc_sab_turbo(xyzadr, atomlista, connlistal, coeffapdr, rvecsadr, sarrayndr, linecol)
               call calc_sab_turbo2(xyzadr, atomlista, connlistal, coeffapdr, rvecsadr,&
                                  sarrayodr, linecol, aneighbour(:,2:(size(aneighbour,2))),&

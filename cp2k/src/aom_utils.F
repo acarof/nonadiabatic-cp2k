@@ -523,23 +523,24 @@ subroutine adiabaticity(H, mol, C, E, print)
 
 end subroutine adiabaticity
 
-SUBROUTINE calc_hop_nacv(force_env, hop_nacv)
+SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state)
         TYPE(force_env_type), POINTER                            :: force_env
         REAL(kind=dp), DIMENSION(:,:), INTENT(OUT), ALLOCATABLE  :: hop_nacv
+        INTEGER, OPTIONAL                                        :: ext_old_state, ext_new_state
 
         CHARACTER(len=*), PARAMETER :: routineN = 'calc_hop_nacv', &
         routineP = moduleN//':'//routineN
 
         INTEGER                                      :: aom_iatom, iatom, num_mol, nadiab, num_j, natom
         INTEGER                                      :: old_state, new_state
-        REAL(KIND=dp)                                :: scaling, cbar
+        REAL(KIND=dp)                                :: scaling, cbar, diff_energy
         REAL(KIND=dp)                                :: E_old_state, E_new_state
         REAL(KIND=dp), dimension(:,:,:), allocatable :: Fin
         REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv, Wprime
         integer, dimension(:,:), allocatable :: NN
         integer :: i, j, k, mat, d, l, atoms
         REAL(KIND=dp), dimension(:,:,:,:), allocatable :: DH, my_DP
-        REAL(KIND=dp), dimension(:,:), allocatable :: F
+        REAL(KIND=dp), dimension(:,:), allocatable :: F_1, F_11, F_2, F_3
         REAL(KIND=dp), dimension(:), allocatable ::   Sdiag
         REAL(KIND=dp), dimension(:,:), allocatable :: S, C, T, X, LL, Y
         LOGICAL, dimension(:), allocatable         :: ext_pres
@@ -564,7 +565,10 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv)
         allocate(my_DP(mat,mat,natom,3)) 
         allocate(nacv(3,mat,mat, mat*atoms)) 
         allocate(Wprime(mat,mat,natom,3)) 
-        allocate(F(3,natom))
+        allocate(F_1(3,natom))
+        allocate(F_11(3,natom))
+        allocate(F_2(3,natom))
+        allocate(F_3(3,natom))
         allocate(Fin(3,natom, mat))
         allocate(hop_nacv(3, natom)) 
 
@@ -576,13 +580,28 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv)
         nacv = force_env%mixed_env%aom_env%nacv
         Fin = force_env%mixed_env%aom_env%diabatic_forces
         ext_pres = force_env%mixed_env%aom_env%ext_pres       
-        old_state = force_env%mixed_env%aom_env%active_state
-        new_state = force_env%mixed_env%aom_env%new_state
+        IF (PRESENT(ext_old_state)) THEN
+           old_state = ext_old_state
+        ELSE
+           old_state = force_env%mixed_env%aom_env%active_state
+        ENDIF
+        IF (PRESENT(ext_new_state)) THEN
+           new_state = ext_new_state 
+        ELSE
+           new_state = force_env%mixed_env%aom_env%new_state
+        ENDIF
         E_old_state = force_env%mixed_env%aom_env%adiab_energies_t(old_state)
         E_new_state = force_env%mixed_env%aom_env%adiab_energies_t(new_state)
 
+        IF (E_old_state.EQ.E_new_state) THEN
+           diff_energy = 0.0D0
+        ELSE
+           diff_energy = 1 / (E_new_state - E_old_state)
+        ENDIF  
+
 print*, "old_state = ", old_state
 print*, "new_state = ", new_state
+print*, "diff_energy", diff_energy
         !1 Angstrom = bohrang Bohr
         !bohrang = 1.889725989D0
         !kcal = 1 Hartree in kcal/mol
@@ -598,8 +617,12 @@ print*, "T = ", T
 print*, "C = ", C
         X = matmul(T, C)
 print*, "X = ", X
+print*, "tX = ", matmul(C,T)
 
 !GET S^{diag}, T^{diag} and L
+        CALL adiabaticity(T, mat, LL, Sdiag, .FALSE.)
+print*, "TLL =", LL
+print*, "TSdiag = ", Sdiag
         CALL adiabaticity(S, mat, LL, Sdiag, .FALSE.)
 print*, "LL =", LL
 print*, "Sdiag = ", Sdiag
@@ -607,6 +630,8 @@ print*, "Sdiag = ", Sdiag
 !CALCULATE Y = L^{dagger} U
         Y = matmul( transpose(LL), C)
 print*, "Y = ", Y
+print*, "tY = ", matmul(C, transpose(LL))
+print*, "Identity?", matmul(Y, matmul(C, transpose(LL)) )
 
 !CALCULATE GRADIENT OF S: my_DP
         aom_iatom = 0
@@ -615,6 +640,7 @@ print*, "Y = ", Y
               aom_iatom = aom_iatom +1
               do d=1,3
                   my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
+print*, "nacv", aom_iatom, d, nacv(d, 1, 1, aom_iatom), nacv(d, 1, 2,aom_iatom), nacv(d, 2, 1, aom_iatom), nacv(d, 2, 2, aom_iatom)
                enddo
            else 
               my_DP(:,:,:,iatom) = 0.0D0
@@ -637,7 +663,6 @@ print*, "Y = ", Y
         do d=1,3
            num_j = -1
            do j=1,natom
-              F(d,j) = 0.0D0
               IF (ext_pres(j)) THEN
                   num_j   = num_j + 1
                   num_mol = int(num_j/atoms) + 1
@@ -657,10 +682,11 @@ print*, "Y = ", Y
                           ENDIF
                        ENDIF
                     ENDDO
-                    Wprime(k, l, j, d) = - Wprime( k, l, j, d) / ( Sdiag(k)*SQRT(Sdiag(l)) + SQRT(Sdiag(k))*Sdiag(l) )
-!print*, "Wprime3 = ", k,l,j,d, Wprime(k, l, j, d)
+                    Wprime(k, l, j, d) = - Wprime( k, l, j, d) / ( SQRT(Sdiag(k))*SQRT(Sdiag(l)) + Sdiag(l) )
+!if ((j==1).AND.(d==1)) print*, "factor = ", k,l,j,d, ( SQRT(Sdiag(k))*SQRT(Sdiag(l)) + Sdiag(l) )
                  ENDDO
               ENDDO
+!print*, "Wprime4", Wprime(:,:,j,d)
            ENDDO
         ENDDO          
 
@@ -714,23 +740,29 @@ print*, "Y = ", Y
         do d=1,3
            num_j = -1
            do j=1,natom
-              F(d,j) = 0.0D0
+              F_1(d,j) = 0.0D0
+              F_11(d,j) = 0.0D0
+              F_2(d,j) = 0.0D0
+              F_3(d,j) = 0.0D0
               IF (ext_pres(j)) THEN
                  num_j   = num_j + 1
                  num_mol = int(num_j/atoms) + 1 
               ENDIF
               do i=1,mat
-                 F(d,j) = F(d,j) + C(i,old_state)*DH(i,i,j,d)*C(i, new_state)
+                 F_1(d,j) = F_1(d,j) + C(i,old_state)*DH(i,i,j,d)*C(i,new_state)*diff_energy
 !print*, d, j, i, F(d,j)
                  IF (ext_pres(j)) THEN
-                    F(d, j) = F(d,j) + X(i, old_state) * nacv(d, i, num_mol, j) * X( num_mol, new_state) 
+                    F_2(d, j) = F_2(d,j) + X(i, old_state) * nacv(d, i, num_mol, j) * X( num_mol, new_state) 
 !print*, d, j, i, F(d,j)
                     IF (i.ne.num_mol) THEN
-                       F(d,j) = F(d,j) + 2.0D0*((C(num_mol,old_state))*DH(i,num_mol,j,d)*C(i,new_state))
+                       F_11(d,j) = F_11(d,j) + diff_energy * DH(i,num_mol,j,d) * (              &
+                                              C(num_mol, new_state) * C(i, old_state) +   &
+                                              C(num_mol, old_state) * C(i,new_state) )
 !print*, d, j, i, F(d,j)
                     ENDIF
                     DO k = 1, mat
-                       F(d,j) = F(d,j) + Y(i, old_state) * Wprime(i, k, j, d) * Y(k, new_state)
+!print*, "HEY"
+                       F_3(d,j) = F_3(d,j) + Y(i, old_state) * Wprime(i, k, j, d) * Y(k, new_state)
 !print*, d, j, i, k, F(d,j)
                     ENDDO
                  ENDIF
@@ -738,9 +770,24 @@ print*, "Y = ", Y
            ENDDO
         ENDDO 
 
-        hop_nacv = F / (E_new_state - E_old_state)
+print*, "NEW"
+        hop_nacv = F_1 + F_11 + F_2 + F_3
+print*, "F_1"
+print*, F_1
+print*, "F_11"
+print*, F_11
+print*, "F_2"
+print*, F_2
+print*, "F_3"
+print*, F_3
 
-        deallocate(T, DH, my_DP, F)
+print*, "total F_1 =" , SUM(F_1(1,:)), SUM(F_1(2,:)), SUM(F_1(3,:))
+print*, "total F_11 =" , SUM(F_11(1,:)), SUM(F_11(2,:)), SUM(F_11(3,:))
+print*, "total F_2 =" , SUM(F_2(1,:)), SUM(F_2(2,:)), SUM(F_2(3,:))
+print*, "total F_3 =" , SUM(F_3(1,:)), SUM(F_3(2,:)), SUM(F_3(3,:))
+print*, "total nacv =" , SUM(hop_nacv(1,:)), SUM(hop_nacv(2,:)), SUM(hop_nacv(3,:))
+
+        deallocate(T, DH, my_DP, F_1, F_11, F_2, F_3)
                 
 END SUBROUTINE calc_hop_nacv
 
@@ -1189,6 +1236,7 @@ end subroutine calcTDT
         CHARACTER(LEN=default_string_length)     :: rescale_keyword
         TYPE(section_vals_type), POINTER         :: mixed_section, adiab_section, coupling_section
         TYPE(section_vals_type), POINTER         :: force_env_section
+        INTEGER                                  :: old_state, new_state
 
         CALL force_env_get(force_env=force_env,&
                        force_env_section=force_env_section)
@@ -1223,6 +1271,46 @@ print*, "HERE 1"
 print*, "HERE 2"
               CALL calc_hop_nacv( force_env, hop_nacv)
 print*, "HERE 3", hop_nacv(1,1)
+              CALL cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
+                                          local_particles, hop_nacv, delta_energy, A, B) 
+              If (delta_energy.lt.0) THEN
+                  force_env%mixed_env%aom_env%successful_hop = .FALSE.
+              ELSE 
+                  force_env%mixed_env%aom_env%successful_hop = .TRUE.
+                  force_env%mixed_env%aom_env%old_state      = force_env%mixed_env%aom_env%active_state
+                  force_env%mixed_env%aom_env%active_state   = force_env%mixed_env%aom_env%new_state
+                  force_env%mixed_env%aom_env%kinetic_energy = kinetic_energy_prime
+                  force_env%mixed_env%aom_env%delta_energy   = delta_energy
+                  !force_env%mixed_env%aom_env%new_state = -1
+                  CALL hop_nacv_vel_rescaling(nparticle_kind, velocities, delta_energy, A, B, hop_nacv, &
+                                              atomic_kind_set, local_particles)
+              ENDIF
+           ENDIF 
+        CASE("NACV_NO_REVERSAL_TEST")
+           CALL cal_delta_energy(nparticle_kind, velocities, force_env, atomic_kind_set, &
+                                 local_particles, delta_energy, kinetic_energy_prime)
+print*, "HERE 0"
+print*, "kinetic_energy = ", kinetic_energy_prime
+print*, "delta energy = ", delta_energy
+           IF (delta_energy.lt.0) THEN
+              force_env%mixed_env%aom_env%successful_hop = .FALSE.
+print*, "HERE 1"
+           ELSE 
+print*, "HERE 2"
+              old_state = force_env%mixed_env%aom_env%active_state
+              new_state = force_env%mixed_env%aom_env%new_state
+              CALL calc_hop_nacv( force_env, hop_nacv, old_state, old_state)
+print*, "HERE 3"
+print*, hop_nacv
+              CALL calc_hop_nacv( force_env, hop_nacv, new_state, new_state)
+print*, "HERE 3"
+print*, hop_nacv
+              CALL calc_hop_nacv( force_env, hop_nacv, new_state, old_state)
+print*, "HERE 3"
+print*, hop_nacv
+              CALL calc_hop_nacv( force_env, hop_nacv, old_state, new_state)
+print*, "HERE 3"
+print*, hop_nacv
               CALL cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
                                           local_particles, hop_nacv, delta_energy, A, B) 
               If (delta_energy.lt.0) THEN
