@@ -117,7 +117,8 @@ IMPLICIT NONE
              read_listcoeff,       & 
              choose_firstadiabat,  &
              simple_vel_rescaling, &
-             check_hop_attempt
+             check_hop_attempt,    &
+             total_momentum
 
 CONTAINS
   
@@ -523,10 +524,11 @@ subroutine adiabaticity(H, mol, C, E, print)
 
 end subroutine adiabaticity
 
-SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state)
+SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symmetry)
         TYPE(force_env_type), POINTER                            :: force_env
         REAL(kind=dp), DIMENSION(:,:), INTENT(OUT), ALLOCATABLE  :: hop_nacv
         INTEGER, OPTIONAL                                        :: ext_old_state, ext_new_state
+        CHARACTER(len=*), OPTIONAL                               :: symmetry
 
         CHARACTER(len=*), PARAMETER :: routineN = 'calc_hop_nacv', &
         routineP = moduleN//':'//routineN
@@ -544,6 +546,8 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state)
         REAL(KIND=dp), dimension(:), allocatable ::   Sdiag
         REAL(KIND=dp), dimension(:,:), allocatable :: S, C, T, X, LL, Y
         LOGICAL, dimension(:), allocatable         :: ext_pres
+        REAL(KIND=dp)                              :: contribf1, contribf11, contribf2, contribf3
+        REAL(KIND=dp)                              :: normf1, normf2, normf3, normf11, normnacv
 
         mat    = SIZE(force_env%mixed_env%aom_env%Stptp, 1)
         natom  = SIZE(force_env%mixed_env%aom_env%diabatic_forces, 2)
@@ -608,30 +612,30 @@ print*, "diff_energy", diff_energy
         !kcal = 627.509D0
 
 !CALCULATE T = S^{-1/2}
-print*, "S = ", S
+!print*, "S = ", S
         T = S
         CALL matinvsqrt(mat, .FALSE., T)
-print*, "T = ", T
+!print*, "T = ", T
 
 !CALCULATE X = TU
-print*, "C = ", C
+!print*, "C = ", C
         X = matmul(T, C)
-print*, "X = ", X
-print*, "tX = ", matmul(C,T)
+!print*, "X = ", X
+!print*, "tX = ", matmul(C,T)
 
 !GET S^{diag}, T^{diag} and L
         CALL adiabaticity(T, mat, LL, Sdiag, .FALSE.)
-print*, "TLL =", LL
-print*, "TSdiag = ", Sdiag
+!print*, "TLL =", LL
+!print*, "TSdiag = ", Sdiag
         CALL adiabaticity(S, mat, LL, Sdiag, .FALSE.)
-print*, "LL =", LL
-print*, "Sdiag = ", Sdiag
+!print*, "LL =", LL
+!print*, "Sdiag = ", Sdiag
 
 !CALCULATE Y = L^{dagger} U
         Y = matmul( transpose(LL), C)
-print*, "Y = ", Y
-print*, "tY = ", matmul(C, transpose(LL))
-print*, "Identity?", matmul(Y, matmul(C, transpose(LL)) )
+!print*, "Y = ", Y
+!print*, "tY = ", matmul(C, transpose(LL))
+!print*, "Identity?", matmul(Y, matmul(C, transpose(LL)) )
 
 !CALCULATE GRADIENT OF S: my_DP
         aom_iatom = 0
@@ -640,9 +644,9 @@ print*, "Identity?", matmul(Y, matmul(C, transpose(LL)) )
               aom_iatom = aom_iatom +1
               do d=1,3
                   my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
-print*, "nacv", aom_iatom, d, nacv(d, 1, 1, aom_iatom), nacv(d, 1, 2,aom_iatom), nacv(d, 1, 3, aom_iatom) 
-print*, "nacv2",              nacv(d, 2, 1, aom_iatom), nacv(d, 2, 2,aom_iatom), nacv(d, 2, 3, aom_iatom) 
-print*, "nacv2",              nacv(d, 3, 1, aom_iatom), nacv(d, 3, 2,aom_iatom), nacv(d, 3, 3, aom_iatom) 
+!print*, "nacv", aom_iatom, d, nacv(d, 1, 1, aom_iatom), nacv(d, 1, 2,aom_iatom), nacv(d, 1, 3, aom_iatom) 
+!print*, "nacv2",              nacv(d, 2, 1, aom_iatom), nacv(d, 2, 2,aom_iatom), nacv(d, 2, 3, aom_iatom) 
+!print*, "nacv2",              nacv(d, 3, 1, aom_iatom), nacv(d, 3, 2,aom_iatom), nacv(d, 3, 3, aom_iatom) 
                enddo
            else 
               my_DP(:,:,:,iatom) = 0.0D0
@@ -772,23 +776,46 @@ print*, "nacv2",              nacv(d, 3, 1, aom_iatom), nacv(d, 3, 2,aom_iatom),
            ENDDO
         ENDDO 
 
-print*, "NEW"
         hop_nacv = F_1 + F_11 + F_2 + F_3
-print*, "F_1"
-print*, F_1
-print*, "F_11"
-print*, F_11
-print*, "F_2"
-print*, F_2
-print*, "F_3"
-print*, F_3
+        IF (PRESENT(symmetry)) THEN
+           DO j=1, natom
+              normf1 = 0
+              normf11 = 0
+              normf2 = 0
+              normf3 = 0
+              normnacv = 0
+              contribf1 = 0
+              contribf11 = 0
+              contribf2 = 0
+              contribf3 = 0
+              DO d=1,3
+                 print*, "NACVF1   = ", d, j, F_1(d,j), symmetry
+                 print*, "NACVF11  = ", d, j, F_11(d,j), symmetry
+                 print*, "NACVF2   = ", d, j, F_2(d,j), symmetry
+                 print*, "NACVF3   = ", d, j, F_3(d,j), symmetry
+                 print*, "NACVFtot = ", d, j, hop_nacv(d,j), symmetry
+                 contribf1 = contribf1 + F_1(d,j) * hop_nacv(d,j)
+                 normf1 = normf1 + F_1(d,j)*F_1(d,j)
+                 contribf11 = contribf11 + F_11(d,j) * hop_nacv(d,j)
+                 normf11 = normf11 + F_11(d,j)*F_11(d,j)
+                 contribf2 = contribf2 + F_2(d,j) * hop_nacv(d,j)
+                 normf2 = normf2 + F_2(d,j)*F_2(d,j)
+                 contribf3 = contribf3 + F_3(d,j) * hop_nacv(d,j)
+                 normf3 = normf3 + F_3(d,j)*F_3(d,j)
+                 normnacv = normnacv + hop_nacv(d,j)*hop_nacv(d,j)
+              ENDDO
+              print*, "CONTRIBF1 = ", contribf1 / normnacv, symmetry, "ATOM", j
+              print*, "CONTRIBF11 = ", contribf11 / normnacv, symmetry, "ATOM", j
+              print*, "CONTRIBF2 = ", contribf2 / normnacv, symmetry, "ATOM", j
+              print*, "CONTRIBF3 = ", contribf3 / normnacv, symmetry, "ATOM", j
+           ENDDO
 
-print*, "total F_1 =" , SUM(F_1(1,:)), SUM(F_1(2,:)), SUM(F_1(3,:))
-print*, "total F_11 =" , SUM(F_11(1,:)), SUM(F_11(2,:)), SUM(F_11(3,:))
-print*, "total F_2 =" , SUM(F_2(1,:)), SUM(F_2(2,:)), SUM(F_2(3,:))
-print*, "total F_3 =" , SUM(F_3(1,:)), SUM(F_3(2,:)), SUM(F_3(3,:))
-print*, "total nacv =" , SUM(hop_nacv(1,:)), SUM(hop_nacv(2,:)), SUM(hop_nacv(3,:))
-
+           print*, "total F_1 =" , SUM(F_1(1,:)), SUM(F_1(2,:)), SUM(F_1(3,:))
+           print*, "total F_11 =" , SUM(F_11(1,:)), SUM(F_11(2,:)), SUM(F_11(3,:))
+           print*, "total F_2 =" , SUM(F_2(1,:)), SUM(F_2(2,:)), SUM(F_2(3,:))
+           print*, "total F_3 =" , SUM(F_3(1,:)), SUM(F_3(2,:)), SUM(F_3(3,:))
+           print*, "MOMENTUMtotal nacv =" , SUM(hop_nacv(1,:)), SUM(hop_nacv(2,:)), SUM(hop_nacv(3,:))
+        ENDIF
         deallocate(T, DH, my_DP, F_1, F_11, F_2, F_3)
                 
 END SUBROUTINE calc_hop_nacv
@@ -1263,16 +1290,12 @@ end subroutine calcTDT
         CASE("NACV_NO_REVERSAL")
            CALL cal_delta_energy(nparticle_kind, velocities, force_env, atomic_kind_set, &
                                  local_particles, delta_energy, kinetic_energy_prime)
-print*, "HERE 0"
 print*, "kinetic_energy = ", kinetic_energy_prime
 print*, "delta energy = ", delta_energy
            IF (delta_energy.lt.0) THEN
               force_env%mixed_env%aom_env%successful_hop = .FALSE.
-print*, "HERE 1"
            ELSE 
-print*, "HERE 2"
               CALL calc_hop_nacv( force_env, hop_nacv)
-print*, "HERE 3", hop_nacv(1,1)
               CALL cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
                                           local_particles, hop_nacv, delta_energy, A, B) 
               If (delta_energy.lt.0) THEN
@@ -1291,28 +1314,17 @@ print*, "HERE 3", hop_nacv(1,1)
         CASE("NACV_NO_REVERSAL_TEST")
            CALL cal_delta_energy(nparticle_kind, velocities, force_env, atomic_kind_set, &
                                  local_particles, delta_energy, kinetic_energy_prime)
-print*, "HERE 0"
 print*, "kinetic_energy = ", kinetic_energy_prime
 print*, "delta energy = ", delta_energy
            IF (delta_energy.lt.0) THEN
               force_env%mixed_env%aom_env%successful_hop = .FALSE.
-print*, "HERE 1"
            ELSE 
-print*, "HERE 2"
               old_state = force_env%mixed_env%aom_env%active_state
               new_state = force_env%mixed_env%aom_env%new_state
-              CALL calc_hop_nacv( force_env, hop_nacv, old_state, old_state)
-print*, "HERE 3"
-print*, hop_nacv
-              CALL calc_hop_nacv( force_env, hop_nacv, new_state, new_state)
-print*, "HERE 3"
-print*, hop_nacv
-              CALL calc_hop_nacv( force_env, hop_nacv, new_state, old_state)
-print*, "HERE 3"
-print*, hop_nacv
-              CALL calc_hop_nacv( force_env, hop_nacv, old_state, new_state)
-print*, "HERE 3"
-print*, hop_nacv
+              CALL calc_hop_nacv( force_env, hop_nacv, old_state, old_state, "OLDOLD")
+              CALL calc_hop_nacv( force_env, hop_nacv, new_state, new_state, "NEWNEW")
+              CALL calc_hop_nacv( force_env, hop_nacv, new_state, old_state, "NEWOLD")
+              CALL calc_hop_nacv( force_env, hop_nacv, old_state, new_state, "OLDNEW")
               CALL cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
                                           local_particles, hop_nacv, delta_energy, A, B) 
               If (delta_energy.lt.0) THEN
@@ -1358,7 +1370,6 @@ print*, hop_nacv
 !     Chem Phys 2008, 349:334–347.
 ! B = -B, compare to the paper
 
-print*, "Hey"
         IF (B < 0) THEN
            rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
         ELSE
@@ -1486,6 +1497,40 @@ print*, "delta_energy = ", delta_energy
                      force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
                      force_env%mixed_env%aom_env%adiab_energies_t(old_state))
    END SUBROUTINE cal_delta_energy
+         
+
+   SUBROUTINE total_momentum(velocities, atomic_kind_set, nparticle_kind, &
+                               local_particles, force_env) 
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
+        TYPE(atomic_kind_type), DIMENSION(:), &
+             POINTER                                :: atomic_kind_set
+        INTEGER, INTENT(IN)                      :: nparticle_kind
+        TYPE(distribution_1d_type), POINTER      :: local_particles
+        TYPE(force_env_type), POINTER            :: force_env
+
+        CHARACTER(len=*), PARAMETER :: routineN = 'total_momentum', &
+        routineP = moduleN//':'//routineN
+
+        REAL(kind=dp)                            :: mass
+        INTEGER                                  :: iparticle_kind
+        INTEGER                                  :: nparticle_local
+        INTEGER                                  :: iparticle_local, iparticle
+        TYPE(atomic_kind_type), POINTER          :: atomic_kind
+        REAL(kind=dp), DIMENSION(3)                       :: momentum
+
+           momentum = 0.0D0
+           DO iparticle_kind=1,nparticle_kind
+              atomic_kind => atomic_kind_set(iparticle_kind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+              nparticle_local = local_particles%n_el(iparticle_kind)
+              DO iparticle_local=1,nparticle_local
+                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                 momentum(:) = momentum(:) +   &
+                    mass*velocities(:, iparticle)
+              END DO
+           END DO
+           print*, "MOMENTUM = ", MOMENTUM
+   END SUBROUTINE total_momentum
          
 
 END MODULE aom_utils

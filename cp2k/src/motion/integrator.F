@@ -117,7 +117,8 @@ MODULE integrator
 !> CHANGE_AC
   USE md_ener_types,                   ONLY: md_ener_type,&
                                              zero_md_ener
-  USE aom_utils,                       ONLY: check_hop_attempt
+  USE aom_utils,                       ONLY: check_hop_attempt, &
+                                             total_momentum
 !> END CHANGE_AC
 
   IMPLICIT NONE
@@ -609,6 +610,7 @@ print*, "Successful hop in integrator.F"
 !stop
                 ENDIF
              ENDIF
+              CALL total_momentum(tmp%vel, atomic_kind_set, nparticle_kind, local_particles, force_env)
 
                 !CALL update_forces_newstate ( atomic_kind_set, local_particles, particle_set,&
                 !                              nparticle_kind, new_forces=force_env%mixed_env%aom_env%new_forces_adiab) 
@@ -643,6 +645,7 @@ print*, "Successful hop in integrator.F"
           ! Velocity Verlet (second part)
           CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
                          core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+          CALL total_momentum(tmp%vel, atomic_kind_set, nparticle_kind, local_particles, force_env)
        ENDIF
 !> END CHANGE_AC
 
