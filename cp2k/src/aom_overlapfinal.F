@@ -211,7 +211,7 @@ contains
 
       do i=1,size(connectlist,2)
          do k = 2,size(connectlist,1)
-print*, "i k connectlist", k,i, connectlist(k,i)
+!print*, "i k connectlist", k,i, connectlist(k,i)
               neighbourlist(:,k-1) = xyz(:,connectlist(k,i))
          end do
 
@@ -1035,11 +1035,11 @@ print*, "i k connectlist", k,i, connectlist(k,i)
               sarrayodr=sarrayo
               rvecsadr=rvecsa
 
-print*, "atom coord", i,j
-print*, "connlistal"
-print*, connlistal
-print*, "linecol"
-print*, linecol
+!print*, "atom coord", i,j
+!print*, "connlistal"
+!print*, connlistal
+!print*, "linecol"
+!print*, linecol
               call calc_sab_turbo(xyzadr, atomlista, connlistal, coeffapdr, rvecsadr, sarrayndr, linecol)
               call calc_sab_turbo2(xyzadr, atomlista, connlistal, coeffapdr, rvecsadr,&
                                  sarrayodr, linecol, aneighbour(:,2:(size(aneighbour,2))),&

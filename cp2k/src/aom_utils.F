@@ -640,7 +640,9 @@ print*, "Identity?", matmul(Y, matmul(C, transpose(LL)) )
               aom_iatom = aom_iatom +1
               do d=1,3
                   my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
-print*, "nacv", aom_iatom, d, nacv(d, 1, 1, aom_iatom), nacv(d, 1, 2,aom_iatom), nacv(d, 2, 1, aom_iatom), nacv(d, 2, 2, aom_iatom)
+print*, "nacv", aom_iatom, d, nacv(d, 1, 1, aom_iatom), nacv(d, 1, 2,aom_iatom), nacv(d, 1, 3, aom_iatom) 
+print*, "nacv2",              nacv(d, 2, 1, aom_iatom), nacv(d, 2, 2,aom_iatom), nacv(d, 2, 3, aom_iatom) 
+print*, "nacv2",              nacv(d, 3, 1, aom_iatom), nacv(d, 3, 2,aom_iatom), nacv(d, 3, 3, aom_iatom) 
                enddo
            else 
               my_DP(:,:,:,iatom) = 0.0D0

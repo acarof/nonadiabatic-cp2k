@@ -467,8 +467,8 @@ CONTAINS
          connlist1 = aom_env%connlist1
          connlist2 = aom_env%connlist2
      endif
-print*, "connlist"
-print*, connlist1
+!print*, "connlist"
+!print*, connlist1
 !END CONSTRUCT THE CONNLIST
 
 
@@ -524,11 +524,11 @@ print*, connlist1
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
                     end if
-print*, "aomneighbourlist"
-print*, aom_env%neighbourlist
+!print*, "aomneighbourlist"
+!print*, aom_env%neighbourlist
                     neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
-print*, "neighbourlist"
-print*, neighbourlist
+!print*, "neighbourlist"
+!print*, neighbourlist
                     !only call overlap if neighbours list says so
                     if (NN(i,k) == 1) then
                          !first the diagonals
@@ -589,7 +589,7 @@ print*, neighbourlist
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
-print*, "For molecules:", i,k
+!print*, "For molecules:", i,k
                                              !Calcul of the NACV
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
@@ -836,8 +836,8 @@ print*, "For molecules:", i,k
                     end do
                     neighbourlist(i,k,:,1:atoms) = bneighbour(:,1:atoms)
                     neighbourlist(k,i,:,1:atoms) = aneighbour(:,1:atoms)
-print*, "neighbourlist first"
-print*, neighbourlist
+!print*, "neighbourlist first"
+!print*, neighbourlist
                     if (NN(i,k) == 1) then
                          !first the diagonals
                          if (i == k) then
@@ -867,7 +867,7 @@ print*, neighbourlist
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, -scaling*S,dp)
 
-print*, "For molecules:", i,k
+!print*, "For molecules:", i,k
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
                                              nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
@@ -1055,11 +1055,11 @@ print*, "ITIMES", itimes
            aom_env%rm_tm      = positions_tp - velocities_t*deltatMD
            aom_env%rm_t       = positions_tp
            aom_env%energies_t = energies_tp
-print*, "save neighbourlist"
-print*, neighbourlist
+!print*, "save neighbourlist"
+!print*, neighbourlist
            aom_env%neighbourlist = neighbourlist
-print*, "saved aomneighbourlist"
-print*, aom_env%neighbourlist
+!print*, "saved aomneighbourlist"
+!print*, aom_env%neighbourlist
         endif
 !END STORE THE COORDINATES
 
