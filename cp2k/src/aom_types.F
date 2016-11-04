@@ -44,6 +44,9 @@
 
 MODULE aom_types
   USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_type
+
+
 
 IMPLICIT NONE
 
@@ -51,13 +54,52 @@ IMPLICIT NONE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'aom_types'
 
+
+
+   TYPE sh_print_env_type
+!> If hop
+     LOGICAL                                     :: attempt_hop
+     LOGICAL                                     :: successful_hop
+!> To store energies in the Jacob's Method
+     REAL(KIND = dp), DIMENSION(:), POINTER      :: adiab_energies_t   
+!> The probability array for the hop
+     REAL(KIND = dp), DIMENSION(:), POINTER      :: proba
+!> Random number for test hop
+     REAL(KIND = dp)                             :: hop
+!> If renormalization occurs
+     LOGICAL                                     :: renorm
+!> If renormalization occurs: the sum of probabilities
+     REAL(KIND = dp)                             :: sumprob
+!> Old and new state number
+     INTEGER                                     :: old_state
+     INTEGER                                     :: new_state
+!> Delta energy between old_state and putative new_state
+     REAL(KIND = dp)                             :: delta_energy
+     REAL(KIND = dp)                             :: kinetic_energy
+     REAL(KIND = dp)                             :: A, B
+     REAL(KIND = dp)                             :: rescale_factor
+     REAL(KIND = dp), DIMENSION(3)               :: momentum_shift
+     LOGICAL                                     :: decohere
+!> Random number for initial choice
+     REAL(KIND = dp)                             :: initrandom
+!> Initial population in the adiabatic states
+     REAL(KIND = dp), DIMENSION(:), POINTER      :: pop_init
+!> First adiabat after the random choice
+     INTEGER                                     :: first_adiabat
+     INTEGER                                     :: nadiab, norbitals
+     REAL(KIND = dp)                             :: times, deltatMD
+     TYPE(section_vals_type), POINTER            :: adiab_section
+   END TYPE sh_print_env_type
+
+
    TYPE aom_env_type
 !> To store the coordinates in step before and the one before
      REAL(KIND = dp), DIMENSION(:,:), POINTER         :: rm_t,&             ! position step min 1
                                                          rm_tm,&             ! position step min 2
                                                          velocities_tp,& ! velocities step
                                                          velocities_t,&      ! velocities step min 1
-                                                         forces_adiab      ! forces at step 0
+                                                         forces_adiab, &      ! forces at step 0
+                                                         forces_adiab_new
 !> To store energies in the Jacob's Method
      REAL(KIND = dp), DIMENSION(:), POINTER :: energies_t   
      REAL(KIND = dp), DIMENSION(:), POINTER :: adiab_energies_t   
@@ -95,45 +137,8 @@ IMPLICIT NONE
 !> If hop
      LOGICAL                                     :: attempt_hop
      LOGICAL                                     :: successful_hop
+     TYPE(sh_print_env_type)                     :: sh_print_env
    END TYPE aom_env_type
-
-
-
-
-
-   TYPE sh_print_env_type
-!> If hop
-     LOGICAL                                     :: attempt_hop
-     LOGICAL                                     :: successful_hop
-!> To store energies in the Jacob's Method
-     REAL(KIND = dp), DIMENSION(:), POINTER      :: adiab_energies_t   
-!> The probability array for the hop
-     REAL(KIND = dp), DIMENSION(:), POINTER      :: proba
-!> Random number for test hop
-     REAL(KIND = dp)                             :: hop
-!> If renormalization occurs
-     LOGICAL                                     :: renorm
-!> If renormalization occurs: the sum of probabilities
-     REAL(KIND = dp)                             :: sumprob
-!> Old and new state number
-     INTEGER                                     :: old_state
-     INTEGER                                     :: new_state
-!> Delta energy between old_state and putative new_state
-     REAL(KIND = dp)                             :: delta_energy
-     REAL(KIND = dp)                             :: kinetic_energy
-!> If hop occurs
-!     LOGICAL                                     :: is_hop
-!> If decoherence occurs
-     LOGICAL                                     :: decohere
-!> If it's the initial step
-     LOGICAL                                     :: is_first
-!> Random number for initial choice
-     REAL(KIND = dp)                             :: initrandom
-!> Initial population in the adiabatic states
-     REAL(KIND = dp), DIMENSION(:), POINTER      :: pop_init
-!> First adiabat after the random choice
-     INTEGER                                     :: first_adiabat
-   END TYPE sh_print_env_type
 
    PUBLIC :: aom_env_type, &
              sh_print_env_type

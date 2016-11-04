@@ -171,11 +171,13 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
 !     CHARACTER(LEN=default_string_length)         :: rescale_keyword
      REAL(KIND=dp), dimension(:,:), allocatable   :: NACE
-     TYPE(sh_print_env_type)                      :: sh_print_env
  !    REAL(KIND=dp)                                :: kinetic_energy_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
      LOGICAL                                      :: successful_hop, select_first_adiabat
+
+     TYPE(sh_print_env_type)                      :: sh_print_env
+
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -247,15 +249,23 @@ CONTAINS
        ALLOCATE(aom_env%ext_pres(natom))
        ALLOCATE(aom_env%velocities_tp(3, natom))
        ALLOCATE(aom_env%forces_adiab(3,natom))
+       ALLOCATE(aom_env%forces_adiab_new(3,natom))
        aom_env%futur_decohere = .FALSE.
+
+       sh_print_env%adiab_section => adiab_section
+       sh_print_env%nadiab = mat
+       sh_print_env%norbitals = orb
+       sh_print_env%deltatMD = deltatMD
+       ALLOCATE(sh_print_env%adiab_energies_t(mat))
+     else
+       sh_print_env = aom_env%sh_print_env
      endif
+print*, "HEY"
+!stop
 
      ALLOCATE(E_t(mat))
      ALLOCATE(E_tp(mat))
 
-     ALLOCATE(sh_print_env%proba(mol))     
-     ALLOCATE(sh_print_env%pop_init(mol))     
-     ALLOCATE(sh_print_env%adiab_energies_t(mol))     
      ALLOCATE(my_forces_adiab(3,natom))
      ALLOCATE(velocities_t_prime(3,natom))
      ALLOCATE(velocities_t(3,natom))
@@ -901,6 +911,7 @@ CONTAINS
 
 
 
+       sh_print_env%times = times
 !DO THE HOPPING TEST 
                !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
                !It gives us back the eigenvalues and eigenvectors
@@ -929,7 +940,6 @@ CONTAINS
               decohere = .FALSE.
               attempt_hop = .FALSE.
           ELSE
-              sh_print_env%is_first = .FALSE.
               IF (.NOT.successful_hop) THEN
                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, decohere,  &      
                                 !new_state, is_hop)
@@ -942,50 +952,8 @@ CONTAINS
                      new_state = mod(active_state + 1, mat)
                      IF ((new_state).EQ.0) new_state = mat
                   ENDIF
-print*, "print", sh_print_env%old_state
               ENDIF
-           !> Do the velocities rescaling if required
-              !IF (old_state.NE.new_state) THEN
-              !     CPASSERT(is_hop) !Be sure there is indeed a hop
-                   !DO imol=1,mol
-                   !   DO iatom=1, natom
-                   !      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
-                   !   ENDDO
-                   !ENDDO
-                   !call calcforces(state=old_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, &
-                   !        scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
-                   !        ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
-                   !        ctin=ctin)
-                   !CALL calc_velocities_prime(velocities_t, my_forces_adiab, atomic_kinds, deltatMD, &
-                   !                       local_particles, &
-                   !                     velocities_t_prime, kinetic_energy_prime) 
-                   !delta_energy = kinetic_energy_prime-(E_tp(new_state)-E_tp(old_state))
-                   !sh_print_env%delta_energy = delta_energy
-                !> If delta_energy < 0: frustrated hop, do nothing!
-                   !IF (delta_energy.lt.0) THEN
-                   !   new_state = old_state
-                   !   decohere  = .FALSE.
-                   !   is_hop    = .FALSE.
-                   !ELSE
-                   !   CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
-                   !   SELECT CASE(rescale_keyword)
-                   !   CASE("SIMPLE")
-                   !        CALL simple_vel_rescaling(velocities_t_prime, delta_energy, kinetic_energy_prime, &
-                   !                                  aom_env%velocities_tp)
-                   !   CASE DEFAULT
-                   !        CPABORT("There is no method to do the rescaling of the velocities.")
-                   !   END SELECT
-                   !ENDIF
-              !ELSE
-              !   DO imol=1,mol
-              !      DO iatom=1, natom
-              !         F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
-              !      ENDDO
-              !   ENDDO
-              !ENDIF 
           ENDIF
-          !CALL adiab_print_active_state(adiab_section, new_state, E_tp(new_state), &
-          !     C_tp(:,new_state), nadiab, norbitals, itimes, deltatMD)
       ENDIF
 !END DO THE HOPPING TEST 
 
@@ -1005,6 +973,13 @@ print*, "print", sh_print_env%old_state
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
                            ctin=ctin)
                aom_env%forces_adiab=my_forces_adiab
+               IF (attempt_hop) THEN
+                  call calcforces(state=new_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
+                              scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
+                              ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
+                              ctin=ctin)
+                  aom_env%forces_adiab_new=my_forces_adiab
+               ENDIF
 !print*, "Forces in aom_main.F"
 print*, "State", active_state
 !print*, my_forces_adiab
@@ -1043,7 +1018,6 @@ print*, "State", active_state
 !END COLLAPSE IF REQUIRED
 
 !STORE THE COORDINATES IF NOT SUCCESSFUL RUN
-print*, "ITIMES", itimes
         if (itimes.ge.1) then
            if (.NOT.successful_hop) THEN
                aom_env%rm_tm      = aom_env%rm_t
@@ -1061,6 +1035,7 @@ print*, "ITIMES", itimes
 !print*, "saved aomneighbourlist"
 !print*, aom_env%neighbourlist
         endif
+           aom_env%sh_print_env = sh_print_env
 !END STORE THE COORDINATES
 
 !PREPARE THE PRINT
@@ -1072,10 +1047,6 @@ print*, "ITIMES", itimes
           aom_env%nacv        = nacv
           aom_env%new_state = new_state
           aom_env%active_state = active_state
-          sh_print_env%successful_hop = successful_hop
-          sh_print_env%adiab_energies_t = aom_env%adiab_energies_t
-          sh_print_env%new_state = aom_env%new_state
-          sh_print_env%old_state = aom_env%active_state
           IF (attempt_hop) THEN
              aom_env%active_state = active_state
              aom_env%NN = NN
@@ -1086,30 +1057,18 @@ print*, "ITIMES", itimes
              aom_env%scaling  = scaling
              aom_env%cbar     = cbar
           ENDIF
-          CALL adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, &
-                                               times)
        ELSE
-          sh_print_env%adiab_energies_t = aom_env%adiab_energies_t
-          sh_print_env%kinetic_energy = aom_env%kinetic_energy 
-          sh_print_env%delta_energy   = aom_env%delta_energy 
-          sh_print_env%successful_hop = successful_hop
-          sh_print_env%new_state = aom_env%new_state
-          sh_print_env%old_state = aom_env%old_state
-          CALL adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, &
-                                               times)
           aom_env%new_state = -1
           aom_env%old_state = -1
        ENDIF
        energy_adiabat = E_tp(active_state)
+
 !END PREPARE THE PRINT
 
 !DEALLOCATE
        DEALLOCATE(NACE)
        DEALLOCATE(velocities_t_prime)
        DEALLOCATE(velocities_t) 
-       DEALLOCATE(sh_print_env%proba)     
-       DEALLOCATE(sh_print_env%pop_init)     
-       DEALLOCATE(sh_print_env%adiab_energies_t)     
        deallocate(ext_pres, ext_elements)
        deallocate(elements)
        deallocate(scoefftot, pcoefftot)

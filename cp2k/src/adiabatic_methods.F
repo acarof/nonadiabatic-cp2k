@@ -246,6 +246,9 @@ CONTAINS
 !print*, "Forces in adiabatic_fssh_routines"
 !print*, jparticle, particles_mix%els(jparticle)%f(:)
         final_energy = energy_adiabat
+      CASE("TEST_HOP")
+        particles_mix%els(jparticle)%f(:)= forces_adiab(:,iparticle)
+        final_energy = energy_adiabat
       END SELECT
     END DO
 
