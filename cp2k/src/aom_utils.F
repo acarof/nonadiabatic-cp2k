@@ -614,10 +614,6 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
            diff_energy = 1 / (E_new_state - E_old_state)
         ENDIF  
 
-print*, "old_state = ", old_state
-print*, "new_state = ", new_state
-print*, "diff_energy", diff_energy
-
     IF (.NOT.my_fast) THEN
         T = S
         CALL matinvsqrt(mat, .FALSE., T)
@@ -1135,10 +1131,8 @@ end subroutine calcTDT
         INTEGER                                   :: i
         REAL( KIND =dp)                           :: random, sumc
 
-print*, "HEHO"
         ALLOCATE(sh_print_env%pop_init(SIZE(C(init,:))))
 
-print*, "HEHO"
         CALL init_random_seed()
         CALL random_number(random)
         sh_print_env%initrandom = random
@@ -1146,7 +1140,6 @@ print*, "HEHO"
         DO i=1, SIZE(C(init,:))
            sh_print_env%pop_init(i) = C(init,i)*C(init,i)
         ENDDO
-print*, "HEHO"
         DO i=1, SIZE(C(init,:))
            sumc = sumc + C(init,i)*C(init,i)
            IF (random.le.sumc) THEN
@@ -1155,31 +1148,28 @@ print*, "HEHO"
               EXIT
            ENDIF
         ENDDO
-print*, "HEHO"
         CALL adiab_print_sh_info(sh_print_env, keyword = 'START')
         DEALLOCATE(sh_print_env%pop_init)
    END SUBROUTINE choose_firstadiabat
 
 
 
-   SUBROUTINE simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime)
+!   SUBROUTINE simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime)
         !TYPE(tmp_variables_type), POINTER        :: tmp
-        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
-        REAL(kind=dp), INTENT(IN)                :: delta_energy
-        REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime
+!        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
+!        REAL(kind=dp), INTENT(IN)                :: delta_energy
+!        REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime
         !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
 
-        CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
-        routineP = moduleN//':'//routineN
+!        CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
+!        routineP = moduleN//':'//routineN
 
-        REAL(kind=dp)                            :: rescale_factor
+!        REAL(kind=dp)                            :: rescale_factor
 
 !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
-        rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
-        print*, "rescale_factor = ", rescale_factor
-        velocities = rescale_factor*velocities
-
-   END SUBROUTINE simple_vel_rescaling
+!        rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
+!        velocities = rescale_factor*velocities
+!   END SUBROUTINE simple_vel_rescaling
 
 
 
@@ -1335,7 +1325,8 @@ print*, "HEHO"
                   CALL hop_nacv_vel_reversing(nparticle_kind, velocities,  & 
                                               force_env%mixed_env%aom_env%forces_adiab, &
                                               force_env%mixed_env%aom_env%forces_adiab_new, &
-                                              hop_nacv, atomic_kind_set, local_particles, reversal_keyword)
+                                              hop_nacv, atomic_kind_set, local_particles, reversal_keyword, &
+                                              sh_print_env)
               ELSE 
                   force_env%mixed_env%aom_env%successful_hop = .TRUE.
                   force_env%mixed_env%aom_env%old_state      = force_env%mixed_env%aom_env%active_state
@@ -1358,6 +1349,9 @@ print*, "HEHO"
                           (/ SUM(hop_nacv(1,:)), SUM(hop_nacv(2,:)), SUM(hop_nacv(3,:)) /)
               ENDIF
               CALL adiab_print_sh_info(sh_print_env, keyword = 'NACV_RESCALING')
+              !IF (.NOT.(sh_print_env%successful_hop)) THEN
+              !   CALL adiab_print_sh_info(sh_print_env, keyword = 'NACV_REVERSING')
+              !ENDIF 
            ENDIF 
         CASE DEFAULT
                 CPABORT("There is no method to do the rescaling of the velocities.")
@@ -1366,7 +1360,7 @@ print*, "HEHO"
    END SUBROUTINE check_hop_attempt
 
    SUBROUTINE hop_nacv_vel_reversing(nparticle_kind, velocities, forces_old, forces_new, hop_nacv, atomic_kind_set, &
-                                     local_particles, reversal_keyword)
+                                     local_particles, reversal_keyword, sh_print_env)
         INTEGER, INTENT(IN)                      :: nparticle_kind
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
         REAL(kind=dp), DIMENSION(:,:), INTENT(IN)   :: forces_old, forces_new
@@ -1375,6 +1369,7 @@ print*, "HEHO"
         TYPE(atomic_kind_type), DIMENSION(:), &
              POINTER                             :: atomic_kind_set
         CHARACTER(LEN=default_string_length)     :: reversal_keyword
+        TYPE(sh_print_env_type)                  :: sh_print_env
 
         CHARACTER(len=*), PARAMETER :: routineN = 'hop_nacv_vel_rescaling', &
         routineP = moduleN//':'//routineN
@@ -1388,11 +1383,7 @@ print*, "HEHO"
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
         LOGICAL                                  :: reverse
 
-!From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular
-!dynamics using semiempirical methods. 
-!     Chem Phys 2008, 349:334–347.
-! B = -B, compare to the paper
-        
+!> TO EXPLAIN  
 
         IF ((reversal_keyword.ne."ALWAYS").OR.(reversal_keyword.ne."NEVER")) THEN
            product_pd = 0.0D0
@@ -1451,6 +1442,11 @@ print*, "HEHO"
            END DO
         ENDIF
         
+        sh_print_env%reversal_keyword = reversal_keyword
+        sh_print_env%reverse = reverse
+        sh_print_env%product_pd = product_pd
+        sh_print_env%product_dfn = product_dfn
+        sh_print_env%product_dfo = product_dfo
    END SUBROUTINE hop_nacv_vel_reversing
 
 
@@ -1475,9 +1471,9 @@ print*, "HEHO"
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-!From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular dynamics using semiempirical methods. 
-!     Chem Phys 2008, 349:334–347.
-! B = -B, compare to the paper
+!> From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular dynamics using semiempirical methods. 
+!>     Chem Phys 2008, 349:334–347.
+!>  B = -B, compare to the paper
 
         IF (B < 0) THEN
            rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
@@ -1490,12 +1486,10 @@ print*, "HEHO"
            nparticle_local = local_particles%n_el(iparticle_kind)
            DO iparticle_local=1,nparticle_local
               iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-print*, "velocities(:, iparticle)", iparticle, velocities(:, iparticle)
               IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
                    velocities(3, iparticle)**2 ).NE.0.0d0) THEN
                  velocities(:, iparticle ) = velocities(:, iparticle) + (rescale_factor/mass) * hop_nacv(:, iparticle)
               ENDIF
-print*, "velocities(:, iparticle)", iparticle, velocities(:, iparticle)
            ENDDO
         END DO
 

@@ -43,7 +43,8 @@
 ! *****************************************************************************
 
 MODULE aom_types
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length, &
+                                             dp
   USE input_section_types,             ONLY: section_vals_type
 
 
@@ -57,38 +58,46 @@ IMPLICIT NONE
 
 
    TYPE sh_print_env_type
-!> If hop
-     LOGICAL                                     :: attempt_hop
-     LOGICAL                                     :: successful_hop
-!> To store energies in the Jacob's Method
+!> General variable
+     INTEGER                                     :: nadiab, norbitals
+     REAL(KIND = dp)                             :: times, deltatMD
+     TYPE(section_vals_type), POINTER            :: adiab_section
      REAL(KIND = dp), DIMENSION(:), POINTER      :: adiab_energies_t   
-!> The probability array for the hop
-     REAL(KIND = dp), DIMENSION(:), POINTER      :: proba
-!> Random number for test hop
-     REAL(KIND = dp)                             :: hop
-!> If renormalization occurs
-     LOGICAL                                     :: renorm
-!> If renormalization occurs: the sum of probabilities
+!> Variable for the first timestep
+     REAL(KIND = dp), DIMENSION(:), POINTER      :: pop_init
+     INTEGER                                     :: first_adiabat
+     REAL(KIND = dp)                             :: initrandom
+!> Variable for Tully's test
+     LOGICAL                                     :: attempt_hop
      REAL(KIND = dp)                             :: sumprob
-!> Old and new state number
+     LOGICAL                                     :: successful_hop
      INTEGER                                     :: old_state
      INTEGER                                     :: new_state
-!> Delta energy between old_state and putative new_state
+     LOGICAL                                     :: renorm
+     REAL(KIND = dp), DIMENSION(:), POINTER      :: proba
+     REAL(KIND = dp)                             :: hop
+!Variable for the rescaling
      REAL(KIND = dp)                             :: delta_energy
      REAL(KIND = dp)                             :: kinetic_energy
      REAL(KIND = dp)                             :: A, B
      REAL(KIND = dp)                             :: rescale_factor
      REAL(KIND = dp), DIMENSION(3)               :: momentum_shift
+!> Variable for the reversing
+     LOGICAL                                     :: reverse
+     CHARACTER(LEN=default_string_length)        :: reversal_keyword
+     REAL(KIND = dp)                             :: product_pd, product_dfn, product_dfo
+!> Variable for the decoherence
      LOGICAL                                     :: decohere
+!> To store energies in the Jacob's Method
+!> The probability array for the hop
+!> Random number for test hop
+!> If renormalization occurs
+!> If renormalization occurs: the sum of probabilities
+!> Old and new state number
+!> Delta energy between old_state and putative new_state
 !> Random number for initial choice
-     REAL(KIND = dp)                             :: initrandom
 !> Initial population in the adiabatic states
-     REAL(KIND = dp), DIMENSION(:), POINTER      :: pop_init
 !> First adiabat after the random choice
-     INTEGER                                     :: first_adiabat
-     INTEGER                                     :: nadiab, norbitals
-     REAL(KIND = dp)                             :: times, deltatMD
-     TYPE(section_vals_type), POINTER            :: adiab_section
    END TYPE sh_print_env_type
 
 

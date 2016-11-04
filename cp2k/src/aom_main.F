@@ -260,7 +260,6 @@ CONTAINS
      else
        sh_print_env = aom_env%sh_print_env
      endif
-print*, "HEY"
 !stop
 
      ALLOCATE(E_t(mat))
@@ -952,6 +951,9 @@ print*, "HEY"
                      new_state = mod(active_state + 1, mat)
                      IF ((new_state).EQ.0) new_state = mat
                   ENDIF
+              ELSE
+                  attempt_hop = .FALSE.
+                  decohere = .FALSE.    
               ENDIF
           ENDIF
       ENDIF

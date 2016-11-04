@@ -606,7 +606,6 @@ CONTAINS
     REAL(KIND = dp), ALLOCATABLE, DIMENSION(:)  :: adiab_energies_t
     REAL(KIND = dp), DIMENSION(3)               :: momentum_shift
     
-print*, "HERE"   
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
@@ -723,6 +722,15 @@ print*, "HERE"
                WRITE( unit_nr, "(A)") "  "
            ELSE
                WRITE( unit_nr, "(A)") "REJECTED HOP!"
+               WRITE( unit_nr, "(A,A)") "METHOD OF REVERSING: ", sh_print_env%reversal_keyword
+               WRITE( unit_nr, "(A,F20.10)" ) "Product NACV*Momentum = ", sh_print_env%product_pd
+               WRITE( unit_nr, "(A,F20.10)" ) "Product NACV*Old forces = ", sh_print_env%product_dfo
+               WRITE( unit_nr, "(A,F20.10)" ) "Product NACV*New forces = ", sh_print_env%product_dfn
+               IF (sh_print_env%reverse) THEN
+                  WRITE( unit_nr, "(A)" ) "REVERSAL OF VELOCITIES!"
+               ELSE
+                  WRITE( unit_nr, "(A)" ) "NO REVERSAL!"
+               ENDIF
                WRITE( unit_nr, "(A,I8)" ) "Final state   = ", old_state
                WRITE( unit_nr, "(A)") "  "
            ENDIF
