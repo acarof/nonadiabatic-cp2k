@@ -1000,22 +1000,24 @@ print*, "State", active_state
 !COLLAPSE IF REQUIRED
       sh_print_env%decohere = .FALSE.
       IF (itimes.ge.1) THEN       
-               !Finally, collapse the wavefunction if called for
-               !if (decohere) then
-               if (successful_hop) aom_env%futur_decohere = .TRUE.
+         !Finally, collapse the wavefunction if called for
+         !if (decohere) then
+         if (successful_hop) aom_env%futur_decohere = .TRUE.
 !> Check if the collapse key word is TRUE in the input
-               if (collapse) then
+         sh_print_env%collapse = collapse
+         if (collapse) then
 !> Check if the surface_hop subroutine asks us to do the decoherence
-                    if (aom_env%futur_decohere) then 
-                       if (decohere) then
-                             sh_print_env%decohere = .TRUE.
-                             do i=1,mat
-                                 ctin(i) = C_tp(i,active_state) 
-                             end do
-                             aom_env%futur_decohere = .FALSE. 
-                       end if
-                    endif
+            if (aom_env%futur_decohere) then 
+               if (decohere) then
+                  sh_print_env%decohere = .TRUE.
+                  do i=1,mat
+                     ctin(i) = C_tp(i,active_state) 
+                  end do
+                  aom_env%futur_decohere = .FALSE. 
                end if
+            endif
+         end if
+         CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')
       ENDIF
 !END COLLAPSE IF REQUIRED
 

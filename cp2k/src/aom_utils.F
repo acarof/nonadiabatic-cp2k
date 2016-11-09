@@ -47,7 +47,8 @@ MODULE aom_utils
                                                dp
    USE machine,                        ONLY: m_getpid
    USE aom_types,                      ONLY: sh_print_env_type
-   USE aom_print,                      ONLY: adiab_print_sh_info
+   USE aom_print,                      ONLY: adiab_print_sh_info,  &
+                                             adiab_print_hop_nacv
 
   USE cp_parser_methods,               ONLY: read_float_object
 
@@ -530,12 +531,15 @@ subroutine adiabaticity(H, mol, C, E, print)
 
 end subroutine adiabaticity
 
-SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symmetry, fast)
+SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symmetry, fast, &
+                         exF_11, exF_1, exF_2, exF_3)
         TYPE(force_env_type), POINTER                            :: force_env
         REAL(kind=dp), DIMENSION(:,:), INTENT(OUT), ALLOCATABLE  :: hop_nacv
         INTEGER, OPTIONAL                                        :: ext_old_state, ext_new_state
         CHARACTER(len=*), OPTIONAL                               :: symmetry
         LOGICAL, OPTIONAL                                        :: fast
+        REAL(kind=dp), DIMENSION(:,:), INTENT(OUT), ALLOCATABLE, OPTIONAL  :: exF_11, exF_1, exF_2, exF_3
+
 
         CHARACTER(len=*), PARAMETER :: routineN = 'calc_hop_nacv', &
         routineP = moduleN//':'//routineN
@@ -693,7 +697,7 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
                 end do
         end do
      ELSE
-        DH(i,j,k,d) = 0.0D0
+        DH = 0.0D0
         do i=1,mat
                 do j=1,mat
                         do k=1, natom
@@ -741,6 +745,10 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
            ENDDO 
 
            hop_nacv = F_1 + F_11 + F_2 + F_3
+           IF (PRESENT(exF_1))  exF_1  = F_1
+           IF (PRESENT(exF_11)) exF_11 = F_11
+           IF (PRESENT(exF_2))  exF_2  = F_2
+           IF (PRESENT(exF_3))  exF_3  = F_3
            IF (PRESENT(symmetry)) THEN
               DO j=1, natom
                  normf1 = 0
@@ -1242,7 +1250,9 @@ end subroutine calcTDT
 
         REAL(kind=dp)                            :: delta_energy, rescale_factor
         REAL(kind=dp)                            :: kinetic_energy_prime, A, B
-        REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE  :: hop_nacv
+        REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE  :: hop_nacv, hop_nacv_oldold, hop_nacv_newnew
+        REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE  :: hop_nacv_oldnew, hop_nacv_newold
+        REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE  :: F_11, F_1, F_2, F_3
         CHARACTER(LEN=default_string_length)     :: rescale_keyword, nacv_keyword, reversal_keyword
         TYPE(section_vals_type), POINTER         :: mixed_section, adiab_section, coupling_section
         TYPE(section_vals_type), POINTER         :: force_env_section
@@ -1306,14 +1316,22 @@ end subroutine calcTDT
               CASE("TEST")
                  old_state = force_env%mixed_env%aom_env%active_state
                  new_state = force_env%mixed_env%aom_env%new_state
-                 CALL calc_hop_nacv( force_env, hop_nacv, old_state, old_state, "OLDOLD")
-                 CALL calc_hop_nacv( force_env, hop_nacv, new_state, new_state, "NEWNEW")
-                 CALL calc_hop_nacv( force_env, hop_nacv, new_state, old_state, "NEWOLD")
-                 CALL calc_hop_nacv( force_env, hop_nacv, old_state, new_state, "OLDNEW")
+                 CALL calc_hop_nacv( force_env, hop_nacv_oldold, old_state, old_state, "OLDOLD")
+                 CALL calc_hop_nacv( force_env, hop_nacv_newnew, new_state, new_state, "NEWNEW")
+                 CALL calc_hop_nacv( force_env, hop_nacv_newold, new_state, old_state, "NEWOLD")
+                 CALL calc_hop_nacv( force_env, hop_nacv_oldnew, old_state, new_state, "OLDNEW")
+                 CALL adiab_print_hop_nacv(sh_print_env, hop_nacv_oldold, &
+                                  hop_nacv_newnew, hop_nacv_newold, hop_nacv_oldnew) 
+                 hop_nacv = hop_nacv_oldnew
+              CASE("CONTRIBUTION")
+                 CALL calc_hop_nacv( force_env, hop_nacv, exF_11 = F_11, exF_1 = F_1, exF_2 = F_2, exF_3 =F_3)
+                 CALL adiab_print_hop_nacv(sh_print_env, hop_nacv, F_11, F_1, F_2, F_3) 
               CASE("TOTAL")
                  CALL calc_hop_nacv( force_env, hop_nacv)
+                 CALL adiab_print_hop_nacv(sh_print_env, hop_nacv) 
               CASE("FAST")
                  CALL calc_hop_nacv( force_env, hop_nacv, fast=.TRUE.)
+                 CALL adiab_print_hop_nacv(sh_print_env, hop_nacv) 
               CASE DEFAULT
                 CPABORT("There is no method to calculate the NACV.")
               END SELECT 

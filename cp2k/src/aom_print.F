@@ -76,6 +76,7 @@ IMPLICIT NONE
              adiab_print_hamiltonian,    &
              adiab_print_nace,           &
              adiab_print_nacv,           &
+             adiab_print_hop_nacv,       &
              adiab_print_stateno,        &
              adiab_print_exact_forces,   &
              adiab_print_active_state,   &
@@ -540,6 +541,84 @@ CONTAINS
 
 
 
+   SUBROUTINE adiab_print_hop_nacv(sh_print_env,  &
+                                   nacv1, nacv2, nacv3, nacv4, nacv5)
+    TYPE(sh_print_env_type), INTENT(IN)      :: sh_print_env
+    REAL(KIND=dp), DIMENSION(:,:)            :: nacv1
+    REAL(KIND=dp), DIMENSION(:,:),  OPTIONAL :: nacv2, nacv3, nacv4, nacv5
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_hop_nacv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: itimes
+    REAL(KIND=dp)                            :: deltatMD
+    TYPE(section_vals_type), POINTER         :: adiab_section
+    INTEGER                                  :: unit_nr
+    TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL                                  :: new_file
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: unit_conv, time, unit_conv_fs, times
+    CHARACTER(LEN=default_string_length)     :: unit_str
+    LOGICAL                                  :: test4
+    CHARACTER(LEN=default_string_length)     :: my_format, my_title
+
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
+
+    adiab_section => sh_print_env%adiab_section
+    times         = sh_print_env%times
+    deltatMD       = sh_print_env%deltatMD
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%HOP_NACV",&
+               extension=".xyz",middle_name="hop-nacv", log_filename=.FALSE.,&
+               is_new_file=new_file)
+    itimes = INT(times)
+
+    IF (unit_nr>0) THEN
+
+       CALL section_vals_val_get(adiab_section,"PRINT%HOP_NACV%UNIT",&
+            c_val=unit_str)
+       unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
+       unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
+       time = unit_conv_fs*itimes*deltatMD
+
+       test4 = PRESENT(nacv2).AND.PRESENT(nacv3).AND.PRESENT(nacv4)
+       IF (test4) THEN
+          IF (PRESENT(nacv5)) THEN
+             my_title=", NACV, F_11, F_1, F_2, F_3"
+          ELSE
+             my_title=", NACV_OLDOLD, NACV_NEWNEW, NACV_NEWOLD, NACV_OLDNEW "
+          ENDIF
+       ELSE
+             my_title=" "
+       ENDIF
+
+        WRITE ( unit_nr, "(A)" ) "NACV ("//TRIM(unit_str)//")"
+        WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",itimes,", time = ",time, " (fs)"//TRIM(my_title)
+        DO i=1, SIZE(nacv1, 2)
+           IF (test4) THEN
+              IF (PRESENT(nacv5)) THEN
+                 my_format="(I4,1X,15F20.10)"
+                 WRITE(unit_nr,TRIM(my_format)) i, &
+                           nacv1(:,i), nacv2(:,i), nacv3(:,i), nacv4(:,i), nacv5(:,i)
+              ELSE
+                 my_format="(I4,1X,12F20.10)"
+                 WRITE(unit_nr,TRIM(my_format)) i, &
+                           nacv1(:,i), nacv2(:,i), nacv3(:,i), nacv4(:,i)
+              ENDIF
+           ELSE
+              my_format="(I4,1X,3F20.10)"
+              WRITE(unit_nr,TRIM(my_format)) i, &
+                           nacv1(:,i) 
+           ENDIF
+        ENDDO
+
+    END IF
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HOP_NACV")
+   END SUBROUTINE adiab_print_hop_nacv
+
+
+
+
 
    SUBROUTINE adiab_print_stateno(adiab_section, state, ext_atoms,itimes, deltatMD)
     TYPE(section_vals_type), POINTER         :: adiab_section
@@ -735,7 +814,7 @@ CONTAINS
                WRITE( unit_nr, "(A)") "  "
            ENDIF
            DEALLOCATE(adiab_energies_t)
-       CASE("DECOHERE")
+       CASE("DECOHERENCE")
            IF (sh_print_env%collapse) THEN
               IF (sh_print_env%decohere) THEN
                  WRITE( unit_nr, "(A)" ) "DECOHERENCE!"
