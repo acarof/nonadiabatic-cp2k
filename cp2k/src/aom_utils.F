@@ -1154,22 +1154,22 @@ end subroutine calcTDT
 
 
 
-!   SUBROUTINE simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime)
+   SUBROUTINE simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime)
         !TYPE(tmp_variables_type), POINTER        :: tmp
-!        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
-!        REAL(kind=dp), INTENT(IN)                :: delta_energy
-!        REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
+        REAL(kind=dp), INTENT(IN)                :: delta_energy
+        REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime
         !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
 
-!        CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
-!        routineP = moduleN//':'//routineN
+        CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
+        routineP = moduleN//':'//routineN
 
-!        REAL(kind=dp)                            :: rescale_factor
+        REAL(kind=dp)                            :: rescale_factor
 
 !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
-!        rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
-!        velocities = rescale_factor*velocities
-!   END SUBROUTINE simple_vel_rescaling
+        rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
+        velocities = rescale_factor*velocities
+   END SUBROUTINE simple_vel_rescaling
 
 
 
@@ -1494,7 +1494,6 @@ end subroutine calcTDT
         END DO
 
         print*, "rescale_factor = ", rescale_factor
-
    END SUBROUTINE hop_nacv_vel_rescaling
 
    SUBROUTINE cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
@@ -1554,7 +1553,6 @@ print*, "B = ", B
 print*, "energie old_state = ", force_env%mixed_env%aom_env%adiab_energies_t(old_state)
 print*, "energie new_state = ", force_env%mixed_env%aom_env%adiab_energies_t(new_state)
 print*, "delta_energy = ", delta_energy
-
    END SUBROUTINE cal_delta_energy_nacv
          
    SUBROUTINE cal_delta_energy(nparticle_kind, velocities, force_env, atomic_kind_set, &

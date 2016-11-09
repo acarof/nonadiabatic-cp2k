@@ -88,6 +88,7 @@ IMPLICIT NONE
      REAL(KIND = dp)                             :: product_pd, product_dfn, product_dfo
 !> Variable for the decoherence
      LOGICAL                                     :: decohere
+     LOGICAL                                     :: collapse
 !> To store energies in the Jacob's Method
 !> The probability array for the hop
 !> Random number for test hop
