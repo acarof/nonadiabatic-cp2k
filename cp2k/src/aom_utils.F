@@ -553,13 +553,14 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
         integer, dimension(:,:), allocatable :: NN
         integer :: i, j, k, mat, d, l, atoms
         REAL(KIND=dp), dimension(:,:,:,:), allocatable :: DH, my_DP
-        REAL(KIND=dp), dimension(:,:), allocatable :: F_1, F_11, F_2, F_3
+        REAL(KIND=dp), dimension(:,:), allocatable :: F_1, F_11, F_2, F_22, F_3
         REAL(KIND=dp), dimension(:), allocatable ::   Sdiag
         REAL(KIND=dp), dimension(:,:), allocatable :: S, C, T, X, LL, Y
         LOGICAL, dimension(:), allocatable         :: ext_pres
         REAL(KIND=dp)                              :: contribf1, contribf11, contribf2, contribf3
-        REAL(KIND=dp)                              :: normf1, normf2, normf3, normf11, normnacv
+        REAL(KIND=dp)                              :: normf1, normf2, normf22, normf3, normf11, normnacv
         LOGICAL                                    :: my_fast
+        REAL(KIND = dp)                            :: error_f1, error_f11, error_f2, error_f22, error_f3
 
         mat    = SIZE(force_env%mixed_env%aom_env%Stptp, 1)
         natom  = SIZE(force_env%mixed_env%aom_env%diabatic_forces, 2)
@@ -587,6 +588,7 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
         allocate(F_1(3,natom))
         allocate(F_11(3,natom))
         allocate(F_2(3,natom))
+        allocate(F_22(3,natom))
         allocate(F_3(3,natom))
         allocate(Fin(3,natom, mat))
         allocate(hop_nacv(3, natom)) 
@@ -744,48 +746,71 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
               ENDDO
            ENDDO 
 
+
            hop_nacv = F_1 + F_11 + F_2 + F_3
+           IF (PRESENT(symmetry)) THEN
+              DO j=1, natom
+                 DO d=1, 3
+                    print*, "NACV", symmetry, hop_nacv(d,j) 
+                 ENDDO
+              ENDDO
+           ENDIF
            IF (PRESENT(exF_1))  exF_1  = F_1
            IF (PRESENT(exF_11)) exF_11 = F_11
            IF (PRESENT(exF_2))  exF_2  = F_2
            IF (PRESENT(exF_3))  exF_3  = F_3
-           IF (PRESENT(symmetry)) THEN
+           IF (PRESENT(exF_1)) THEN
+              F_22 = F_2 + F_3
               DO j=1, natom
                  normf1 = 0
                  normf11 = 0
-                 normf2 = 0
-                 normf3 = 0
+                 normf22 = 0
                  normnacv = 0
                  contribf1 = 0
                  contribf11 = 0
                  contribf2 = 0
                  contribf3 = 0
                  DO d=1,3
-                    print*, "NACVF1   = ", d, j, F_1(d,j), symmetry
-                    print*, "NACVF11  = ", d, j, F_11(d,j), symmetry
-                    print*, "NACVF2   = ", d, j, F_2(d,j), symmetry
-                    print*, "NACVF3   = ", d, j, F_3(d,j), symmetry
-                    print*, "NACVFtot = ", d, j, hop_nacv(d,j), symmetry
+                    print*, "NACVTOT = ", d, j, hop_nacv(d,j)
+                    print*, "NACVF1   = ", d, j, F_1(d,j)
+                    !print*, "NACVF11  = ", d, j, F_11(d,j), symmetry
+                    !print*, "NACVF2   = ", d, j, F_2(d,j), symmetry
+                    !print*, "NACVF3   = ", d, j, F_3(d,j), symmetry
+                    !print*, "NACVFtot = ", d, j, hop_nacv(d,j), symmetry
                     contribf1 = contribf1 + F_1(d,j) * hop_nacv(d,j)
                     normf1 = normf1 + F_1(d,j)*F_1(d,j)
                     contribf11 = contribf11 + F_11(d,j) * hop_nacv(d,j)
                     normf11 = normf11 + F_11(d,j)*F_11(d,j)
                     contribf2 = contribf2 + F_2(d,j) * hop_nacv(d,j)
                     normf2 = normf2 + F_2(d,j)*F_2(d,j)
+                    normf22 = normf22 + F_22(d,j)*F_22(d,j)
                     contribf3 = contribf3 + F_3(d,j) * hop_nacv(d,j)
                     normf3 = normf3 + F_3(d,j)*F_3(d,j)
                     normnacv = normnacv + hop_nacv(d,j)*hop_nacv(d,j)
                  ENDDO
-                 print*, "CONTRIBF1 = ", contribf1 / normnacv, symmetry, "ATOM", j
-                 print*, "CONTRIBF11 = ", contribf11 / normnacv, symmetry, "ATOM", j
-                 print*, "CONTRIBF2 = ", contribf2 / normnacv, symmetry, "ATOM", j
-                 print*, "CONTRIBF3 = ", contribf3 / normnacv, symmetry, "ATOM", j
+                 normnacv = SQRT(normnacv)
+                 normf1 = SQRT(normf1)
+                 normf11 = SQRT(normf11)
+                 normf2 = SQRT(normf2)
+                 normf22 = SQRT(normf22)
+                 normf3 = SQRT(normf3)
+                 error_f1 = SUM((hop_nacv(:,j)/normnacv - F_1(:,j)/normf1)**2) / 3
+                 print*, "ERRORF1 ATOM", j, error_f1
+                 error_f1 = SUM((hop_nacv(:,j) - F_1(:,j))**2) / 3
+                 print*, "ERRORTOTF1 ATOM", j, error_f1
+                 error_f11 = SUM((hop_nacv(:,j)/normnacv - F_11(:,j)/normf11)**2)  /3
+                 error_f22 = SUM((hop_nacv(:,j)/normnacv - F_22(:,j)/normf22)**2)  /3
+                 error_f2 = SUM((hop_nacv(:,j)/normnacv - F_2(:,j)/normf2)**2)     /3
+                 error_f3 = SUM((hop_nacv(:,j)/normnacv - F_3(:,j)/normf3)**2)     /3
+                 print*, "ERRORF11 ATOM", j, error_f11
+                 print*, "ERRORF22 ATOM", j, error_f22
+                 print*, "ERRORF2 ATOM", j, error_f2
+                 print*, "ERRORF3 ATOM", j, error_f3
+                 !print*, "CONTRIBF1 = ", contribf1 / normnacv,  "ATOM", j
+                 !print*, "CONTRIBF11 = ", contribf11 / normnacv, "ATOM", j
+                 !print*, "CONTRIBF2 = ", contribf2 / normnacv, "ATOM", j
+                 !print*, "CONTRIBF3 = ", contribf3 / normnacv, "ATOM", j
               ENDDO
-
-              print*, "total F_1 =" , SUM(F_1(1,:)), SUM(F_1(2,:)), SUM(F_1(3,:))
-              print*, "total F_11 =" , SUM(F_11(1,:)), SUM(F_11(2,:)), SUM(F_11(3,:))
-              print*, "total F_2 =" , SUM(F_2(1,:)), SUM(F_2(2,:)), SUM(F_2(3,:))
-              print*, "total F_3 =" , SUM(F_3(1,:)), SUM(F_3(2,:)), SUM(F_3(3,:))
            ENDIF
         ELSE
            do d=1,3
@@ -800,7 +825,7 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
            hop_nacv = F_1 
         ENDIF
 
-        deallocate(T, DH, my_DP, F_1, F_11, F_2, F_3)
+        deallocate(T, DH, my_DP, F_1, F_11, F_2, F_22, F_3)
                 
 END SUBROUTINE calc_hop_nacv
 
@@ -1322,10 +1347,24 @@ end subroutine calcTDT
                  CALL calc_hop_nacv( force_env, hop_nacv_oldnew, old_state, new_state, "OLDNEW")
                  CALL adiab_print_hop_nacv(sh_print_env, hop_nacv_oldold, &
                                   hop_nacv_newnew, hop_nacv_newold, hop_nacv_oldnew) 
+                 print*, "ERRORASYM = ", SUM( (hop_nacv_oldnew + hop_nacv_newold ) **2 )
                  hop_nacv = hop_nacv_oldnew
+                 print*, "totalnacv =" , SUM(hop_nacv(1,:)),  SUM(hop_nacv(2,:)), SUM(hop_nacv(3,:))
+                 print*, "totalnacvasym =" , SUM(hop_nacv_oldnew(1,:) - hop_nacv_newold(1,:)) / 2,  & 
+                                             SUM(hop_nacv_oldnew(2,:) - hop_nacv_newold(2,:)) / 2,  &
+                                             SUM(hop_nacv_oldnew(3,:) - hop_nacv_newold(3,:)) / 2
               CASE("CONTRIBUTION")
                  CALL calc_hop_nacv( force_env, hop_nacv, exF_11 = F_11, exF_1 = F_1, exF_2 = F_2, exF_3 =F_3)
                  CALL adiab_print_hop_nacv(sh_print_env, hop_nacv, F_11, F_1, F_2, F_3) 
+                 CALL cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
+                                            local_particles, F_1, delta_energy, A, B) 
+print*, "DELTAF1 = ", delta_energy
+IF ((delta_energy).lt.0) THEN
+     print*, "LOGF1 = ", 0
+ELSE
+     print*, "LOGF1 = ", 1
+ENDIF
+     
               CASE("TOTAL")
                  CALL calc_hop_nacv( force_env, hop_nacv)
                  CALL adiab_print_hop_nacv(sh_print_env, hop_nacv) 
@@ -1337,6 +1376,11 @@ end subroutine calcTDT
               END SELECT 
               CALL cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
                                           local_particles, hop_nacv, delta_energy, A, B) 
+IF ((delta_energy).lt.0) THEN
+     print*, "LOGNACV = ", 0
+ELSE
+     print*, "LOGNACV = ", 1
+ENDIF
               If (delta_energy.lt.0) THEN
                   force_env%mixed_env%aom_env%successful_hop = .FALSE.
                   CALL section_vals_val_get(coupling_section,"METHOD_REVERSAL",c_val=reversal_keyword)
@@ -1553,6 +1597,7 @@ end subroutine calcTDT
                        A = A + hop_nacv(coord, iparticle)**2 / mass
                     ENDIF
                     B = B + velocities(coord, iparticle) * hop_nacv(coord, iparticle)
+!print*, "i coord vel", iparticle, coord, velocities(coord, iparticle)
 !print*, "mass = ", mass
 !print*, "A = ", iparticle, coord, A
 !print*, "B = ", iparticle, coord, B

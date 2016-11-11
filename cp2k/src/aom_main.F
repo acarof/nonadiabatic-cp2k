@@ -928,33 +928,41 @@ CONTAINS
           attempt_hop = .FALSE.
       ELSE    
           IF (itimes.eq.0) THEN
-              IF (select_first_adiabat) THEN
-                 CALL section_vals_val_get(coupling_section,"FIRST_ADIABAT",&
+             IF (my_test_keyword) THEN
+                attempt_hop = .TRUE.
+                active_state = 1
+                new_state = mod(active_state + 1, mat) 
+                IF ((new_state).EQ.0) new_state = mat
+             ELSE
+                IF (select_first_adiabat) THEN
+                   CALL section_vals_val_get(coupling_section,"FIRST_ADIABAT",&
                                            i_val=first_adiabat)
-              ELSE
-                 CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
-                 !new_state = first_adiabat
-              ENDIF
-              active_state = first_adiabat
-              decohere = .FALSE.
-              attempt_hop = .FALSE.
+                ELSE
+                   CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
+                   !new_state = first_adiabat
+                ENDIF
+                active_state = first_adiabat
+                decohere = .FALSE.
+                attempt_hop = .FALSE.
+              ENDIF 
           ELSE
-              IF (.NOT.successful_hop) THEN
-                  call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, decohere,  &      
-                                !new_state, is_hop)
-                                  new_state, &
-                                  attempt_hop, &
-                                  decohere_criterion, &
-                                  sh_print_env)
-                  IF (my_test_keyword) THEN
-                     attempt_hop = .TRUE.
-                     new_state = mod(active_state + 1, mat)
-                     IF ((new_state).EQ.0) new_state = mat
-                  ENDIF
-              ELSE
-                  attempt_hop = .FALSE.
-                  decohere = .FALSE.    
-              ENDIF
+             IF (my_test_keyword) THEN
+                attempt_hop = .TRUE.
+                new_state = mod(active_state + 1, mat)
+                IF ((new_state).EQ.0) new_state = mat
+             ELSE
+                IF (.NOT.successful_hop) THEN
+                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, decohere,  &      
+                                 !new_state, is_hop)
+                                   new_state, &
+                                   attempt_hop, &
+                                   decohere_criterion, &
+                                   sh_print_env)
+                ELSE
+                   attempt_hop = .FALSE.
+                   decohere = .FALSE.    
+                ENDIF
+             ENDIF
           ENDIF
       ENDIF
 !END DO THE HOPPING TEST 
