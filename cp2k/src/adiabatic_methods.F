@@ -247,6 +247,9 @@ CONTAINS
       CASE("TEST_HOP")
         particles_mix%els(jparticle)%f(:)= 0.0D0
         final_energy = energy_adiabat
+      CASE("GALILEAN")
+        particles_mix%els(jparticle)%f(:)= 0.0D0
+        final_energy = energy_adiabat
       END SELECT
     END DO
 
