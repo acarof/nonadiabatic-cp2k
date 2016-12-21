@@ -892,18 +892,22 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
         allocate(F(3,natom))
         allocate(nsave(natom,3))
 
+print*, "SIZE nacv", shape(nacv)
+print*, "SIZE my_DP", shape(my_DP)
         aom_iatom = 0
         do iatom=1, natom
+print*, "iatom", iatom, "aom_iatom", aom_iatom, "ext", ext_pres(iatom)
            if (ext_pres(iatom)) then
               aom_iatom = aom_iatom +1
               do d=1,3
                   my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
                enddo
            else 
-              my_DP(:,:,:,iatom) = 0.0D0
+              my_DP(:,:,iatom,:) = 0.0D0
            endif
         enddo
-        CPASSERT(aom_iatom.EQ.SIZE(nacv,4))
+!       IF (aom_iatom.NE.SIZE(nacv,4)) THEN
+!       ENDIF
 
         do i=1,mat
                 do j=1,mat
