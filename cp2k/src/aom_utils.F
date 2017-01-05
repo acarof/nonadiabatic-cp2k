@@ -642,7 +642,7 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
                   my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
                enddo
            else 
-              my_DP(:,:,:,iatom) = 0.0D0
+              my_DP(:,:,iatom,:) = 0.0D0
            endif
         enddo
         CPASSERT(aom_iatom.EQ.SIZE(nacv,4))
@@ -840,9 +840,15 @@ print*, "ERRORFF1HYDROGEN", ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2
 
            hop_nacv = F_1 
         ENDIF
-
-        deallocate(T, DH, my_DP, F_1, F_11, F_2, F_22, F_3)
-                
+ 
+        deallocate(T)
+        deallocate(DH)
+        deallocate(my_DP)
+        deallocate(F_1)
+        deallocate(F_11)
+        deallocate(F_2)
+        deallocate(F_22)
+        deallocate(F_3)
 END SUBROUTINE calc_hop_nacv
 
 subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_adiab, & 
@@ -892,11 +898,8 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
         allocate(F(3,natom))
         allocate(nsave(natom,3))
 
-print*, "SIZE nacv", shape(nacv)
-print*, "SIZE my_DP", shape(my_DP)
         aom_iatom = 0
         do iatom=1, natom
-print*, "iatom", iatom, "aom_iatom", aom_iatom, "ext", ext_pres(iatom)
            if (ext_pres(iatom)) then
               aom_iatom = aom_iatom +1
               do d=1,3
@@ -1532,7 +1535,9 @@ ENDIF
                       velocities(3, iparticle)**2 ).NE.0.0d0) THEN
                       scalar = SUM(velocities(:, iparticle) * hop_nacv(:, iparticle) )
                       norm = SUM( hop_nacv(:, iparticle)**2)
-                      velocities(:, iparticle) = velocities(:, iparticle) - 2 * (scalar/norm) * hop_nacv(:, iparticle)
+                      IF (norm.NE.0.0D0) THEN
+                         velocities(:, iparticle) = velocities(:, iparticle) - 2 * (scalar/norm) * hop_nacv(:, iparticle)
+                      ENDIF
                  ENDIF
               ENDDO
            END DO
