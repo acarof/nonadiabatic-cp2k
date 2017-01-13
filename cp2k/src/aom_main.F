@@ -674,16 +674,17 @@ CONTAINS
           if (itimes.gt.1) then
                do i=1,mat
                     do j=1,mat
-                                        Stt(j,i) = aom_env%Stt(j,i)
+                         Stt(j,i) = aom_env%Stt(j,i)
                          if (i .ne. j) then
                               H_t(j,i) = cmplx(0.0D0, -1.0D0*scaling*Stt(j,i)/cbar,dp)
                          end if
-                                        Sttm(j,i)  = aom_env%Sttm(j,i)
-                                        Stmt(j,i)  = aom_env%Stmt(j,i)
-                                        Stmtm(j,i) = aom_env%Stmtm(j,i)
+                         Sttm(j,i)  = aom_env%Sttm(j,i)
+                         Stmt(j,i)  = aom_env%Stmt(j,i)
+                         Stmtm(j,i) = aom_env%Stmtm(j,i)
                     end do
                end do
-          else if (itimes.eq.1) then !CHANGE_AC
+           endif
+!          else if (itimes.eq.1) then !CHANGE_AC
                do i=1,mat
                   do j=1,mat
                                 aom_env%Stt(j,i)   = Stptp(j,i)
@@ -692,7 +693,7 @@ CONTAINS
                                 aom_env%Stmtm(j,i) = Stt(j,i)
                   end do
                end do
-          endif !CHANGE_AC
+!          endif !CHANGE_AC
 !END GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
 
 !CONVERT THE NACV WITH THE GOOD UNITS
@@ -915,7 +916,11 @@ CONTAINS
                !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
                !It gives us back the eigenvalues and eigenvectors
       IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
+print*, "H_t", H_t
+print*, "E_t", E_t
       call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true.)
+print*, "H_tp", H_tp
+print*, "E_tp", E_tp
       CALL adiab_print_adiabat_energies(adiab_section, E_tp,nadiab,deltatMD, times)
 
       !The eigenvectors are needed to calculate the surface hopping probabilities
@@ -1036,6 +1041,7 @@ print*, "State", active_state
                aom_env%rm_t       = positions_tp
                aom_env%energies_t = energies_tp
                aom_env%adiab_energies_t = E_t
+print*, "ADIAB ENERGIES = ", aom_env%adiab_energies_t
            endif
         else if (itimes.eq.0) then
            aom_env%rm_tm      = positions_tp - velocities_t*deltatMD
