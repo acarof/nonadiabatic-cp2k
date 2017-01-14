@@ -1316,10 +1316,6 @@ CONTAINS
              ELSE
                 DO iparticle_local=1,nparticle_local
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-!print*, "forces in integrator_utils.F vv_first"
-!print*, particle_set(iparticle)%f(1)
-!print*, particle_set(iparticle)%f(2)
-!print*, particle_set(iparticle)%f(3)
 
                    tmp%vel (1,iparticle) = &
                         particle_set(iparticle)%v(1) * tmp%scale_v(1) * tmp%scale_v(1)+&
@@ -1481,11 +1477,6 @@ CONTAINS
              ELSE
                 DO iparticle_local=1,nparticle_local
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-!print*, "dm =", dm
-!print*, "tmp%vel init", iparticle
-!print*, tmp%vel(1, iparticle)
-!print*, tmp%vel(2, iparticle)
-!print*, tmp%vel(3, iparticle)
                    tmp%vel ( 1, iparticle) = &
                         tmp%vel ( 1, iparticle) * tmp%scale_v(1) * tmp%scale_v(1)  + &
                         tmp%scale_v(1) * tmp%poly_v(1) * dm*particle_set(iparticle)%f(1)
@@ -1495,14 +1486,6 @@ CONTAINS
                    tmp%vel ( 3, iparticle) = &
                         tmp%vel ( 3, iparticle) * tmp%scale_v(3) * tmp%scale_v(3)  + &
                         tmp%scale_v(3) * tmp%poly_v(3) * dm*particle_set(iparticle)%f(3)
-!print*, "forces in integrator_utils.F vv_second"
-!print*, particle_set(iparticle)%f(1)
-!print*, particle_set(iparticle)%f(2)
-!print*, particle_set(iparticle)%f(3)
-!print*, "tmp%vel", iparticle
-!print*, tmp%vel(1, iparticle)
-!print*, tmp%vel(2, iparticle)
-!print*, tmp%vel(3, iparticle)
                 END DO
              END IF
           END IF
@@ -1963,10 +1946,6 @@ CONTAINS
                    !tmp%vel( 1, iparticle) = new_velocities( 1, iparticle, 1)
                    !tmp%vel( 2, iparticle) = new_velocities( iparticle, 2)
                    !tmp%vel( 3, iparticle) = new_velocities( iparticle, 3)
-print*, "tmp%vel", iparticle
-print*, tmp%vel(1, iparticle)
-print*, tmp%vel(2, iparticle)
-print*, tmp%vel(3, iparticle)
                    !tmp%vel ( 1, iparticle) = &
                    !     tmp%vel ( 1, iparticle) * tmp%scale_v(1) * tmp%scale_v(1)  + &
                    !     tmp%scale_v(1) * tmp%poly_v(1) * dm*particle_set(iparticle)%f(1)

@@ -320,7 +320,7 @@ CONTAINS
    SUBROUTINE adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab, &
               norbitals, itimes, deltatMD)
     TYPE(section_vals_type), POINTER         :: adiab_section
-    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
+    REAL(KIND=dp), DIMENSION(:,:)            :: hamiltonian
     INTEGER, INTENT(IN)                      :: nadiab, norbitals
     INTEGER, POINTER                         :: itimes
     REAL(KIND=dp),INTENT(IN)                 :: deltatMD
@@ -373,7 +373,7 @@ CONTAINS
    SUBROUTINE adiab_print_nace(adiab_section, nace, nadiab, &
               norbitals, itimes, deltatMD)
     TYPE(section_vals_type), POINTER         :: adiab_section
-    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: nace
+    REAL(KIND=dp), DIMENSION(:,:)            :: nace
     INTEGER, INTENT(IN)                      :: nadiab, norbitals
     INTEGER, POINTER                         :: itimes
     REAL(KIND=dp),INTENT(IN)                 :: deltatMD
@@ -491,7 +491,7 @@ CONTAINS
    SUBROUTINE adiab_print_nacv(adiab_section, nacv, nadiab, &
               norbitals,ext_atoms, itimes, deltatMD)
     TYPE(section_vals_type), POINTER          :: adiab_section
-    REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
+    REAL(KIND=dp), DIMENSION(:,:,:,:)         :: nacv
     INTEGER, INTENT(IN)                       :: nadiab, norbitals, ext_atoms
     INTEGER, POINTER                          :: itimes
     REAL(KIND=dp), INTENT(IN)                 :: deltatMD

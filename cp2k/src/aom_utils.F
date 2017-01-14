@@ -286,13 +286,13 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                 end do
                 ak(i) = ct(i)*conjg(cstate)
                 b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,old_state))
-print*, "i b dphi", i, b(i), dphi(i, old_state)
+!print*, "i b dphi", i, b(i), dphi(i, old_state)
         end do
 
         sumg = 0.0D0
         !calculate g and sum(g)
         do i=1,mol
-print*, "deltat b ak", i, deltat, b(i), abs(ak(old_state))
+!print*, "deltat b ak", i, deltat, b(i), abs(ak(old_state))
                 g(i) = (deltat*b(i))/abs(ak(old_state))
                 !as in Tully, set negative probabilities to 0
                 if (g(i) < 0.0D0) then
@@ -300,7 +300,7 @@ print*, "deltat b ak", i, deltat, b(i), abs(ak(old_state))
                 end if
                 if (i .ne. old_state) then
                         sumg = sumg + g(i)
-print*, "sum proba", sumg, g(i)
+!print*, "sum proba", sumg, g(i)
 !                        print *, "Probability: ", i, g(i)
                 end if
         end do
@@ -1593,8 +1593,6 @@ ENDIF
               ENDIF
            ENDDO
         END DO
-
-        print*, "rescale_factor = ", rescale_factor
    END SUBROUTINE hop_nacv_vel_rescaling
 
    SUBROUTINE cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
@@ -1636,10 +1634,6 @@ ENDIF
                        A = A + hop_nacv(coord, iparticle)**2 / mass
                     ENDIF
                     B = B + velocities(coord, iparticle) * hop_nacv(coord, iparticle)
-!print*, "i coord vel", iparticle, coord, velocities(coord, iparticle)
-!print*, "mass = ", mass
-!print*, "A = ", iparticle, coord, A
-!print*, "B = ", iparticle, coord, B
                  ENDDO
               END DO
            END DO
@@ -1650,11 +1644,6 @@ ENDIF
            delta_energy = B**2 - 4 * A * (                                     &
                      force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
                      force_env%mixed_env%aom_env%adiab_energies_t(old_state))
-print*, "A = ", A
-print*, "B = ", B
-print*, "energie old_state = ", force_env%mixed_env%aom_env%adiab_energies_t(old_state)
-print*, "energie new_state = ", force_env%mixed_env%aom_env%adiab_energies_t(new_state)
-print*, "delta_energy = ", delta_energy
    END SUBROUTINE cal_delta_energy_nacv
          
    SUBROUTINE cal_delta_energy(nparticle_kind, velocities, force_env, atomic_kind_set, &

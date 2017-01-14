@@ -14,7 +14,7 @@
 ! *****************************************************************************
 
 
-MODULE adiabatic_methods
+MODULE non_adiabatic_methods
 
   USE cp_parser_methods,               ONLY: read_float_object
 
@@ -61,10 +61,10 @@ MODULE adiabatic_methods
   USE aom_main,                        ONLY: construct_ham_X_SH
   USE cp_units,                        ONLY: cp_unit_from_cp2k
 
-  USE aom_print,                       ONLY: adiab_print_hamiltonian, &
-                                             adiab_print_nace,        &
-                                             adiab_print_nacv,        &
-                                             adiab_print_stateno
+!  USE aom_print,                       ONLY: adiab_print_hamiltonian, &
+!                                             adiab_print_nace,        &
+!                                             adiab_print_nacv,        &
+!                                             adiab_print_stateno
   USE distribution_1d_types,           ONLY: distribution_1d_type
 
   USE aom_utils,                       ONLY: read_listcoeff
@@ -81,7 +81,7 @@ IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'adiabatic_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'non_adiabatic_methods'
    
    PUBLIC :: adiab_fssh_routines
 
@@ -128,9 +128,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: coupling_section
     CHARACTER(LEN=default_string_length)     :: coupling_keyword
     TYPE(aom_env_type)                       :: aom_env
-    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
-    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: nace
-    REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
+!    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
+!    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: nace
+!    REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
     !INTEGER                                  :: old_state, new_state
     REAL(KIND=dp)                            :: energy_adiabat
@@ -195,26 +195,27 @@ CONTAINS
              local_particles, my_test_keyword)
             
         !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
-        ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
-        ALLOCATE(nace(norbitals*nadiab, norbitals*nadiab))
-        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*aom_atoms))
+!        ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
+!        ALLOCATE(nace(norbitals*nadiab, norbitals*nadiab))
+!        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*aom_atoms))
 
-        IF (.NOT.aom_env%successful_hop) THEN
+!        IF (.NOT.aom_env%successful_hop) THEN
 !> Get the renewed information from aom_env
-           hamiltonian  = aom_env%hamiltonian
-           nace         = aom_env%nace
-           nacv         = aom_env%nacv
+!           hamiltonian  = aom_env%hamiltonian
+!           nace         = aom_env%nace
+!           nacv         = aom_env%nacv
            !new_state    = aom_env%new_state
            !old_state    = aom_env%old_state
 !> Print the coefficients, the populations, the Hamiltonian, the density matrix
 !> and the NACV
-           CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes, MDtimestep)
-           CALL adiab_print_nace(adiab_section, nace, nadiab,norbitals,itimes, MDtimestep)
-           CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, MDtimestep)        
+!           CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes, MDtimestep)
+!           CALL adiab_print_nace(adiab_section, nace, nadiab,norbitals,itimes, MDtimestep)
+!           CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, MDtimestep)        
            !CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes, MDtimestep)
-        ELSE
-           aom_env%successful_hop = .FALSE.
-        ENDIF
+!        ELSE
+!        IF (.NOT.aom_env%successful_hop) THEN
+!           aom_env%successful_hop = .FALSE.
+!        ENDIF
 
 !> IMPORTANT: store all aom_env for the future timesteps
         mixed_env%aom_env=aom_env
@@ -273,10 +274,10 @@ CONTAINS
        DEALLOCATE(map_index)
     END IF
     
-    DEALLOCATE(hamiltonian, nacv, nace)
+!    DEALLOCATE(hamiltonian, nacv, nace)
     DEALLOCATE(positions_tp, forces_adiab)
 
    END SUBROUTINE adiab_fssh_routines
 
-END MODULE adiabatic_methods
+END MODULE non_adiabatic_methods
 

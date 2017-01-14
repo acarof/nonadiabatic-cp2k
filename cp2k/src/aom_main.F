@@ -78,7 +78,11 @@ MODULE aom_main
                                              adiab_print_matrix_density,     &
                                              adiab_print_exact_forces,       &
                                              adiab_print_active_state,       &
-                                             adiab_print_sh_info
+                                             adiab_print_sh_info,            &
+                                             adiab_print_hamiltonian, &
+                                             adiab_print_nace,        &
+                                             adiab_print_nacv        
+
 
 
      USE atomic_kind_list_types,       ONLY: atomic_kind_list_type
@@ -260,7 +264,6 @@ CONTAINS
      else
        sh_print_env = aom_env%sh_print_env
      endif
-!stop
 
      ALLOCATE(E_t(mat))
      ALLOCATE(E_tp(mat))
@@ -316,18 +319,6 @@ CONTAINS
      allocate(K3(mat,mat))
      allocate(K4(mat,mat))
 
-     !Imat is an identity matrix of the dimensions of the other square matrices
-     allocate(Imat(mat,mat))
-     !define once, then use whenever
-     do j=1,mat
-          do i=1,mat
-               if (i == j) then
-                    Imat(i,j) = 1.0D0
-               else
-                    Imat(i,j) = 0.0D0
-               end if
-          end do
-     end do
 
      allocate(nacv(3,mat,mat,mat*atoms))      !non-adiabatic coupling vectors
      nacv = 0.0D0
@@ -476,8 +467,6 @@ CONTAINS
          connlist1 = aom_env%connlist1
          connlist2 = aom_env%connlist2
      endif
-!print*, "connlist"
-!print*, connlist1
 !END CONSTRUCT THE CONNLIST
 
 
@@ -533,11 +522,7 @@ CONTAINS
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
                     end if
-!print*, "aomneighbourlist"
-!print*, aom_env%neighbourlist
                     neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
-!print*, "neighbourlist"
-!print*, neighbourlist
                     !only call overlap if neighbours list says so
                     if (NN(i,k) == 1) then
                          !first the diagonals
@@ -598,7 +583,6 @@ CONTAINS
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
-!print*, "For molecules:", i,k
                                              !Calcul of the NACV
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
@@ -606,7 +590,6 @@ CONTAINS
                                              &nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
                                              &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR)
-!stop
                                         end do
                                    end do
 
@@ -706,6 +689,11 @@ CONTAINS
           !MD is done on a molecular timestep of femtoseconds: however electron dynamics happen on attoseconds
           !so for each molecular timestep, the program calculates for multiple electronic timesteps
           !during this process, the H and S matrices are found by linear interpolation between the original S1 and S2
+     !Imat is an identity matrix of the dimensions of the other square matrices
+     allocate(Imat(mat,mat))
+     !define once, then use whenever
+     Imat = 0.0D0
+     FORALL(j = 1:mat) Imat(j,j) = 1     
           IF (.NOT.successful_hop) THEN
 
              Hdiff = (deltatE/deltatMD)*(H_tp - H_t)
@@ -846,8 +834,6 @@ CONTAINS
                     end do
                     neighbourlist(i,k,:,1:atoms) = bneighbour(:,1:atoms)
                     neighbourlist(k,i,:,1:atoms) = aneighbour(:,1:atoms)
-!print*, "neighbourlist first"
-!print*, neighbourlist
                     if (NN(i,k) == 1) then
                          !first the diagonals
                          if (i == k) then
@@ -877,7 +863,6 @@ CONTAINS
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, -scaling*S,dp)
 
-!print*, "For molecules:", i,k
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
                                              nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
@@ -916,11 +901,7 @@ CONTAINS
                !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
                !It gives us back the eigenvalues and eigenvectors
       IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
-print*, "H_t", H_t
-print*, "E_t", E_t
       call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true.)
-print*, "H_tp", H_tp
-print*, "E_tp", E_tp
       CALL adiab_print_adiabat_energies(adiab_section, E_tp,nadiab,deltatMD, times)
 
       !The eigenvectors are needed to calculate the surface hopping probabilities
@@ -979,8 +960,6 @@ print*, "E_tp", E_tp
                DO imol=1,mol
                   DO iatom=1, natom
                      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
-!print*, "global forces"
-!print*, "imol iatom", F(:,iatom,imol)
                   ENDDO
                ENDDO
                call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
@@ -995,13 +974,6 @@ print*, "E_tp", E_tp
                               ctin=ctin)
                   aom_env%forces_adiab_new=my_forces_adiab
                ENDIF
-!print*, "Forces in aom_main.F"
-print*, "State", active_state
-!print*, my_forces_adiab
-!print*, "exact_forces"
-!print*, exact_forces
-!print*, "forces in aom_env"
-!print*, aom_env%forces_adiab
                IF (analytics) THEN
                    times = DBLE(itimes)
                    CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, deltatMD, times)
@@ -1041,20 +1013,21 @@ print*, "State", active_state
                aom_env%rm_t       = positions_tp
                aom_env%energies_t = energies_tp
                aom_env%adiab_energies_t = E_t
-print*, "ADIAB ENERGIES = ", aom_env%adiab_energies_t
            endif
         else if (itimes.eq.0) then
            aom_env%rm_tm      = positions_tp - velocities_t*deltatMD
            aom_env%rm_t       = positions_tp
            aom_env%energies_t = energies_tp
-!print*, "save neighbourlist"
-!print*, neighbourlist
            aom_env%neighbourlist = neighbourlist
-!print*, "saved aomneighbourlist"
-!print*, aom_env%neighbourlist
         endif
            aom_env%sh_print_env = sh_print_env
 !END STORE THE COORDINATES
+
+       IF (.NOT.successful_hop) THEN 
+           CALL adiab_print_hamiltonian(adiab_section, -AIMAG(H_tp), nadiab,norbitals,itimes, deltatMD)
+           CALL adiab_print_nace(adiab_section, nace, nadiab,norbitals,itimes, deltatMD)
+           CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, deltatMD)
+       ENDIF
 
 !PREPARE THE PRINT
        IF (.NOT.successful_hop) THEN 
@@ -1078,6 +1051,7 @@ print*, "ADIAB ENERGIES = ", aom_env%adiab_energies_t
        ELSE
           aom_env%new_state = -1
           aom_env%old_state = -1
+          aom_env%successful_hop = .FALSE.
        ENDIF
        energy_adiabat = E_tp(active_state)
 

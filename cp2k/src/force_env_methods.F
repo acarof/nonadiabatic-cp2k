@@ -138,7 +138,7 @@ MODULE force_env_methods
                                              get_atomic_kind,&
                                              get_atomic_kind_set
  
-  USE adiabatic_methods,             ONLY: adiab_fssh_routines
+  USE non_adiabatic_methods,           ONLY: adiab_fssh_routines
   USE distribution_1d_types,           ONLY: distribution_1d_type
 !> End CHANGE_AC
 
