@@ -120,7 +120,8 @@ IMPLICIT NONE
              choose_firstadiabat,  &
              simple_vel_rescaling, &
              check_hop_attempt,    &
-             total_momentum
+             total_momentum,       &
+             translate_com
 
 CONTAINS
   
@@ -1306,6 +1307,8 @@ end subroutine calcTDT
         TYPE(section_vals_type), POINTER         :: force_env_section
         INTEGER                                  :: old_state, new_state
         TYPE(sh_print_env_type)                  :: sh_print_env
+        LOGICAL                                  :: translate_keyword
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_com
 
 
         CALL force_env_get(force_env=force_env,&
@@ -1314,18 +1317,22 @@ end subroutine calcTDT
         adiab_section => section_vals_get_subs_vals(mixed_section, "ADIABATIC")
         coupling_section => section_vals_get_subs_vals(adiab_section, "AOM")
         CALL section_vals_val_get(coupling_section,"METHOD_RESCALING",c_val=rescale_keyword)
+        CALL section_vals_val_get(coupling_section,"CENTER_OF_MASS",l_val=translate_keyword)
         sh_print_env = force_env%mixed_env%aom_env%sh_print_env
 
+        ALLOCATE(velocities_com(SIZE(velocities, 1), SIZE(velocities, 2)))
+        CALL translate_com(velocities, translate_keyword, velocities_com, &
+                           local_particles, nparticle_kind = nparticle_kind, atomic_kind_set = atomic_kind_set)
         SELECT CASE(rescale_keyword)
         CASE("SIMPLE")
-           CALL cal_delta_energy(nparticle_kind, velocities, force_env, atomic_kind_set, &
+           CALL cal_delta_energy(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                                  local_particles, delta_energy, kinetic_energy_prime)
            IF (delta_energy.lt.0) THEN
               force_env%mixed_env%aom_env%successful_hop = .FALSE.
            ELSE 
                !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
-              rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
-              velocities = rescale_factor*velocities
+              !rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
+              !velocities = rescale_factor*velocities
               force_env%mixed_env%aom_env%successful_hop = .TRUE.
               force_env%mixed_env%aom_env%old_state      = force_env%mixed_env%aom_env%active_state
               force_env%mixed_env%aom_env%active_state   = force_env%mixed_env%aom_env%new_state
@@ -1344,7 +1351,7 @@ end subroutine calcTDT
            CALL adiab_print_sh_info(sh_print_env, keyword = 'SIMPLE_RESCALING')
         CASE("NACV")
            CALL section_vals_val_get(coupling_section,"METHOD_ADIABATIC_NACV",c_val=nacv_keyword)
-           CALL cal_delta_energy(nparticle_kind, velocities, force_env, atomic_kind_set, &
+           CALL cal_delta_energy(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                                  local_particles, delta_energy, kinetic_energy_prime)
            sh_print_env%kinetic_energy   = kinetic_energy_prime
            sh_print_env%old_state        = force_env%mixed_env%aom_env%active_state
@@ -1384,7 +1391,7 @@ end subroutine calcTDT
                                             SUM(F_1(2,:) + F_11(2,:)), &
                                             SUM(F_1(3,:) + F_11(3,:))
                  CALL adiab_print_hop_nacv(sh_print_env, hop_nacv, F_11, F_1, F_2, F_3) 
-                 CALL cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
+                 CALL cal_delta_energy_nacv(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                                             local_particles, F_1 + F_11, delta_energy, A, B) 
 print*, "DELTAFF1 = ", delta_energy
 IF ((delta_energy).lt.0) THEN
@@ -1393,7 +1400,7 @@ ELSE
      print*, "LOGFF1 = ", 1
 ENDIF
      
-                 CALL cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
+                 CALL cal_delta_energy_nacv(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                                             local_particles, F_1, delta_energy, A, B) 
 print*, "DELTAF1 = ", delta_energy
 IF ((delta_energy).lt.0) THEN
@@ -1411,7 +1418,7 @@ ENDIF
               CASE DEFAULT
                 CPABORT("There is no method to calculate the NACV.")
               END SELECT 
-              CALL cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
+              CALL cal_delta_energy_nacv(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                                           local_particles, hop_nacv, delta_energy, A, B) 
 IF ((delta_energy).lt.0) THEN
      print*, "LOGNACV = ", 0
@@ -1724,5 +1731,72 @@ ENDIF
            print*, "MOMENTUM = ", MOMENTUM
    END SUBROUTINE total_momentum
          
+   SUBROUTINE translate_com(array, keyword_translate, translate_array, &
+                            local_particles, atomic_kinds, nparticle_kind, atomic_kind_set)
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: array
+        LOGICAL                                  :: keyword_translate
+        REAL(KIND=dp), DIMENSION(:,:), POINTER   :: translate_array
+        TYPE(distribution_1d_type), POINTER      :: local_particles
+        TYPE(atomic_kind_list_type), POINTER, OPTIONAL     :: atomic_kinds
+        INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
+        TYPE(atomic_kind_type), DIMENSION(:), &
+             POINTER, OPTIONAL                             :: atomic_kind_set
+
+        CHARACTER(len=*), PARAMETER :: routineN = 'translate_com', &
+        routineP = moduleN//':'//routineN
+
+        TYPE(atomic_kind_type), DIMENSION(:), &
+             POINTER                             :: my_atomic_kind_set
+        INTEGER                                  :: my_nparticle_kind
+        REAL(kind=dp)                            :: mass
+        INTEGER                                  :: iparticle_kind
+        INTEGER                                  :: nparticle_local
+        INTEGER                                  :: iparticle_local, iparticle
+        TYPE(atomic_kind_type), POINTER          :: atomic_kind
+        REAL(kind=dp), DIMENSION(3)              :: sum_array
+        REAL(KIND=dp)                            :: sum_mass
+
+
+        IF (keyword_translate) THEN
+           IF (PRESENT(atomic_kinds)) THEN
+              my_nparticle_kind = atomic_kinds%n_els
+              my_atomic_kind_set => atomic_kinds%els
+           ELSE
+              IF ((PRESENT(nparticle_kind)).AND.(PRESENT(atomic_kind_set))) THEN
+                 my_nparticle_kind = nparticle_kind
+                 my_atomic_kind_set => atomic_kind_set
+print*, "HERE"
+              ENDIF
+           ENDIF
+           sum_array = 0.0D0
+           sum_mass  = 0.0D0
+           DO iparticle_kind=1, my_nparticle_kind
+              atomic_kind => my_atomic_kind_set(iparticle_kind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+              nparticle_local = local_particles%n_el(iparticle_kind)
+              DO iparticle_local=1,nparticle_local
+                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                 sum_array(:) = sum_array(:) +   &
+                    mass*array(:, iparticle)
+                 sum_mass = sum_mass + mass
+              END DO
+           END DO
+           sum_array = sum_array / sum_mass
+
+           DO iparticle_kind=1, my_nparticle_kind
+              atomic_kind => my_atomic_kind_set(iparticle_kind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+              nparticle_local = local_particles%n_el(iparticle_kind)
+              DO iparticle_local=1,nparticle_local
+                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                 translate_array(:, iparticle) = array(:, iparticle) - sum_array(:)
+              END DO   
+           END DO   
+        ELSE
+           translate_array = array
+        ENDIF 
+
+   END SUBROUTINE translate_com
+
 
 END MODULE aom_utils

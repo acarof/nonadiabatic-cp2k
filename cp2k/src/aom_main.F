@@ -54,7 +54,8 @@ MODULE aom_main
                                              calcforces,     &
                                              read_listcoeff, &
                                              choose_firstadiabat, &
-                                             simple_vel_rescaling
+                                             simple_vel_rescaling, &
+                                             translate_com
 
      USE aom_types,                    ONLY: aom_env_type, &
                                                 sh_print_env_type
@@ -178,9 +179,10 @@ CONTAINS
  !    REAL(KIND=dp)                                :: kinetic_energy_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
-     LOGICAL                                      :: successful_hop, select_first_adiabat
+     LOGICAL                                      :: successful_hop, select_first_adiabat, keyword_translate
 
      TYPE(sh_print_env_type)                      :: sh_print_env
+     REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
 
 
 !> cutoff to define the neighborough list
@@ -210,6 +212,7 @@ CONTAINS
      CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
      CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
      CALL section_vals_val_get(coupling_section,"SELECT_FIRST_ADIABAT", l_val=select_first_adiabat)
+     CALL section_vals_val_get(coupling_section,"CENTER_OF_MASS", l_val=keyword_translate)
 
 !> Number of sites
      mol = nadiab ! CHANGE_AC
@@ -269,6 +272,8 @@ CONTAINS
      ALLOCATE(E_tp(mat))
 
      ALLOCATE(my_forces_adiab(3,natom))
+     ALLOCATE(positions_com_tp(3, natom))
+     ALLOCATE(velocities_com_tp(3, natom))
      ALLOCATE(velocities_t_prime(3,natom))
      ALLOCATE(velocities_t(3,natom))
      allocate(exact_forces(3,natom))
@@ -396,20 +401,22 @@ CONTAINS
 
 !READ THE COORDINATES, ENERGIES AND STATE
      velocities_t = aom_env%velocities_t
+     CALL translate_com(positions_tp, keyword_translate, positions_com_tp, local_particles, atomic_kinds = atomic_kinds)  
+     CALL translate_com(velocities_t, keyword_translate, velocities_com_tp, local_particles, atomic_kinds = atomic_kinds)  
      do coord=1,3
            if (itimes.ge.1) then
               crds(coord,:,1) = PACK(aom_env%rm_tm(coord,:), ext_pres)
               crds(coord,:,2) = PACK(aom_env%rm_t(coord,:), ext_pres)
-              crds(coord,:,3) = PACK(positions_tp(coord,:), ext_pres)
+              crds(coord,:,3) = PACK(positions_com_tp(coord,:), ext_pres)
               siteenergies(2,:) = aom_env%energies_t(:) ! CHANGE_AC
               siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
               active_state = aom_env%active_state
            else if (itimes.eq.0) then 
-              crds(coord,:,1) = PACK(positions_tp(coord,:), ext_pres)
+              crds(coord,:,1) = PACK(positions_com_tp(coord,:), ext_pres)
 !At time 0, we must guess the positions at time -1 with the inital velocities
-              crds(coord,:,2) = PACK(positions_tp(coord,:), ext_pres) -  &
-                                PACK(velocities_t(coord,:), ext_pres)*deltatMD
-              crds(coord,:,3) = PACK(positions_tp(coord,:), ext_pres)
+              crds(coord,:,2) = PACK(positions_com_tp(coord,:), ext_pres) -  &
+                                PACK(velocities_com_tp(coord,:), ext_pres)*deltatMD
+              crds(coord,:,3) = PACK(positions_com_tp(coord,:), ext_pres)
               siteenergies(2,:) = 0.0D0 ! CHANGE_AC
               siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
               !old_state = 1
@@ -1010,13 +1017,13 @@ CONTAINS
         if (itimes.ge.1) then
            if (.NOT.successful_hop) THEN
                aom_env%rm_tm      = aom_env%rm_t
-               aom_env%rm_t       = positions_tp
+               aom_env%rm_t       = positions_com_tp
                aom_env%energies_t = energies_tp
                aom_env%adiab_energies_t = E_t
            endif
         else if (itimes.eq.0) then
-           aom_env%rm_tm      = positions_tp - velocities_t*deltatMD
-           aom_env%rm_t       = positions_tp
+           aom_env%rm_tm      = positions_com_tp - velocities_com_tp*deltatMD
+           aom_env%rm_t       = positions_com_tp
            aom_env%energies_t = energies_tp
            aom_env%neighbourlist = neighbourlist
         endif

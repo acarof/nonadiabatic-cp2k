@@ -308,6 +308,14 @@ CONTAINS
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="CENTER_OF_MASS",&
+         description="Decide if do all electronic propagation and velocities "//&
+                     "rescaling into the center-of-mass frame.",&
+         usage="True", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="METHOD_RESCALING",&
          description="Defines the methods to rescale the velocities if required.",&
