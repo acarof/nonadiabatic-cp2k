@@ -1634,10 +1634,11 @@ ENDIF
               nparticle_local = local_particles%n_el(iparticle_kind)
               DO iparticle_local=1,nparticle_local
                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-
                  DO coord = 1, 3
                     IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
                        velocities(3, iparticle)**2 ).NE.0.0d0) THEN
+                       A = A + hop_nacv(coord, iparticle)**2 / mass
+                    ELSE IF ( SUM(velocities).EQ.0) THEN
                        A = A + hop_nacv(coord, iparticle)**2 / mass
                     ENDIF
                     B = B + velocities(coord, iparticle) * hop_nacv(coord, iparticle)

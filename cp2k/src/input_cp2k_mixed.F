@@ -312,7 +312,7 @@ CONTAINS
          description="Decide if do all electronic propagation and velocities "//&
                      "rescaling into the center-of-mass frame.",&
          usage="True", &
-         default_l_val=.FALSE., &
+         default_l_val=.TRUE., &
          lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
