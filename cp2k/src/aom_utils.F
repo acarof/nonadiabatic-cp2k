@@ -69,8 +69,8 @@ MODULE aom_utils
                                              section_vals_type,&
                                              section_vals_list_get,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+!  USE kinds,                           ONLY: default_string_length,&
+!                                            dp
   USE mixed_energy_types,              ONLY: mixed_force_type
   USE particle_list_types,             ONLY: particle_list_type
   USE virial_types,                    ONLY: virial_p_type,&

@@ -87,11 +87,14 @@ MODULE aom_main
 
 
      USE atomic_kind_list_types,       ONLY: atomic_kind_list_type
+
      USE atomic_kind_types,            ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
 
      USE distribution_1d_types,        ONLY: distribution_1d_type
+
+     USE decoherence_types,            ONLY: wf_collapse
 
 #include "./base/base_uses.f90"
 
@@ -988,30 +991,9 @@ CONTAINS
       !ENDIF
 !END CALCULATE THE FORCES
 
+!COLLAPSE IF REQUIRED WITH THE WAVEFUNCTION COLLAPSE METHOD
 
-!COLLAPSE IF REQUIRED
-      sh_print_env%decohere = .FALSE.
-      IF (itimes.ge.1) THEN       
-         !Finally, collapse the wavefunction if called for
-         !if (decohere) then
-         if (successful_hop) aom_env%futur_decohere = .TRUE.
-!> Check if the collapse key word is TRUE in the input
-         sh_print_env%collapse = collapse
-         if (collapse) then
-!> Check if the surface_hop subroutine asks us to do the decoherence
-            if (aom_env%futur_decohere) then 
-               if (decohere) then
-                  sh_print_env%decohere = .TRUE.
-                  do i=1,mat
-                     ctin(i) = C_tp(i,active_state) 
-                  end do
-                  aom_env%futur_decohere = .FALSE. 
-               end if
-            endif
-         end if
-         CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')
-      ENDIF
-!END COLLAPSE IF REQUIRED
+CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
 
 !STORE THE COORDINATES IF NOT SUCCESSFUL RUN
         if (itimes.ge.1) then
