@@ -94,7 +94,7 @@ MODULE aom_main
 
      USE distribution_1d_types,        ONLY: distribution_1d_type
 
-     USE decoherence_types,            ONLY: wf_collapse
+     USE non_adiabatic_utils,            ONLY: wf_collapse
 
 #include "./base/base_uses.f90"
 
