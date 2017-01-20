@@ -81,7 +81,7 @@ MODULE aom_main
                                              adiab_print_active_state,       &
                                              adiab_print_sh_info,            &
                                              adiab_print_hamiltonian, &
-                                             adiab_print_nace,        &
+                                        !     adiab_print_nace,        &
                                              adiab_print_nacv        
 
 
@@ -94,7 +94,8 @@ MODULE aom_main
 
      USE distribution_1d_types,        ONLY: distribution_1d_type
 
-     USE non_adiabatic_utils,            ONLY: wf_collapse
+     USE non_adiabatic_utils,            ONLY: wf_collapse,  &
+                                               propagate_wf
 
 #include "./base/base_uses.f90"
 
@@ -141,25 +142,30 @@ CONTAINS
      routineP = moduleN//':'//routineN
 
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
+    ! integer :: coord
      integer :: coord, t2
-     integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, inc, active_state, mat, orb
+     integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, active_state, mat, orb
+    ! integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, inc, active_state, mat, orb
      integer, dimension(:), allocatable :: atomlist, elements
      integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
      integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
-     character(len=1) :: zgemm_type
-     REAL(KIND=dp) :: ctmag,  cbar, minao
+    ! character(len=1) :: zgemm_type
+     REAL(KIND=dp)    :: cbar, minao
+    ! REAL(KIND=dp) :: ctmag,  cbar, minao
      REAL(KIND=dp), dimension(:), allocatable :: scoeffs
      REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      REAL(KIND=dp), dimension(:,:,:), allocatable :: crds, pcoeffsrun
-     REAL(KIND=dp), dimension(:,:), allocatable :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm, Imat, pcoeffs
-     REAL(KIND=dp), dimension(:,:), allocatable :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
+     REAL(KIND=dp), dimension(:,:), allocatable :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm, pcoeffs
+    ! REAL(KIND=dp), dimension(:,:), allocatable :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm, Imat, pcoeffs
+    ! REAL(KIND=dp), dimension(:,:), allocatable :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
      REAL(KIND=dp), dimension(:,:), allocatable :: dist
-     COMPLEX(KIND=dp) :: alpha, beta, ctcomp
+    ! COMPLEX(KIND=dp) :: alpha, beta, ctcomp
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin, ctout, ctotal
-     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_t, H_tp, H_int, Hdiff, H_t_save, H_tp_save, X1, X2, X12
-     COMPLEX(KIND=dp), dimension(:,:), allocatable :: Ktot, K2, K3, K4
+     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_t, H_tp
+     !COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_t, H_tp, H_int, Hdiff, H_t_save, H_tp_save, X1, X2, X12
+    ! COMPLEX(KIND=dp), dimension(:,:), allocatable :: Ktot, K2, K3, K4
      REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask
@@ -178,7 +184,7 @@ CONTAINS
      INTEGER                                      :: first_adiabat
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
 !     CHARACTER(LEN=default_string_length)         :: rescale_keyword
-     REAL(KIND=dp), dimension(:,:), allocatable   :: NACE
+!     REAL(KIND=dp), dimension(:,:), allocatable   :: NACE
  !    REAL(KIND=dp)                                :: kinetic_energy_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
@@ -240,7 +246,7 @@ CONTAINS
        ALLOCATE(aom_env%ctin(mat))
        ALLOCATE(aom_env%hamiltonian(mat,mat))
        ALLOCATE(aom_env%eigenvector_matrix(mat,mat))
-       ALLOCATE(aom_env%nace(mat,mat))
+!       ALLOCATE(aom_env%nace(mat,mat))
        ALLOCATE(aom_env%connlist1(4,atoms))
        ALLOCATE(aom_env%neighbourlist(mol,mol,0:atoms,0:atoms))
        ALLOCATE(aom_env%Stt(mat,mat))
@@ -294,11 +300,11 @@ CONTAINS
      allocate(Stmt(mat,mat))
      allocate(Sttm(mat,mat))
      allocate(Stmtm(mat,mat))
-     allocate(Stptpdiff(mat,mat))
-     allocate(Sttpdiff(mat,mat))
-     allocate(Sttdiff(mat,mat))
-     allocate(Sttmdiff(mat,mat))
-     allocate(Stmtmdiff(mat,mat))
+!    allocate(Stptpdiff(mat,mat))
+!    allocate(Sttpdiff(mat,mat))
+!    allocate(Sttdiff(mat,mat))
+!    allocate(Sttmdiff(mat,mat))
+!    allocate(Stmtmdiff(mat,mat))
 
      allocate(crds(3,c,3))
 
@@ -310,22 +316,22 @@ CONTAINS
      !This is why they're complex variables
      allocate(H_t(mat,mat))
      allocate(H_tp(mat,mat))
-     allocate(NACE(mat,mat))
-     allocate(H_int(mat,mat))
-     allocate(Hdiff(mat,mat))
-     allocate(H_t_save(mat,mat))
-     allocate(H_tp_save(mat,mat))
-     allocate(X1(mat,mat))
-     allocate(X2(mat,mat))
-     allocate(X12(mat,mat))
+  !   allocate(NACE(mat,mat))
+ !    allocate(H_int(mat,mat))
+!     allocate(Hdiff(mat,mat))
+!     allocate(H_t_save(mat,mat))
+!     allocate(H_tp_save(mat,mat))
+!     allocate(X1(mat,mat))
+!     allocate(X2(mat,mat))
+!     allocate(X12(mat,mat))
 
      !finally the K matrices, which are the terms in the Runge-Kutta integration
      !note K1 missing, because it's just a constant times X
      !Ktot is the final constant by which c(t) is multiplied
-     allocate(Ktot(mat,mat))
-     allocate(K2(mat,mat))
-     allocate(K3(mat,mat))
-     allocate(K4(mat,mat))
+!     allocate(Ktot(mat,mat))
+!     allocate(K2(mat,mat))
+!     allocate(K3(mat,mat))
+!     allocate(K4(mat,mat))
 
 
      allocate(nacv(3,mat,mat,mat*atoms))      !non-adiabatic coupling vectors
@@ -484,7 +490,7 @@ CONTAINS
      successful_hop = aom_env%successful_hop
 
      !used to give correct commands to ZGEMX subroutines later
-     zgemm_type = 'N'
+!     zgemm_type = 'N'
 
      if (itimes.ge.1) then
           !for each molecule
@@ -699,118 +705,128 @@ CONTAINS
           !MD is done on a molecular timestep of femtoseconds: however electron dynamics happen on attoseconds
           !so for each molecular timestep, the program calculates for multiple electronic timesteps
           !during this process, the H and S matrices are found by linear interpolation between the original S1 and S2
-     !Imat is an identity matrix of the dimensions of the other square matrices
-     allocate(Imat(mat,mat))
-     !define once, then use whenever
-     Imat = 0.0D0
-     FORALL(j = 1:mat) Imat(j,j) = 1     
-          IF (.NOT.successful_hop) THEN
 
-             Hdiff = (deltatE/deltatMD)*(H_tp - H_t)
-             Sttdiff = (deltatE/deltatMD)*(Stptp - Stt)
-             Sttpdiff = (deltatE/deltatMD)*(Sttp - Stmt)
-             Sttmdiff = (deltatE/deltatMD)*(Stpt - Sttm)
-             Stptpdiff = Sttdiff
-             Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
-             H_t_save  = H_t
-             H_tp_save = H_tp
 
-             do t2=1,int(deltatMD/deltatE)
-                    call makeX(mat, H_t, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
-                    !create timestepped equivalents
-                    H_int = H_t + 0.5D0*Hdiff
-                    Stt = Stt + 0.5D0*Sttdiff
-                    Sttp = Sttp + 0.5D0*Sttpdiff
-                    Sttm = Sttm + 0.5D0*Sttmdiff
-                    Stptp = Stptp + 0.5D0*Stptpdiff
-                    Stmtm = Stmtm + 0.5D0*Stmtmdiff
-                    call makeX(mat, H_int, Stt, Sttp, Sttm, Stptp, Stmtm, X12, deltatMD)
-     
-                    H_tp = H_int + 0.5D0*Hdiff
-                    Stt = Stt + 0.5D0*Sttdiff
-                    Sttp = Sttp + 0.5D0*Sttpdiff
-                    Sttm = Sttm + 0.5D0*Sttmdiff
-                    Stptp = Stptp + 0.5D0*Stptpdiff
-                    Stmtm = Stmtm + 0.5D0*Stmtmdiff
-                    call makeX(mat, H_tp, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD, NACE)
-     
-                    K2 = cmplx(0.0D0, 0.0D0,dp)
-                    K3 = cmplx(0.0D0, 0.0D0,dp)
-                    K4 = cmplx(0.0D0, 0.0D0,dp)
-          
-                    !now that X has been found, use 4th order Runge-Kutta numerical integration method
-                    !aiming to find operator such that c(t+1) = (1 + operator)*c
-          
-                    !there are four terms in X: each is an increasing multiple. so first term is proportional to X(t),
-                    !second term is as X(t+deltat/2)*X(t), third term is as X(t+deltat/2)*X(t+deltat/2)*X(t),
-                    !fourth term is as X(t+deltat)*X(t+deltat/2)*X(t+deltat/2)*X(t)
-                    !this means each term is some X matrix times the previous term,
-                    !so only three more calls to ZGEMM are needed
-                    !the K matrices are the second, third and fourth Runge-Kutta terms
-     
-                    alpha = cmplx(deltatE/2.0D0, 0.0D0,dp)
-                    beta = cmplx(0.0D0, 0.0D0,dp)
-     
-                    !second term
-                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X1, &
-                    &mat, beta, K2, mat)
-                    K2 = K2 + X12
-                    
-                    !third term
-                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, K2, &
-                    &mat, beta, K3, mat)
-                    K3 = K3 + X12
-     
-                    !fourth term
-                    alpha = cmplx(deltatE, 0.0D0,dp)
-                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X2, mat, K3, &
-                    &mat, beta, K4, mat)
-                    K4 = K4 + X2
- 
-                    !put everything together
-                    Ktot = Imat + (deltatE/6.0D0)*(X1 + 2*K2 + 2*K3 + K4)
-     
-                    !timestep electron propagation and print out
-                    !alpha = dcmplx(1.0D0, 0.0D0)
-                    alpha = cmplx(1.0D0, 0.0D0,dp)
-                    inc = 1
-                    call ZGEMV(zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc)
-                    ctmag = 0.0D0
-                    ctcomp = cmplx(0.0D0, 0.0D0,dp)
-                    do i=1,mat
-                         ctotal(i) = conjg(ctout(i))*ctout(i)
-                         ctcomp = ctcomp + ctotal(i)
-                    end do
-                    ctmag = abs(ctcomp)
-                    !rescale to conserve norm = 1
-                    do i=1,mat
-                         ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
-                    end do
-                    do i=1,mat
-                         ctotal(i) = conjg(ctout(i))*ctout(i)
-                    end do
-                    if (t2 == int(deltatMD/deltatE)) then
-                                        aom_env%population(1:mat) =&
-                                            abs(ctotal(1:mat)) 
-                    end if
-                    !update
-                    H_t = H_tp
-                    ctin = ctout
-                    ctout = cmplx(0.0D0, 0.0D0,dp)
+!    !Imat is an identity matrix of the dimensions of the other square matrices
+!    allocate(Imat(mat,mat))
+!    !define once, then use whenever
+!    Imat = 0.0D0
+!    FORALL(j = 1:mat) Imat(j,j) = 1     
 
-                    times = DBLE(itimes) + t2*1/DBLE(ELsteps)
-                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
-                                           times)
-                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes, deltatMD, &
-                                         times)
-                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes,deltatMD, &
-                                                    times)
 
-             end do
+         IF (.NOT.successful_hop) THEN
+            
+            CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,    &
+                          ctin, ctout, ctotal, aom_env, nadiab,  norbitals, ELsteps, &
+                           itimes, adiab_section, deltatMD, deltatE , times,    &
+                            active_state, mat)
+          ! CALL propagate_wf(H_t, H_tp, H_int, Hdiff, H_t_save, H_tp_save, X1, X2, X12, Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff, Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm, Imat, pcoeffs, NACE, Ktot, K2, K3, K4, ctin, ctout, ctotal, aom_env, nadiab,  norbitals, new_state , ELsteps, itimes, adiab_section, cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE , ctmag,  cbar, minao, dR, times, alpha, beta, ctcomp, coord, t2, i, atoms, inc, active_state, mat, zgemm_type)
+
+!            Hdiff = (deltatE/deltatMD)*(H_tp - H_t)
+!            Sttdiff = (deltatE/deltatMD)*(Stptp - Stt)
+!            Sttpdiff = (deltatE/deltatMD)*(Sttp - Stmt)
+!            Sttmdiff = (deltatE/deltatMD)*(Stpt - Sttm)
+!            Stptpdiff = Sttdiff
+!            Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
+!            H_t_save  = H_t
+!            H_tp_save = H_tp
+!
+!            do t2=1,int(deltatMD/deltatE)
+!                   call makeX(mat, H_t, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
+!                   !create timestepped equivalents
+!                   H_int = H_t + 0.5D0*Hdiff
+!                   Stt = Stt + 0.5D0*Sttdiff
+!                   Sttp = Sttp + 0.5D0*Sttpdiff
+!                   Sttm = Sttm + 0.5D0*Sttmdiff
+!                   Stptp = Stptp + 0.5D0*Stptpdiff
+!                   Stmtm = Stmtm + 0.5D0*Stmtmdiff
+!                   call makeX(mat, H_int, Stt, Sttp, Sttm, Stptp, Stmtm, X12, deltatMD)
+!    
+!                   H_tp = H_int + 0.5D0*Hdiff
+!                   Stt = Stt + 0.5D0*Sttdiff
+!                   Sttp = Sttp + 0.5D0*Sttpdiff
+!                   Sttm = Sttm + 0.5D0*Sttmdiff
+!                   Stptp = Stptp + 0.5D0*Stptpdiff
+!                   Stmtm = Stmtm + 0.5D0*Stmtmdiff
+!                   call makeX(mat, H_tp, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD, NACE)
+!    
+!                   K2 = cmplx(0.0D0, 0.0D0,dp)
+!                   K3 = cmplx(0.0D0, 0.0D0,dp)
+!                   K4 = cmplx(0.0D0, 0.0D0,dp)
+!         
+!                   !now that X has been found, use 4th order Runge-Kutta numerical integration method
+!                   !aiming to find operator such that c(t+1) = (1 + operator)*c
+!         
+!                   !there are four terms in X: each is an increasing multiple. so first term is proportional to X(t),
+!                   !second term is as X(t+deltat/2)*X(t), third term is as X(t+deltat/2)*X(t+deltat/2)*X(t),
+!                   !fourth term is as X(t+deltat)*X(t+deltat/2)*X(t+deltat/2)*X(t)
+!                   !this means each term is some X matrix times the previous term,
+!                   !so only three more calls to ZGEMM are needed
+!                   !the K matrices are the second, third and fourth Runge-Kutta terms
+!    
+!                   alpha = cmplx(deltatE/2.0D0, 0.0D0,dp)
+!                   beta = cmplx(0.0D0, 0.0D0,dp)
+!    
+!                   !second term
+!                   call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X1, &
+!                   &mat, beta, K2, mat)
+!                   K2 = K2 + X12
+!                   
+!                   !third term
+!                   call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, K2, &
+!                   &mat, beta, K3, mat)
+!                   K3 = K3 + X12
+!    
+!                   !fourth term
+!                   alpha = cmplx(deltatE, 0.0D0,dp)
+!                   call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X2, mat, K3, &
+!                   &mat, beta, K4, mat)
+!                   K4 = K4 + X2
+!
+!                   !put everything together
+!                   Ktot = Imat + (deltatE/6.0D0)*(X1 + 2*K2 + 2*K3 + K4)
+!    
+!                   !timestep electron propagation and print out
+!                   !alpha = dcmplx(1.0D0, 0.0D0)
+!                   alpha = cmplx(1.0D0, 0.0D0,dp)
+!                   inc = 1
+!                   call ZGEMV(zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc)
+!                   ctmag = 0.0D0
+!                   ctcomp = cmplx(0.0D0, 0.0D0,dp)
+!                   do i=1,mat
+!                        ctotal(i) = conjg(ctout(i))*ctout(i)
+!                        ctcomp = ctcomp + ctotal(i)
+!                   end do
+!                   ctmag = abs(ctcomp)
+!                   !rescale to conserve norm = 1
+!                   do i=1,mat
+!                        ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
+!                   end do
+!                   do i=1,mat
+!                        ctotal(i) = conjg(ctout(i))*ctout(i)
+!                   end do
+!                   if (t2 == int(deltatMD/deltatE)) then
+!                                       aom_env%population(1:mat) =&
+!                                           abs(ctotal(1:mat)) 
+!                   end if
+!                   !update
+!                   H_t = H_tp
+!                   ctin = ctout
+!                   ctout = cmplx(0.0D0, 0.0D0,dp)
+!
+!                   times = DBLE(itimes) + t2*1/DBLE(ELsteps)
+!                   CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
+!                                          times)
+!                   CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes, deltatMD, &
+!                                        times)
+!                   CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes,deltatMD, &
+!                                                   times)
+!
+!            end do
 !END PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
-             H_t  = H_t_save
-             H_tp = H_tp_save
-          ENDIF !ONLY IF NOT POST-HOP RUN
+!            H_t  = H_t_save
+!            H_tp = H_tp_save
+         ENDIF !ONLY IF NOT POST-HOP RUN
 
       ELSE IF (itimes.eq.0) THEN
           !for each molecule
@@ -1014,7 +1030,7 @@ CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohe
 
        IF (.NOT.successful_hop) THEN 
            CALL adiab_print_hamiltonian(adiab_section, -AIMAG(H_tp), nadiab,norbitals,itimes, deltatMD)
-           CALL adiab_print_nace(adiab_section, nace, nadiab,norbitals,itimes, deltatMD)
+!           CALL adiab_print_nace(adiab_section, nace, nadiab,norbitals,itimes, deltatMD)
            CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, deltatMD)
        ENDIF
 
@@ -1023,7 +1039,7 @@ CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohe
           aom_env%ctin        = ctin
           aom_env%attempt_hop  = attempt_hop
           aom_env%hamiltonian = -AIMAG(H_tp)
-          aom_env%nace        = NACE
+!          aom_env%nace        = NACE
           aom_env%nacv        = nacv
           aom_env%new_state = new_state
           aom_env%active_state = active_state
@@ -1047,7 +1063,7 @@ CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohe
 !END PREPARE THE PRINT
 
 !DEALLOCATE
-       DEALLOCATE(NACE)
+!       DEALLOCATE(NACE)
        DEALLOCATE(velocities_t_prime)
        DEALLOCATE(velocities_t) 
        deallocate(ext_pres, ext_elements)
@@ -1071,9 +1087,11 @@ CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohe
        deallocate(atomlist_mask)
        deallocate(connlist1)
        deallocate(connlist2)
-       deallocate(H_t, H_tp, H_int, Hdiff, H_t_save, H_tp_save,X1, X2, X12, Ktot, K2, K3, K4)
+!       deallocate(H_t, H_tp, H_int, Hdiff, H_t_save, H_tp_save,X1, X2, X12, Ktot, K2, K3, K4)
+       deallocate(H_t, H_tp)
        deallocate(Stt, Stptp, Stmtm, Sttp, Sttm, Stpt, Stmt)
-       deallocate(Sttdiff, Stptpdiff, Stmtmdiff, Sttpdiff, Sttmdiff, nacv, dist)
+!       deallocate(Sttdiff, Stptpdiff, Stmtmdiff, Sttpdiff, Sttmdiff, nacv, dist)
+       deallocate(nacv, dist)
        deallocate(exact_forces)
        deallocate(F)
 !END DEALLOCATE
