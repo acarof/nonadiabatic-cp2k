@@ -94,8 +94,10 @@ MODULE aom_main
 
      USE distribution_1d_types,        ONLY: distribution_1d_type
 
-     USE non_adiabatic_utils,            ONLY: wf_collapse,  &
+     USE non_adiabatic_utils,            ONLY: decohere_wf,  &
                                                propagate_wf
+                                          
+     USE non_adiabatic_types,           ONLY: sh_env_type
 
 #include "./base/base_uses.f90"
 
@@ -113,7 +115,7 @@ CONTAINS
     SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
                                   positions_tp,  &
                                   energies_tp,  &
-                                  aom_env, itimes, &
+                                  aom_env, sh_env,itimes, &
                                   attempt_hop, global_forces, coupling_section, &
                                   adiab_section, my_bo_keyword, energy_adiabat, &
                                   atomic_kinds, local_particles,                &
@@ -126,6 +128,7 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_tp
      REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_tp
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
+     TYPE(sh_env_type), INTENT(INOUT)               :: sh_env
      INTEGER, POINTER                               :: itimes
      LOGICAL, INTENT(OUT)                           :: attempt_hop
      TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
@@ -172,6 +175,7 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
+     !LOGICAL                                      :: decohere, analytics
      LOGICAL                                      :: decohere, collapse, analytics
      INTEGER                                      :: new_state , ELsteps   
      !REAL(KIND=dp)                                :: dR, times, delta_energy 
@@ -192,7 +196,7 @@ CONTAINS
 
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
-
+     CHARACTER(LEN=default_string_length)           :: deco_keyword 
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -244,6 +248,8 @@ CONTAINS
      if (itimes.eq.0) then
        ALLOCATE(aom_env%population(mat))
        ALLOCATE(aom_env%ctin(mat))
+       ALLOCATE(sh_env%ctin(mat))
+       ALLOCATE(sh_env%C_tp(mat,mat))
        ALLOCATE(aom_env%hamiltonian(mat,mat))
        ALLOCATE(aom_env%eigenvector_matrix(mat,mat))
 !       ALLOCATE(aom_env%nace(mat,mat))
@@ -488,7 +494,7 @@ CONTAINS
 
 !CHECK IF WE ARE IN A POST-HOP RUN
      successful_hop = aom_env%successful_hop
-
+     
      !used to give correct commands to ZGEMX subroutines later
 !     zgemm_type = 'N'
 
@@ -927,7 +933,7 @@ CONTAINS
                !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
                !It gives us back the eigenvalues and eigenvectors
       IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
-      call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true.)
+      call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
       CALL adiab_print_adiabat_energies(adiab_section, E_tp,nadiab,deltatMD, times)
 
       !The eigenvectors are needed to calculate the surface hopping probabilities
@@ -937,6 +943,7 @@ CONTAINS
           !new_state = first_diabat
           active_state = first_diabat
           decohere = .FALSE.
+          sh_env%decohere = .FALSE.
           attempt_hop = .FALSE.
       ELSE    
           IF (itimes.eq.0) THEN
@@ -955,6 +962,7 @@ CONTAINS
                 ENDIF
                 active_state = first_adiabat
                 decohere = .FALSE.
+                sh_env%decohere = .FALSE.
                 attempt_hop = .FALSE.
               ENDIF 
           ELSE
@@ -964,15 +972,23 @@ CONTAINS
                 IF ((new_state).EQ.0) new_state = mat
              ELSE
                 IF (.NOT.successful_hop) THEN
-                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, decohere,  &      
+                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, sh_env,  &
                                  !new_state, is_hop)
                                    new_state, &
                                    attempt_hop, &
                                    decohere_criterion, &
                                    sh_print_env)
+
+!                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, decohere,  &      
+ !                                !new_state, is_hop)
+ !                                  new_state, &
+ !                                  attempt_hop, &
+ !                                  decohere_criterion, &
+ !                                  sh_print_env)
                 ELSE
                    attempt_hop = .FALSE.
-                   decohere = .FALSE.    
+                   decohere = .FALSE.
+                   sh_env%decohere = .FALSE.    
                 ENDIF
              ENDIF
           ENDIF
@@ -1007,9 +1023,20 @@ CONTAINS
       !ENDIF
 !END CALCULATE THE FORCES
 
+!> initialize derived type variables
+ALLOCATE(sh_env%ctin(mat))
+
+sh_env%ctin=ctin
+sh_env%active_state=active_state
+
 !COLLAPSE IF REQUIRED WITH THE WAVEFUNCTION COLLAPSE METHOD
 
-CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
+CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop)
+!CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
+
+ctin=sh_env%ctin
+!C_tp=sh_env%C_tp
+!active_state=sh_env%active_state
 
 !STORE THE COORDINATES IF NOT SUCCESSFUL RUN
         if (itimes.ge.1) then

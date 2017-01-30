@@ -195,6 +195,13 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="DECOHERENCE_CORRECTIONS",&
+         description="Defines the methods to decohere the wavefunction if required.",&
+         usage="DECOHERENCE_CORRECTIONS: BASIC EXACT", type_of_var=char_t,&
+         n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
     NULLIFY(sub2section)
     CALL section_create(sub2section,name="AOM",&
          description="Defines the methods to obtain the adiabatic forces.",&

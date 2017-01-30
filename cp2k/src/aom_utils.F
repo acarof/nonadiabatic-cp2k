@@ -98,8 +98,11 @@ MODULE aom_utils
 
   USE distribution_1d_types,           ONLY: distribution_1d_type
 
-  USE force_env_types,                 ONLY: force_env_get,&
+  USE force_env_types,                 ONLY: force_env_get, &
                                              force_env_type
+
+  USE non_adiabatic_types,             ONLY: sh_env_type
+
 !  USE integrator_utils,                ONLY: tmp_variables_type 
 
 #include "./base/base_uses.f90"
@@ -180,9 +183,12 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         !X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
         X = H - my_NACE
 
+!        print *, 'LOOK NACE=', my_NACE
+
 !> CHANGE_AC
         IF (PRESENT(NACE)) THEN
-           NACE = my_NACE 
+           NACE = my_NACE
+           print *, 'LOOK NACE=', NACE 
         ENDIF
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
@@ -191,7 +197,9 @@ end subroutine makeX
 
 
 subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, & 
-                      decohere, new_state, attempt_hop, decohere_criterion, sh_print_env)
+                       sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+!subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, & 
+!                      decohere, new_state, attempt_hop, decohere_criterion, sh_print_env)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -205,7 +213,8 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
-        logical, intent(out) :: decohere
+        TYPE(sh_env_type), INTENT(OUT) :: sh_env
+       ! logical, intent(out) :: decohere
 
         integer :: i, j, mol, k, l
         REAL(KIND=dp) :: hop, sumg
@@ -339,7 +348,8 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                         if (i .ne. old_state) then
                                 new_state = i
 !                                write(24,*) i                        
-                                decohere = .FALSE.
+                               ! decohere = .FALSE.
+                                sh_env%decohere = .FALSE.
                                 attempt_hop = .TRUE.
                                 sh_print_env%attempt_hop    = attempt_hop
                                 sh_print_env%new_state = new_state
@@ -356,11 +366,13 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                                 !then a wavefunction collapse will be enforced
                                 do j=1,mol
                                         if (abs(dphi(old_state,j)) > decohere_criterion .and. old_state .ne. j) then
-                                                decohere = .FALSE.
+                                               ! decohere = .FALSE.
+                                                sh_env%decohere = .FALSE.
                                                 EXIT
                                         end if
                                 end do
-                                decohere = .TRUE.
+                               ! decohere = .TRUE.
+                                sh_env%decohere = .TRUE.
                                 EXIT
                         end if
                 end if
@@ -487,7 +499,7 @@ subroutine matinvsqrt(mol, invert, S)
 
 end subroutine matinvsqrt
 
-subroutine adiabaticity(H, mol, C, E, print)
+subroutine adiabaticity(H, mol, C, E, print, sh_env)
 
         !this subroutine will allow calculation of surface hopping probabilities
         !between N adiabatic surfaces
@@ -497,6 +509,8 @@ subroutine adiabaticity(H, mol, C, E, print)
         !REAL(KIND=dp) :: kcal
         REAL(KIND=dp), dimension(:,:), intent(in) :: H
         REAL(KIND=dp), dimension(:,:), intent(out), allocatable :: C
+
+        TYPE(sh_env_type), INTENT(INOUT), OPTIONAL               ::    sh_env
         REAL(KIND=dp), dimension(:), intent(out), allocatable :: E
         character(len=1) :: job, up
         REAL(KIND=dp), dimension(:), allocatable :: DGETRI_WORK
@@ -529,8 +543,12 @@ subroutine adiabaticity(H, mol, C, E, print)
         if (stat /= 0) then
                 CPABORT("Error with subroutine DSYEV: error status")
         end if
-
-
+        
+        if (print.AND.PRESENT(sh_env)) then 
+        allocate(sh_env%C_tp(mol,mol))
+                sh_env%C_tp=C
+        end if 
+        
         deallocate(DGETRI_WORK)
 
 end subroutine adiabaticity
@@ -602,6 +620,7 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
         NN = force_env%mixed_env%aom_env%NN
         S = force_env%mixed_env%aom_env%Stptp
         C = force_env%mixed_env%aom_env%eigenvector_matrix
+        
         nacv = force_env%mixed_env%aom_env%nacv
         Fin = force_env%mixed_env%aom_env%diabatic_forces
         ext_pres = force_env%mixed_env%aom_env%ext_pres       

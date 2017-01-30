@@ -815,12 +815,12 @@ CONTAINS
            ENDIF
            DEALLOCATE(adiab_energies_t)
        CASE("DECOHERENCE")
-           IF (sh_print_env%collapse) THEN
+          ! IF (sh_print_env%collapse) THEN
               IF (sh_print_env%decohere) THEN
                  WRITE( unit_nr, "(A)" ) "DECOHERENCE!"
-               WRITE( unit_nr, "(A)") "  "
+                ! WRITE( unit_nr, "(A)") " "
               ENDIF
-           ENDIF
+          ! ENDIF
        CASE DEFAULT
             CPABORT("There is nothing to print in the SH_INFO file!")
        END SELECT 

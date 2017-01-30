@@ -12,7 +12,11 @@ MODULE non_adiabatic_utils
      USE kinds,                        ONLY: default_string_length,&                                   
                                              dp                                                        
 
-     USE input_section_types,          ONLY:  section_vals_type
+     USE input_section_types,          ONLY:  section_vals_type, &
+                                             section_vals_get, &
+                                             section_vals_get_subs_vals, &
+                                             section_vals_list_get, &
+                                             section_vals_val_get
 
      USE aom_print,                    ONLY: adiab_print_coeff,              &
                                              adiab_print_pop,                &
@@ -35,6 +39,10 @@ MODULE non_adiabatic_utils
                                              choose_firstadiabat, &
                                              simple_vel_rescaling, &
                                              translate_com
+
+     USE non_adiabatic_types,           ONLY: sh_env_type
+
+
 #include "./base/base_uses.f90" 
 
   IMPLICIT NONE
@@ -43,25 +51,61 @@ MODULE non_adiabatic_utils
                                                                                                        
         CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN ='non_adiabatic_utils'
                                                                                                        
-        PUBLIC :: wf_collapse,      &
+        PUBLIC :: decohere_wf,      &  
                   propagate_wf
 
 CONTAINS
+ 
+  SUBROUTINE decohere_wf(adiabatic_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop)
+  !SUBROUTINE decohere_wf(coupling_section, sh_print_env, aom_env,sh_env, deco_keyword)
 
-  SUBROUTINE wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
-  
-    COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)                 :: ctin
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN)                  :: C_tp
-    INTEGER, INTENT(IN)                                        :: active_state
+
+        TYPE(section_vals_type), POINTER               :: adiabatic_section 
+        TYPE(sh_print_env_type)                        :: sh_print_env
+        TYPE(aom_env_type)                             :: aom_env
+        TYPE(sh_env_type)                              :: sh_env
+        CHARACTER(LEN=default_string_length)           :: deco_keyword
+        INTEGER, POINTER                               :: itimes
+        LOGICAL                                        ::  successful_hop
+
+        CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
+                                       routineP = moduleN//':'//routineN                                                                 
+          CALL section_vals_val_get(adiabatic_section,"DECOHERENCE_CORRECTIONS",c_val=deco_keyword)
+        
+        SELECT CASE(deco_keyword)                                                          
+        CASE("NO_DECO_CORR")
+
+          PRINT *, 'NO DECOHERENCE CORRECTIONS'
     
+        CASE("INSTANT_COLLAPSE")
+          
+          CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes,successful_hop)
+         ! CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
+        CASE("TEST1")
+          CALL test_sub() 
+        CASE DEFAULT                                           
+          CPABORT("There is no method to add the decoherence.") 
+        END SELECT                                             
+
+  END SUBROUTINE decohere_wf
+
+  SUBROUTINE wf_collapse(aom_env,sh_print_env, sh_env, itimes, successful_hop)
+ ! SUBROUTINE wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
+  
+   ! COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)                 :: ctin
+   ! REAL(KIND=dp), DIMENSION(:,:), INTENT(IN)                  :: C_tp
+   ! INTEGER, INTENT(IN)                                        :: active_state
+    
+    TYPE(sh_print_env_type)                        :: sh_print_env
+    TYPE(aom_env_type)                             :: aom_env
+    TYPE(sh_env_type)                              :: sh_env
+
     CHARACTER(len=*), PARAMETER :: routineN ='wf_collapse', &         
     routineP = moduleN//':'//routineN                                                                 
     
     INTEGER, POINTER                               :: itimes
-    TYPE(sh_print_env_type)                        :: sh_print_env
-    TYPE(aom_env_type)                             :: aom_env
-    LOGICAL                                        :: decohere, collapse, successful_hop
-
+    LOGICAL                                        ::  successful_hop
+   ! LOGICAL                                        :: decohere, collapse, successful_hop
 
 
  sh_print_env%decohere = .FALSE.                                      
@@ -69,28 +113,50 @@ CONTAINS
          !Finally, collapse the wavefunction if called for                 
          if (successful_hop) aom_env%futur_decohere = .TRUE.               
 !> Check if the collapse key word is TRUE in the input                     
-         sh_print_env%collapse = collapse
-         if (collapse .and. aom_env%futur_decohere .and. decohere) then                                  
+         !sh_print_env%collapse = sh_env%collapse
+        ! if (sh_env%collapse .and. aom_env%futur_decohere .and. sh_env%decohere) then                                  
+         if (aom_env%futur_decohere .and. sh_env%decohere) then                                  
 !> Check if the surface_hop subroutine asks us to do the decoherence       
-                  sh_print_env%decohere = .TRUE.                           
-                      ctin(:) = C_tp(: ,active_state)
+                  sh_print_env%decohere = .TRUE.
+!print*, "WE ARE IN DECOHERE"                           
+ !                 print*, sh_env%ctin(:)
+ !                 print*, sh_env%active_state
+!print*, "UNTIL HERE, I M FINE"
+!stop
+                  print*, sh_env%c_tp(:,:)
+                     sh_env%ctin(:) = sh_env%C_tp(:, sh_env%active_state)
                   aom_env%futur_decohere = .FALSE.                         
          end if                                                            
          CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
       ENDIF
 
-!   print *, 'WF_COLLAPSE JUST CALLED, THIS WAS A TEST' 
+!!!!sh_print_env%decohere = .FALSE.                                      
+!!!!     IF (itimes.ge.1) THEN                                                
+!!!!        !Finally, collapse the wavefunction if called for                 
+!!!!        if (successful_hop) aom_env%futur_decohere = .TRUE.               
+!!!!> Check if the collapse key word is TRUE in the input                     
+!!!!        sh_print_env%collapse = collapse
+!!!!        if (collapse .and. aom_env%futur_decohere .and. decohere) then                                  
+!!!!> Check if the surface_hop subroutine asks us to do the decoherence       
+!!!!                 sh_print_env%decohere = .TRUE.                           
+!!!!                     ctin(:) = C_tp(: ,active_state)
+!!!!                 aom_env%futur_decohere = .FALSE.                         
+!!!!        end if                                                            
+!!!!        CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
+!!!!     ENDIF
+!!!!
+!!!!   print *, 'WF_COLLAPSE JUST CALLED, THIS WAS A TEST' 
 
   END SUBROUTINE wf_collapse                                                               
                                                  
 
-!  SUBROUTINE test_sub()                           
-!    implicit none                               
-!    !this subroutine is just a test             
-!                                               
-!    print *, 'I AM HEREEEEEEEEEEEEEEEEEEEEEEEE' 
+  SUBROUTINE test_sub()                           
+    implicit none                               
+    !this subroutine is just a test             
+                                               
+    print *, 'I AM HEREEEEEEEEEEEEEEEEEEEEEEEE' 
 
-!  END SUBROUTINE test_sub 
+  END SUBROUTINE test_sub 
   
 
   SUBROUTINE propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,     &
@@ -108,7 +174,7 @@ CONTAINS
      routineP = moduleN//':'//routineN
 
      REAL(KIND=dp), dimension(:,:), allocatable    :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
-  !   REAL(KIND=dp), dimension(:,:), allocatable      :: NACE
+     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
      REAL(KIND=dp), dimension(:,:), allocatable      :: Imat 
@@ -150,7 +216,7 @@ CONTAINS
      !For ease of calculation therefore, in this program,
      !H_t etc are always -i*H.
      !This is why they're complex variables
-!     allocate(NACE(mat,mat))
+     allocate(NACE(mat,mat))
      allocate(Hdiff(mat,mat))
      allocate(H_0(mat,mat))
      allocate(H_1(mat,mat))
@@ -200,8 +266,8 @@ CONTAINS
                     Sttm = Sttm + 0.5D0*Sttmdiff
                     Stptp = Stptp + 0.5D0*Stptpdiff
                     Stmtm = Stmtm + 0.5D0*Stmtmdiff
-                    call makeX(mat, H_2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD)
-!                    call makeX(mat, H_2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD, NACE)
+!                    call makeX(mat, H_2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD)
+                    call makeX(mat, H_2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD, NACE)
      
                     K2 = cmplx(0.0D0, 0.0D0,dp)
                     K3 = cmplx(0.0D0, 0.0D0,dp)
@@ -282,7 +348,7 @@ CONTAINS
 !END PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
 
 !DEALLOCATE
-!       DEALLOCATE(NACE)
+       DEALLOCATE(NACE)
        deallocate(H_0, Hdiff, H_1, H_2, X1, X2, X12, Ktot, K2, K3, K4)
        deallocate(Sttdiff, Stptpdiff, Stmtmdiff, Sttpdiff, Sttmdiff)
        deallocate(Imat)

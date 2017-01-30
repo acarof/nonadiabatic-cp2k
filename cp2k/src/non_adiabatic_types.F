@@ -1,0 +1,48 @@
+
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations
+!   !
+!   Copyright (C) 2000 - 2015  CP2K developers group
+!   !
+!-----------------------------------------------------------------------------!
+
+!!!!!!!!!! CHANGE_SG !!!!!!!!!!!!!
+
+MODULE non_adiabatic_types
+   
+  USE kinds,                           ONLY: default_string_length, &
+                                             dp
+  USE input_section_types,             ONLY: section_vals_type
+
+
+
+IMPLICIT NONE
+
+   PRIVATE
+
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'non_adiabatic_types'
+
+
+
+   TYPE sh_env_type
+!> Variables used in the wf_collapse
+   
+     LOGICAL                                     :: decohere
+!     LOGICAL                                     :: collapse
+!     LOGICAL                                     :: attempt_hop
+     !LOGICAL                                     :: successful_hop
+
+     COMPLEX(KIND=dp), dimension(:), POINTER     :: ctin       
+     REAL(KIND=dp), DIMENSION(:,:), POINTER      :: C_tp          
+     INTEGER                                     :: active_state  
+                                                                                
+
+
+                    
+   END TYPE sh_env_type
+  
+   PUBLIC :: sh_env_type
+
+
+END MODULE non_adiabatic_types
+

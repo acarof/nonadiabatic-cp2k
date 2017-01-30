@@ -57,6 +57,7 @@ MODULE non_adiabatic_methods
        cp_sll_val_set_el_at, cp_sll_val_type
 
   USE aom_types,                       ONLY: aom_env_type 
+  USE non_adiabatic_types,             ONLY: sh_env_type
 
   USE aom_main,                        ONLY: construct_ham_X_SH
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -128,6 +129,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: coupling_section
     CHARACTER(LEN=default_string_length)     :: coupling_keyword
     TYPE(aom_env_type)                       :: aom_env
+    TYPE(sh_env_type)                        :: sh_env
 !    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
 !    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: nace
 !    REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
@@ -189,7 +191,7 @@ CONTAINS
         itimes => my_itimes
 !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
         CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-             positions_tp, energies_tp, aom_env, itimes, &
+             positions_tp, energies_tp, aom_env, sh_env, itimes, &
              is_hop, global_forces, coupling_section, adiab_section,& 
              my_bo_keyword, energy_adiabat, atomic_kinds, &
              local_particles, my_test_keyword)
