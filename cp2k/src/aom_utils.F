@@ -779,14 +779,14 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
                     print*, "NACVTOTCARBON = ", d, j, hop_nacv(d,j)
                     print*, "NACVF1CARBON   = ", d, j, F_1(d,j)
                     print*, "NACVFF1CARBON   = ", d, j, F_1(d,j) + F_11(d,j)
-print*, "ERRORF1CARBON", ( hop_nacv(d,j) - F_1(d,j) )**2
-print*, "ERRORFF1CARBON", ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2
+print*, "ERRORF1CARBON", SQRT( ( hop_nacv(d,j) - F_1(d,j) )**2 / hop_nacv(d,j)**2 )
+print*, "ERRORFF1CARBON", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / hop_nacv(d,j)**2 )
                     ELSE 
                     print*, "NACVTOTHYDROGEN = ", d, j, hop_nacv(d,j)
                     print*, "NACVF1HYDROGEN   = ", d, j, F_1(d,j)
                     print*, "NACVFF1HYDROGEN   = ", d, j, F_1(d,j) + F_11(d,j)
-print*, "ERRORF1HYRDOGEN", ( hop_nacv(d,j) - F_1(d,j) )**2
-print*, "ERRORFF1HYDROGEN", ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2
+print*, "ERRORF1HYRDOGEN", SQRT( ( hop_nacv(d,j) - F_1(d,j) )**2 /  hop_nacv(d,j)**2 )
+print*, "ERRORFF1HYDROGEN", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / hop_nacv(d,j)**2 )
                     ENDIF 
                     !print*, "NACVF11  = ", d, j, F_11(d,j), symmetry
                     !print*, "NACVF2   = ", d, j, F_2(d,j), symmetry
@@ -1583,10 +1583,14 @@ ENDIF
 !>     Chem Phys 2008, 349:334–347.
 !>  B = -B, compare to the paper
 
-        IF (B < 0) THEN
-           rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
+        IF (A == 0) THEN
+           rescale_factor = 0
         ELSE
-           rescale_factor = (- B + SQRT(delta_energy))/(2 * A)
+           IF (B < 0) THEN
+              rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
+           ELSE
+              rescale_factor = (- B + SQRT(delta_energy))/(2 * A)
+           ENDIF
         ENDIF
         DO iparticle_kind=1,nparticle_kind
            atomic_kind => atomic_kind_set(iparticle_kind)
