@@ -549,6 +549,7 @@ subroutine adiabaticity(H, mol, C, E, print, sh_env)
                 sh_env%C_tp=C
         end if 
         
+         
         deallocate(DGETRI_WORK)
 
 end subroutine adiabaticity
@@ -850,7 +851,7 @@ print*, "ERRORFF1HYDROGEN", ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2
            ENDIF
         ELSE
            do d=1,3
-              do j=1,natom
+                      do j=1,natom
                  F_1(d,j) = 0.0D0
                  do i=1,mat
                     F_1(d,j) = F_1(d,j) + C(i,old_state)*DH(i,i,j,d)*C(i,new_state)*diff_energy

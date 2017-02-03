@@ -9,8 +9,8 @@
 
 MODULE non_adiabatic_utils
      
-     USE kinds,                        ONLY: default_string_length,&                                   
-                                             dp                                                        
+     USE kinds,                        ONLY: default_string_length, &
+                                             dp                                    
 
      USE input_section_types,          ONLY:  section_vals_type, &
                                              section_vals_get, &
@@ -56,7 +56,8 @@ MODULE non_adiabatic_utils
 
 CONTAINS
  
-  SUBROUTINE decohere_wf(adiabatic_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop)
+  SUBROUTINE decohere_wf(adiabatic_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
+                          deltatMD, mol)
   !SUBROUTINE decohere_wf(coupling_section, sh_print_env, aom_env,sh_env, deco_keyword)
 
 
@@ -64,25 +65,40 @@ CONTAINS
         TYPE(sh_print_env_type)                        :: sh_print_env
         TYPE(aom_env_type)                             :: aom_env
         TYPE(sh_env_type)                              :: sh_env
+        REAL(KIND=dp), INTENT(IN)                      :: deltatMD
+        REAL(KIND=dp)                                  :: C_param, E_0_param
+       ! REAL(kind=dp), INTENT(IN)                      :: kinetic_energy_prime
+
+        CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
+                                       routineP = moduleN//':'//routineN
+
         CHARACTER(LEN=default_string_length)           :: deco_keyword
         INTEGER, POINTER                               :: itimes
         LOGICAL                                        ::  successful_hop
+        INTEGER                                        :: mol
 
-        CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
-                                       routineP = moduleN//':'//routineN                                                                 
+                                                         
           CALL section_vals_val_get(adiabatic_section,"DECOHERENCE_CORRECTIONS",c_val=deco_keyword)
         
         SELECT CASE(deco_keyword)                                                          
         CASE("NO_DECO_CORR")
 
-          PRINT *, 'NO DECOHERENCE CORRECTIONS'
+             PRINT *, 'NO DECOHERENCE CORRECTIONS'
     
         CASE("INSTANT_COLLAPSE")
           
           CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes,successful_hop)
          ! CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
-        CASE("TEST1")
-          CALL test_sub() 
+
+        CASE("DAMPING")
+
+          !CALL section_vals_val_get(adiabatic_section,"EDC_C",r_val=C_keyword)
+          CALL section_vals_val_get(adiabatic_section,"EDC_C",r_val=C_param)
+          !CALL section_vals_val_get(adiabatic_section,"EDC_E0",r_val=E_0_keyword)
+          CALL section_vals_val_get(adiabatic_section,"EDC_E0",r_val=E_0_param)
+
+          CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD)
+ 
         CASE DEFAULT                                           
           CPABORT("There is no method to add the decoherence.") 
         END SELECT                                             
@@ -150,19 +166,151 @@ CONTAINS
   END SUBROUTINE wf_collapse                                                               
                                                  
 
-  SUBROUTINE test_sub()                           
-    implicit none                               
-    !this subroutine is just a test             
+  SUBROUTINE  wf_damping(C_param, E_0_param, sh_env, mol, deltatMD)                    
+    REAL(KIND=dp), INTENT(IN)                      :: deltatMD
+    TYPE(sh_env_type)                              :: sh_env
+!    TYPE(aom_env_type)                             :: aom_env
+   ! REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime 
+
+    CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
+    routineP = moduleN//':'//routineN   
+                                                        
+    INTEGER  :: j,mol,i
+    REAL(KIND=dp)   :: C_param, E_0_param, kinetic_energy_prime
+   ! REAL(KIND=dp), PARAMETER :: C, E_0
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau
+    REAL(KIND=dp)      :: sum!, sum1 
+    COMPLEX(KIND=dp), dimension(:), allocatable :: ct
+    COMPLEX(KIND=dp), dimension(:), allocatable :: pop
+
+allocate(pop(mol)) !TEST
+
+allocate(ct(mol))  ! adiabatic states
+allocate(tau(mol)) ! decoherence time (EDC method)
+
+!set value C and E_O 
+!C = 1.0D0
+!E_0 = 0.1D0
+kinetic_energy_prime = 1.0D0
+
+sum = 0.0D0
+
+PRINT *, "CTIN diabatic BEFORE", sh_env%ctin
+PRINT *, "ACTIVE_STATE IS", sh_env%active_state
+
+do i=1,mol 
+        if (i .ne. sh_env%active_state) then
+            pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
+            ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
+            tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
+                                     (C_param +(E_0_param/kinetic_energy_prime))
+            PRINT *, "TAU is", tau(i) 
+             do j=1,mol
+                     ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
+             end do
+
+            PRINT *, "adiab_coeef_before damp is", ct(i)
+            pop(i) = ct(i)*conjg(ct(i))
+
+            PRINT *, "adiab_POP_before damp is", pop(i)
+             ct(i) = ct(i)*exp(-(deltatMD/tau(i)))
+
+             pop(i) = ct(i)*conjg(ct(i))
+
+             PRINT *, "adiab_coeef_after damp is", ct(i)
+             PRINT *, "adiab_POP_after damp is", pop(i)
+             sum = sum + abs(ct(i))*abs(ct(i))
+        end if
+end do
+
+pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
+ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
+
+do i=1,mol                                                       
+       ! ct(sh_env%active_state) = ct(sh_env%active_state) +
+       ! cmplx(C2(i,old_state), 0.0D0,dp)*c(i)  
+        ct(sh_env%active_state) = ct(sh_env%active_state) + &
+          cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
+end do  
+           PRINT *, "ACTIVE_adiab_coeef_before damp is", ct(sh_env%active_state)
+
+pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
+           PRINT *, "ACTIVE_POP_adiab_coeef_before damp is", pop(sh_env%active_state)
+
+        ct(sh_env%active_state)= ct(sh_env%active_state)* &
+           sqrt((1-sum)/(abs(ct(sh_env%active_state))*abs(ct(sh_env%active_state))))
+
+           PRINT *, "ACTIVE_adiab_coeef_AFTER damp is", ct(sh_env%active_state)
+
+pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
+           PRINT *, "ACTIVE_POP_adiab_coeef_AFTER damp is", pop(sh_env%active_state)
+
+do j=1,mol
+       pop(j) = cmplx(0.0D0, 0.0D0,dp) !TEST
+       do i=1,mol 
+           sh_env%ctin(j) = sh_env%ctin(j) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*ct(i)
+       end do
+PRINT *, "CTIN_diabatic AFTER", sh_env%ctin(j)
+      pop(j)=sh_env%ctin(j)*conjg(sh_env%ctin(j))
+PRINT *, "POP_diabatic =", pop(j)
+end do
+
+
+!PRINT *, "CTIN_diabati-----", sh_env%ctin
+!PRINT *, "POP_diabatic =", pop
+!PRINT *, "ADIAB-------", ct
+
+!do i=1,mol
+ !  sum1 = sum1 + abs(ct(i))*abs(ct(i))
+!end do 
+
+!print *, "POPUL", sum1
+
+deallocate(ct) 
+deallocate(tau)
+deallocate(pop)
+
+!do i=1,mol
+!        if (i .ne. active_state) then 
+!            ct(i) = cmplx(0.0D0, 0.0D0,dp)    
+!            tau(i)= (1/abs(E(i) - E(active_state)))*(C +(E_0/KE)) !NB solve zero 
+!                                                                  !division
+!             do j=1,mol
+ !                    ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*c(j)
+!             end do 
+!             ct(i) = ct(i)*exp(-(deltatMD/tau(i)))        
+!             sum = sum + ct(i)*ct(i)                                                        
+!        end if
+!end do 
+
+
+!ct(active_state) = cmplx(0.0D0, 0.0D0, dp)
+!do i=1,mol 
+       ! ct(active_state) = ct(active_state) + cmplx(C2(i,old_state),
+       ! 0.0D0,dp)*c(i)  
+!        ct(active_state) = ct(active_state) + cmplx(C2(i,active_state),
+!0.0D0,dp)*c(i)
+!end do 
+!        ct(active_state)=
+!ct(active_state)*sqrt((1-sum)/(ct(active_state)*ct(active_state))
+!
+!do j=1,mol 
+!       do i=1,mol                  
+!           c(j) = c(j) + cmplx(C2(j,i), 0.0D0,dp)*ct(j)
+!       end do
+!end do
+
+         
                                                
     print *, 'I AM HEREEEEEEEEEEEEEEEEEEEEEEEE' 
 
-  END SUBROUTINE test_sub 
+  END SUBROUTINE wf_damping 
   
 
   SUBROUTINE propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,     &
                           ctin, ctout, ctotal, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,      &
-                            active_state, mat)
+                            mat)
 
      COMPLEX(KIND=dp), dimension(:,:), INTENT(IN)    :: H_t, H_tp
      REAL(KIND=dp), dimension(:,:), INTENT(INOUT)       :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
@@ -189,7 +337,7 @@ CONTAINS
      REAL(KIND=dp)                                   :: times 
      COMPLEX(KIND=dp)                                :: alpha, beta, ctcomp
      integer                                         :: t2
-     integer                                         :: i,j, inc, active_state, mat 
+     integer                                         :: i,j, inc, mat 
      character(len=1)                                :: zgemm_type
 
 
@@ -333,6 +481,7 @@ CONTAINS
                     H_0 = H_2
 
                     ctin = ctout
+PRINT *, "diab_COEFF", ctin
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
                     times = DBLE(itimes) + t2*1/DBLE(ELsteps)

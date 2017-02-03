@@ -202,6 +202,20 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
 
+    
+    CALL keyword_create(keyword, name="EDC_C",&
+         description="C parameter in the Energy-based deco. correction formula",&
+         usage="1.0D0", type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="EDC_E0",&
+         description="E0 parameter in the Energy-based deco. correction formula",&
+         usage="0.1D0", type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+
     NULLIFY(sub2section)
     CALL section_create(sub2section,name="AOM",&
          description="Defines the methods to obtain the adiabatic forces.",&

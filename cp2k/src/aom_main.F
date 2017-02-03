@@ -197,6 +197,8 @@ CONTAINS
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
      CHARACTER(LEN=default_string_length)           :: deco_keyword 
+        COMPLEX(KIND=dp), dimension(:), allocatable :: pop
+        COMPLEX(KIND=dp), dimension(:), allocatable :: adiab
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -285,6 +287,7 @@ CONTAINS
 
      ALLOCATE(E_t(mat))
      ALLOCATE(E_tp(mat))
+     ALLOCATE(sh_env%E_tp(mat))
 
      ALLOCATE(my_forces_adiab(3,natom))
      ALLOCATE(positions_com_tp(3, natom))
@@ -725,7 +728,7 @@ CONTAINS
             CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,    &
                           ctin, ctout, ctotal, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,    &
-                            active_state, mat)
+                            mat)
           ! CALL propagate_wf(H_t, H_tp, H_int, Hdiff, H_t_save, H_tp_save, X1, X2, X12, Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff, Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm, Imat, pcoeffs, NACE, Ktot, K2, K3, K4, ctin, ctout, ctotal, aom_env, nadiab,  norbitals, new_state , ELsteps, itimes, adiab_section, cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE , ctmag,  cbar, minao, dR, times, alpha, beta, ctcomp, coord, t2, i, atoms, inc, active_state, mat, zgemm_type)
 
 !            Hdiff = (deltatE/deltatMD)*(H_tp - H_t)
@@ -929,12 +932,33 @@ CONTAINS
 
 
        sh_print_env%times = times
-!DO THE HOPPING TEST 
+!DO THE HOPPING TEST
+
+ 
                !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
                !It gives us back the eigenvalues and eigenvectors
       IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
       call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
       CALL adiab_print_adiabat_energies(adiab_section, E_tp,nadiab,deltatMD, times)
+
+
+allocate(pop(mol))
+allocate(adiab(mol))
+
+!TEST
+do i= 1,mol
+        adiab(i) = cmplx(0.0D0, 0.0D0,dp)
+     do j=1, mol
+        adiab(i) = adiab(i) + cmplx(C_tp(j,i), 0.0D0,dp)*ctin(j)
+     end do 
+     pop(i) = adiab(i)*conjg(adiab(i))
+
+end do
+
+PRINT *, 'ADIAB_COEFF is=', adiab
+PRINT *, 'THE_ADIAB_POP is=', pop
+deallocate(pop)
+deallocate(adiab)
 
       !The eigenvectors are needed to calculate the surface hopping probabilities
       !The surfacehop subroutine calculates these probabilites and decides on the
@@ -1026,17 +1050,19 @@ CONTAINS
 !> initialize derived type variables
 ALLOCATE(sh_env%ctin(mat))
 
+sh_env%E_tp=E_tp
 sh_env%ctin=ctin
 sh_env%active_state=active_state
 
 !COLLAPSE IF REQUIRED WITH THE WAVEFUNCTION COLLAPSE METHOD
 
-CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop)
+CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
+                          deltatMD, mol)
 !CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
 
 ctin=sh_env%ctin
 !C_tp=sh_env%C_tp
-!active_state=sh_env%active_state
+active_state=sh_env%active_state
 
 !STORE THE COORDINATES IF NOT SUCCESSFUL RUN
         if (itimes.ge.1) then

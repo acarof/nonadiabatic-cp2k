@@ -35,7 +35,7 @@ IMPLICIT NONE
      COMPLEX(KIND=dp), dimension(:), POINTER     :: ctin       
      REAL(KIND=dp), DIMENSION(:,:), POINTER      :: C_tp          
      INTEGER                                     :: active_state  
-                                                                                
+     REAL(KIND=dp), dimension(:), POINTER        :: E_tp                                                                            
 
 
                     
