@@ -139,6 +139,10 @@ CONTAINS
      TYPE(atomic_kind_list_type), POINTER           :: atomic_kinds
      TYPE(distribution_1d_type), POINTER            :: local_particles
      LOGICAL, INTENT(IN)                            :: my_test_keyword
+     REAL(kind=dp)                                 :: K_tot
+     INTEGER                                    :: nparticle_kind
+     TYPE(atomic_kind_type), DIMENSION(:), POINTER                       :: atomic_kind_set
+
 
 
      CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
@@ -271,7 +275,7 @@ CONTAINS
        ALLOCATE(aom_env%nacv(3,mat,mat,mat*atoms))
        ALLOCATE(aom_env%diabatic_forces(3,natom, mat))
        ALLOCATE(aom_env%ext_pres(natom))
-       ALLOCATE(aom_env%velocities_tp(3, natom))
+!       ALLOCATE(aom_env%velocities_tp(3, natom))
        ALLOCATE(aom_env%forces_adiab(3,natom))
        ALLOCATE(aom_env%forces_adiab_new(3,natom))
        aom_env%futur_decohere = .FALSE.
@@ -1057,7 +1061,12 @@ sh_env%active_state=active_state
 !COLLAPSE IF REQUIRED WITH THE WAVEFUNCTION COLLAPSE METHOD
 
 CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
-                          deltatMD, mol)
+deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, atomic_kind_set, K_tot)
+
+
+
+!CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
+ !                         deltatMD, mol)
 !CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
 
 ctin=sh_env%ctin
