@@ -1211,17 +1211,17 @@ end subroutine calcTDT
 
 
 
-   SUBROUTINE simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime)
+   SUBROUTINE simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime, rescale_factor)
         !TYPE(tmp_variables_type), POINTER        :: tmp
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
         REAL(kind=dp), INTENT(IN)                :: delta_energy
         REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime
         !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
+        REAL(kind=dp), INTENT(OUT)               :: rescale_factor
 
         CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
         routineP = moduleN//':'//routineN
 
-        REAL(kind=dp)                            :: rescale_factor
 
 !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
         rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
@@ -1327,6 +1327,8 @@ end subroutine calcTDT
         CASE("SIMPLE")
            CALL cal_delta_energy(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                                  local_particles, delta_energy, kinetic_energy_prime)
+           sh_print_env%old_state        = force_env%mixed_env%aom_env%active_state
+           sh_print_env%new_state        = force_env%mixed_env%aom_env%new_state
            IF (delta_energy.lt.0) THEN
               force_env%mixed_env%aom_env%successful_hop = .FALSE.
            ELSE 
@@ -1338,15 +1340,13 @@ end subroutine calcTDT
               force_env%mixed_env%aom_env%active_state   = force_env%mixed_env%aom_env%new_state
               force_env%mixed_env%aom_env%kinetic_energy = kinetic_energy_prime
               force_env%mixed_env%aom_env%delta_energy   = delta_energy
-              CALL simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime)
+              CALL simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime, rescale_factor)
            ENDIF
 
            sh_print_env%adiab_energies_t = force_env%mixed_env%aom_env%adiab_energies_t
            sh_print_env%delta_energy     = delta_energy
            sh_print_env%successful_hop   = force_env%mixed_env%aom_env%successful_hop
            sh_print_env%kinetic_energy   = kinetic_energy_prime
-           sh_print_env%old_state        = force_env%mixed_env%aom_env%active_state
-           sh_print_env%new_state        = force_env%mixed_env%aom_env%new_state
            IF (sh_print_env%successful_hop) sh_print_env%rescale_factor = rescale_factor
            CALL adiab_print_sh_info(sh_print_env, keyword = 'SIMPLE_RESCALING')
         CASE("NACV")
