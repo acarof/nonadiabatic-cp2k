@@ -482,7 +482,7 @@ CONTAINS
        ENDDO
 
     END IF
-    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%DENSITY_MATRIX")
    END SUBROUTINE adiab_print_matrix_density
 
 
