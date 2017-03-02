@@ -945,6 +945,7 @@ CONTAINS
       call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
       CALL adiab_print_adiabat_energies(adiab_section, E_tp,nadiab,deltatMD, times)
 
+PRINT *, 'ADIAB_ENERGIES', E_tp 
 
 allocate(pop(mol))
 allocate(adiab(mol))
@@ -961,8 +962,8 @@ end do
 
 PRINT *, 'ADIAB_COEFF is=', adiab
 PRINT *, 'THE_ADIAB_POP is=', pop
-deallocate(pop)
-deallocate(adiab)
+!deallocate(pop)
+!deallocate(adiab)
 
       !The eigenvectors are needed to calculate the surface hopping probabilities
       !The surfacehop subroutine calculates these probabilites and decides on the
@@ -1058,6 +1059,7 @@ sh_env%E_tp=E_tp
 sh_env%ctin=ctin
 sh_env%active_state=active_state
 
+PRINT *, 'POPUL_ADIAB=', pop, 'ACTIVE_STATE', sh_env%active_state
 !COLLAPSE IF REQUIRED WITH THE WAVEFUNCTION COLLAPSE METHOD
 
 CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &

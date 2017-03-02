@@ -149,7 +149,9 @@ PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
     LOGICAL                                        ::  successful_hop
    ! LOGICAL                                        :: decohere, collapse, successful_hop
 
-
+ !aom_env%futur_decohere = .FALSE.
+ print *, 'aom_env%futur_decohere_is', aom_env%futur_decohere
+ print *, 'sh_env%decohere_is', sh_env%decohere
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
          !Finally, collapse the wavefunction if called for                 
@@ -194,7 +196,8 @@ PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
 
   SUBROUTINE  wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot)                    
 
-    REAL(kind=dp), INTENT(IN)                    :: K_tot
+    REAL(kind=dp)                              :: K_tot
+    !REAL(kind=dp), INTENT(IN)                    :: K_tot
     REAL(KIND=dp), INTENT(IN)                      :: deltatMD
     TYPE(sh_env_type)                              :: sh_env
 !    TYPE(aom_env_type)                             :: aom_env
@@ -211,94 +214,104 @@ PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
     COMPLEX(KIND=dp), dimension(:), allocatable :: ct
     COMPLEX(KIND=dp), dimension(:), allocatable :: pop
 
-allocate(pop(mol)) !TEST
+    allocate(pop(mol)) !TEST
 
-allocate(ct(mol))  ! adiabatic states
-allocate(tau(mol)) ! decoherence time (EDC method)
+    allocate(ct(mol))  ! adiabatic states
+    allocate(tau(mol)) ! decoherence time (EDC method)
 
 !set value C and E_O 
 !C = 1.0D0
 !E_0 = 0.1D0
 !kinetic_energy_prime = 1.0D0
 
-sum = 0.0D0
 
-PRINT *, "CTIN diabatic BEFORE", sh_env%ctin
-PRINT *, "ACTIVE_STATE IS", sh_env%active_state
+    sum = 0.0D0
+!TEST WITHOUT KINETIC
+    if (E_0_param == 0.0D0) then  
+          K_tot = 1.0D0
+    end if
 
-do i=1,mol 
-        if (i .ne. sh_env%active_state) then
-            pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
-            ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
-            tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
-                                     (C_param +(E_0_param/K_tot))
-            PRINT *, "TAU is", tau(i) 
-             do j=1,mol
-                     ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
-             end do
+    PRINT *, "CTIN diabatic BEFORE", sh_env%ctin
+    PRINT *, "ACTIVE_STATE IS", sh_env%active_state
 
-            PRINT *, "adiab_coeef_before damp is", ct(i)
-            pop(i) = ct(i)*conjg(ct(i))
-
-            PRINT *, "adiab_POP_before damp is", pop(i)
-             ct(i) = ct(i)*exp(-(deltatMD/tau(i)))
-
-             pop(i) = ct(i)*conjg(ct(i))
-
-             PRINT *, "adiab_coeef_after damp is", ct(i)
-             PRINT *, "adiab_POP_after damp is", pop(i)
-             sum = sum + abs(ct(i))*abs(ct(i))
-        end if
-end do
-
-pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
-ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
-
-do i=1,mol                                                       
-       ! ct(sh_env%active_state) = ct(sh_env%active_state) +
-       ! cmplx(C2(i,old_state), 0.0D0,dp)*c(i)  
-        ct(sh_env%active_state) = ct(sh_env%active_state) + &
-          cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
-end do  
-           PRINT *, "ACTIVE_adiab_coeef_before damp is", ct(sh_env%active_state)
-
-pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
-           PRINT *, "ACTIVE_POP_adiab_coeef_before damp is", pop(sh_env%active_state)
-
-        ct(sh_env%active_state)= ct(sh_env%active_state)* &
-           sqrt((1-sum)/(abs(ct(sh_env%active_state))*abs(ct(sh_env%active_state))))
-
-           PRINT *, "ACTIVE_adiab_coeef_AFTER damp is", ct(sh_env%active_state)
-
-pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
-           PRINT *, "ACTIVE_POP_adiab_coeef_AFTER damp is", pop(sh_env%active_state)
-
-do j=1,mol
-       pop(j) = cmplx(0.0D0, 0.0D0,dp) !TEST
-       do i=1,mol 
-           sh_env%ctin(j) = sh_env%ctin(j) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*ct(i)
-       end do
-PRINT *, "CTIN_diabatic AFTER", sh_env%ctin(j)
-      pop(j)=sh_env%ctin(j)*conjg(sh_env%ctin(j))
-PRINT *, "POP_diabatic =", pop(j)
-end do
-
-
-!PRINT *, "CTIN_diabati-----", sh_env%ctin
-!PRINT *, "POP_diabatic =", pop
-!PRINT *, "ADIAB-------", ct
-
-!do i=1,mol
- !  sum1 = sum1 + abs(ct(i))*abs(ct(i))
-!end do 
-
-!print *, "POPUL", sum1
-
-deallocate(ct) 
-deallocate(tau)
-deallocate(pop)
-    print *, 'I AM HEREEEEEEEEEEEEEEEEEEEEEEEE' 
-
+    do i=1,mol 
+           if (i .ne. sh_env%active_state) then
+               pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
+               ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
+               tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
+                                        (C_param +(E_0_param/K_tot))
+               PRINT *, "TAU is", tau(i)
+               PRINT *, "Delta MD", deltatMD 
+                do j=1,mol
+                        ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
+                end do
+    
+               PRINT *, "adiab_coeef_before damp is", ct(i)
+               pop(i) = ct(i)*conjg(ct(i))
+    
+               PRINT *, "adiab_POP_before damp is", pop(i)
+                !ct(i) = ct(i)
+                ct(i) = ct(i)*exp(-(deltatMD/tau(i)))
+    
+                pop(i) = ct(i)*conjg(ct(i))
+    
+                PRINT *, "adiab_coeef_after damp is", ct(i)
+                PRINT *, "adiab_POP_after damp is", pop(i)
+                sum = sum + abs(ct(i))*abs(ct(i))
+           end if
+    end do
+    
+    pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
+    ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
+    do i=1,mol                                                       
+          ! ct(sh_env%active_state) = ct(sh_env%active_state) +
+          ! cmplx(C2(i,old_state), 0.0D0,dp)*c(i)  
+           ct(sh_env%active_state) = ct(sh_env%active_state) + &
+             cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
+    end do  
+              PRINT *, "ACTIVE_adiab_coeef_before damp is", ct(sh_env%active_state)
+    
+    pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
+              PRINT *, "ACTIVE_POP_adiab_coeef_before damp is", pop(sh_env%active_state)
+    
+    if (ct(sh_env%active_state)== 0) then
+           ct(sh_env%active_state) = sqrt(1-sum)
+    else 
+           ct(sh_env%active_state)= ct(sh_env%active_state)* &
+              sqrt((1-sum)/(abs(ct(sh_env%active_state))*abs(ct(sh_env%active_state))))
+    end if
+              PRINT *, "ACTIVE_adiab_coeef_AFTER damp is", ct(sh_env%active_state)
+    
+    pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
+              PRINT *, "ACTIVE_POP_adiab_coeef_AFTER damp is", pop(sh_env%active_state)
+    
+    do j=1,mol
+          sh_env%ctin(j) = cmplx(0.0D0, 0.0D0,dp)                           
+          pop(j) = cmplx(0.0D0, 0.0D0,dp) !TEST
+          do i=1,mol 
+              sh_env%ctin(j) = sh_env%ctin(j) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*ct(i)
+          end do
+    PRINT *, "CTIN_diabatic AFTER", sh_env%ctin(j)
+         pop(j)=sh_env%ctin(j)*conjg(sh_env%ctin(j))
+    PRINT *, "POP_diabatic =", pop(j)
+    end do
+    
+    
+    !PRINT *, "CTIN_diabati-----", sh_env%ctin
+    !PRINT *, "POP_diabatic =", pop
+    !PRINT *, "ADIAB-------", ct
+    
+    !do i=1,mol
+    !  sum1 = sum1 + abs(ct(i))*abs(ct(i))
+    !end do 
+    
+    !print *, "POPUL", sum1
+    
+    deallocate(ct) 
+    deallocate(tau)
+    deallocate(pop)
+        print *, 'I AM HEREEEEEEEEEEEEEEEEEEEEEEEE' 
+    
 !do i=1,mol
 !        if (i .ne. active_state) then 
 !            ct(i) = cmplx(0.0D0, 0.0D0,dp)    
