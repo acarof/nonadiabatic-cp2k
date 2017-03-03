@@ -224,7 +224,6 @@ PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
 !E_0 = 0.1D0
 !kinetic_energy_prime = 1.0D0
 
-
     sum = 0.0D0
 !TEST WITHOUT KINETIC
     if (E_0_param == 0.0D0) then  
