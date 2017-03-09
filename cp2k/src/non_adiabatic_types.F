@@ -25,12 +25,9 @@ IMPLICIT NONE
 
 
    TYPE sh_env_type
-!> Variables used in the wf_collapse
+!> Variables used for the decoherence methods
    
      LOGICAL                                     :: decohere
-!     LOGICAL                                     :: collapse
-!     LOGICAL                                     :: attempt_hop
-     !LOGICAL                                     :: successful_hop
 
      COMPLEX(KIND=dp), dimension(:), POINTER     :: ctin       
      REAL(KIND=dp), DIMENSION(:,:), POINTER      :: C_tp          

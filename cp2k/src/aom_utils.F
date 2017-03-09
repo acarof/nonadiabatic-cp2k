@@ -183,12 +183,12 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         !X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
         X = H - my_NACE
 
-!        print *, 'LOOK NACE=', my_NACE
 
 !> CHANGE_AC
+
         IF (PRESENT(NACE)) THEN
            NACE = my_NACE
-           print *, 'LOOK NACE=', NACE 
+!           print *, 'LOOK NACE=', NACE 
         ENDIF
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
@@ -198,8 +198,6 @@ end subroutine makeX
 
 subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, & 
                        sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
-!subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, & 
-!                      decohere, new_state, attempt_hop, decohere_criterion, sh_print_env)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -214,7 +212,6 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
         TYPE(sh_env_type), INTENT(OUT) :: sh_env
-       ! logical, intent(out) :: decohere
 
         integer :: i, j, mol, k, l
         REAL(KIND=dp) :: hop, sumg
@@ -385,7 +382,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
 
         deallocate(ak)
         deallocate(b)
-        deallocate(g)
+        deallocate(G)
         deallocate(ct)
         deallocate(dphi)
         deallocate(T1)

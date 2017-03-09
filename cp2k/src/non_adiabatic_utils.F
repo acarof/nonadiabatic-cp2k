@@ -66,11 +66,8 @@ MODULE non_adiabatic_utils
 
 CONTAINS
  
-!  SUBROUTINE decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
- !                         deltatMD, mol,velocities_t, local_particles, K_tot)
   SUBROUTINE decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
                          deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, atomic_kind_set, K_tot)
-  !SUBROUTINE decohere_wf(coupling_section, sh_print_env, aom_env,sh_env, deco_keyword)
 
 
         TYPE(section_vals_type), POINTER               :: adiab_section 
@@ -79,7 +76,6 @@ CONTAINS
         TYPE(sh_env_type)                              :: sh_env
         REAL(KIND=dp), INTENT(IN)                      :: deltatMD
         REAL(KIND=dp)                                  :: C_param, E_0_param
-       ! REAL(kind=dp), INTENT(IN)                      :: kinetic_energy_prime
 
         CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
                                        routineP = moduleN//':'//routineN
@@ -110,18 +106,13 @@ CONTAINS
         CASE("INSTANT_COLLAPSE")
           
           CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes,successful_hop)
-         ! CALL wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
 
         CASE("DAMPING")
 
-          !CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_keyword)
           CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
-          !CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_keyword)
           CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
-!MODIFY     
           CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &                                               
                       atomic_kind_set, K_tot)
-PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
 
           CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot)
  
@@ -132,11 +123,6 @@ PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
   END SUBROUTINE decohere_wf
 
   SUBROUTINE wf_collapse(aom_env,sh_print_env, sh_env, itimes, successful_hop)
- ! SUBROUTINE wf_collapse(itimes, sh_print_env, aom_env, collapse, successful_hop, decohere, ctin, C_tp, active_state)
-  
-   ! COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)                 :: ctin
-   ! REAL(KIND=dp), DIMENSION(:,:), INTENT(IN)                  :: C_tp
-   ! INTEGER, INTENT(IN)                                        :: active_state
     
     TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(aom_env_type)                             :: aom_env
@@ -147,26 +133,16 @@ PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
     
     INTEGER, POINTER                               :: itimes
     LOGICAL                                        ::  successful_hop
-   ! LOGICAL                                        :: decohere, collapse, successful_hop
 
- !aom_env%futur_decohere = .FALSE.
  print *, 'aom_env%futur_decohere_is', aom_env%futur_decohere
  print *, 'sh_env%decohere_is', sh_env%decohere
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
          !Finally, collapse the wavefunction if called for                 
          if (successful_hop) aom_env%futur_decohere = .TRUE.               
-!> Check if the collapse key word is TRUE in the input                     
-         !sh_print_env%collapse = sh_env%collapse
-        ! if (sh_env%collapse .and. aom_env%futur_decohere .and. sh_env%decohere) then                                  
          if (aom_env%futur_decohere .and. sh_env%decohere) then                                  
 !> Check if the surface_hop subroutine asks us to do the decoherence       
                   sh_print_env%decohere = .TRUE.
-!print*, "WE ARE IN DECOHERE"                           
- !                 print*, sh_env%ctin(:)
- !                 print*, sh_env%active_state
-!print*, "UNTIL HERE, I M FINE"
-!stop
                   print*, sh_env%c_tp(:,:)
                      sh_env%ctin(:) = sh_env%C_tp(:, sh_env%active_state)
                   aom_env%futur_decohere = .FALSE.                         
@@ -174,41 +150,20 @@ PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
          CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
       ENDIF
 
-!!!!sh_print_env%decohere = .FALSE.                                      
-!!!!     IF (itimes.ge.1) THEN                                                
-!!!!        !Finally, collapse the wavefunction if called for                 
-!!!!        if (successful_hop) aom_env%futur_decohere = .TRUE.               
-!!!!> Check if the collapse key word is TRUE in the input                     
-!!!!        sh_print_env%collapse = collapse
-!!!!        if (collapse .and. aom_env%futur_decohere .and. decohere) then                                  
-!!!!> Check if the surface_hop subroutine asks us to do the decoherence       
-!!!!                 sh_print_env%decohere = .TRUE.                           
-!!!!                     ctin(:) = C_tp(: ,active_state)
-!!!!                 aom_env%futur_decohere = .FALSE.                         
-!!!!        end if                                                            
-!!!!        CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
-!!!!     ENDIF
-!!!!
-!!!!   print *, 'WF_COLLAPSE JUST CALLED, THIS WAS A TEST' 
-
   END SUBROUTINE wf_collapse                                                               
                                                  
 
   SUBROUTINE  wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot)                    
 
     REAL(kind=dp)                              :: K_tot
-    !REAL(kind=dp), INTENT(IN)                    :: K_tot
     REAL(KIND=dp), INTENT(IN)                      :: deltatMD
     TYPE(sh_env_type)                              :: sh_env
-!    TYPE(aom_env_type)                             :: aom_env
-   ! REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime 
 
     CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
     routineP = moduleN//':'//routineN   
                                                         
     INTEGER  :: j,mol,i
     REAL(KIND=dp)   :: C_param, E_0_param
-   ! REAL(KIND=dp), PARAMETER :: C, E_0
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau
     REAL(KIND=dp)      :: sum!, sum1 
     COMPLEX(KIND=dp), dimension(:), allocatable :: ct
@@ -219,127 +174,72 @@ PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
     allocate(ct(mol))  ! adiabatic states
     allocate(tau(mol)) ! decoherence time (EDC method)
 
-!set value C and E_O 
-!C = 1.0D0
-!E_0 = 0.1D0
-!kinetic_energy_prime = 1.0D0
 
     sum = 0.0D0
-!TEST WITHOUT KINETIC
+!TEST WITHOUT KINETIC: useful if statment when E_0=0 and FROZEN HAMILTONIAN are
+!used
     if (E_0_param == 0.0D0) then  
           K_tot = 1.0D0
     end if
-
-    PRINT *, "CTIN diabatic BEFORE", sh_env%ctin
-    PRINT *, "ACTIVE_STATE IS", sh_env%active_state
-
+!transfor the diabatic into the adiabatic coefficients and calculate tau
     do i=1,mol 
            if (i .ne. sh_env%active_state) then
                pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
                ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
                tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param +(E_0_param/K_tot))
-               PRINT *, "TAU is", tau(i)
-               PRINT *, "Delta MD", deltatMD 
                 do j=1,mol
                         ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
                 end do
-    
-               PRINT *, "adiab_coeef_before damp is", ct(i)
+
+!damp the coefficients of the states different from the active state    
                pop(i) = ct(i)*conjg(ct(i))
     
-               PRINT *, "adiab_POP_before damp is", pop(i)
                 !ct(i) = ct(i)
                 ct(i) = ct(i)*exp(-(deltatMD/tau(i)))
     
                 pop(i) = ct(i)*conjg(ct(i))
     
-                PRINT *, "adiab_coeef_after damp is", ct(i)
-                PRINT *, "adiab_POP_after damp is", pop(i)
                 sum = sum + abs(ct(i))*abs(ct(i))
            end if
     end do
-    
+
+!transfor the active diabatic state into the active diabatic state
     pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
     ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
     do i=1,mol                                                       
-          ! ct(sh_env%active_state) = ct(sh_env%active_state) +
-          ! cmplx(C2(i,old_state), 0.0D0,dp)*c(i)  
            ct(sh_env%active_state) = ct(sh_env%active_state) + &
              cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
     end do  
-              PRINT *, "ACTIVE_adiab_coeef_before damp is", ct(sh_env%active_state)
     
     pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
-              PRINT *, "ACTIVE_POP_adiab_coeef_before damp is", pop(sh_env%active_state)
     
+!transfer population to the active state for keeping the detailed balance   
     if (ct(sh_env%active_state)== 0) then
            ct(sh_env%active_state) = sqrt(1-sum)
     else 
            ct(sh_env%active_state)= ct(sh_env%active_state)* &
               sqrt((1-sum)/(abs(ct(sh_env%active_state))*abs(ct(sh_env%active_state))))
     end if
-              PRINT *, "ACTIVE_adiab_coeef_AFTER damp is", ct(sh_env%active_state)
     
     pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
-              PRINT *, "ACTIVE_POP_adiab_coeef_AFTER damp is", pop(sh_env%active_state)
-    
+
+!transfor back the adiabatic into the diabatic which, then, follow the
+!electronic prpagation    
     do j=1,mol
           sh_env%ctin(j) = cmplx(0.0D0, 0.0D0,dp)                           
           pop(j) = cmplx(0.0D0, 0.0D0,dp) !TEST
           do i=1,mol 
               sh_env%ctin(j) = sh_env%ctin(j) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*ct(i)
           end do
-    PRINT *, "CTIN_diabatic AFTER", sh_env%ctin(j)
          pop(j)=sh_env%ctin(j)*conjg(sh_env%ctin(j))
-    PRINT *, "POP_diabatic =", pop(j)
     end do
     
-    
-    !PRINT *, "CTIN_diabati-----", sh_env%ctin
-    !PRINT *, "POP_diabatic =", pop
-    !PRINT *, "ADIAB-------", ct
-    
-    !do i=1,mol
-    !  sum1 = sum1 + abs(ct(i))*abs(ct(i))
-    !end do 
-    
-    !print *, "POPUL", sum1
     
     deallocate(ct) 
     deallocate(tau)
     deallocate(pop)
-        print *, 'I AM HEREEEEEEEEEEEEEEEEEEEEEEEE' 
     
-!do i=1,mol
-!        if (i .ne. active_state) then 
-!            ct(i) = cmplx(0.0D0, 0.0D0,dp)    
-!            tau(i)= (1/abs(E(i) - E(active_state)))*(C +(E_0/KE)) !NB solve zero 
-!                                                                  !division
-!             do j=1,mol
- !                    ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*c(j)
-!             end do 
-!             ct(i) = ct(i)*exp(-(deltatMD/tau(i)))        
-!             sum = sum + ct(i)*ct(i)                                                        
-!        end if
-!end do 
-
-
-!ct(active_state) = cmplx(0.0D0, 0.0D0, dp)
-!do i=1,mol 
-       ! ct(active_state) = ct(active_state) + cmplx(C2(i,old_state),
-       ! 0.0D0,dp)*c(i)  
-!        ct(active_state) = ct(active_state) + cmplx(C2(i,active_state),
-!0.0D0,dp)*c(i)
-!end do 
-!        ct(active_state)=
-!ct(active_state)*sqrt((1-sum)/(ct(active_state)*ct(active_state))
-!
-!do j=1,mol 
-!       do i=1,mol                  
-!           c(j) = c(j) + cmplx(C2(j,i), 0.0D0,dp)*ct(j)
-!       end do
-!end do
 
   END SUBROUTINE wf_damping 
  
@@ -347,8 +247,6 @@ PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
   SUBROUTINE calc_kinetic_tot(array, local_particles, atomic_kinds, &
                                               nparticle_kind, atomic_kind_set, K_tot)
         REAL(kind=dp), DIMENSION(:,:), POINTER    :: array
-        !LOGICAL                                  :: keyword_translate
-        !REAL(KIND=dp), DIMENSION(:,:), POINTER   :: translate_array
         TYPE(distribution_1d_type), POINTER      :: local_particles
         TYPE(atomic_kind_list_type), POINTER, OPTIONAL     :: atomic_kinds
         INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
@@ -368,10 +266,7 @@ PRINT *, "HEYYYYYYYYYYYYYYYYYYYYYYY KINETIC IS", K_tot
         INTEGER                                  :: nparticle_local
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
-       ! REAL(kind=dp), DIMENSION(3), INTENT(OUT)              :: sum_array
-       ! REAL(KIND=dp)                            :: sum_mass
 
-PRINT *, "VELOCITIES ARRAY", array
 
            IF (PRESENT(atomic_kinds)) THEN
               my_nparticle_kind = atomic_kinds%n_els
@@ -383,47 +278,22 @@ PRINT *, "VELOCITIES ARRAY", array
               END IF
            END IF
 
-PRINT *, "HEYYYY NPARTICLE IS =", nparticle_kind, "instead", my_nparticle_kind
           
-          !K_tot = 0.0D0
-          ! sum_array = 0.0D0
-          ! sum_mass  = 0.0D0
            DO iparticle_kind= 1, my_nparticle_kind
               atomic_kind => my_atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
 
-PRINT *, "nparticle_local", nparticle_local
-
+!calculate kinetic energy according to the COM since the array is velocities_COM
               DO iparticle_local= 1, nparticle_local
                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                  K_tot = K_tot + mass*( &
                                    array(1, iparticle)**2 + &
                                    array(2, iparticle)**2 + &
                                    array(3, iparticle)**2  ) 
-PRINT *, "K_tot is", K_tot         
-                   
-                 !sum_array(:) = sum_array(:) +   &
-                   ! mass*array(:, iparticle)
-                ! sum_mass = sum_mass + mass
               END DO
            END DO
            K_tot = 0.5*K_tot
-
-! sum_array = sum_array / sum_mass
-
-!           DO iparticle_kind=1, my_nparticle_kind
-!              atomic_kind => my_atomic_kind_set(iparticle_kind)
-!              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!              nparticle_local = local_particles%n_el(iparticle_kind)
-!              DO iparticle_local=1,nparticle_local
-!                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-!                 translate_array(:, iparticle) = array(:, iparticle) - sum_array(:)
-!              END DO   
-!           END DO   
-!        ELSE
-!           translate_array = array
-!        ENDIF 
 
    END SUBROUTINE calc_kinetic_tot
  
@@ -602,7 +472,6 @@ PRINT *, "K_tot is", K_tot
                     H_0 = H_2
 
                     ctin = ctout
-PRINT *, "diab_COEFF", ctin
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
                     times = DBLE(itimes) + t2*1/DBLE(ELsteps)
