@@ -308,7 +308,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                 if (i .ne. old_state) then
                         sumg = sumg + g(i)
 !print*, "sum proba", sumg, g(i)
-!                        print *, "Probability: ", i, g(i)
+                        print *, "Probability: ", i, g(i)
                 end if
         end do
         !due to finite timestep, sometimes the probabilities may sum to greater than 1

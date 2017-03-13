@@ -134,8 +134,6 @@ CONTAINS
     INTEGER, POINTER                               :: itimes
     LOGICAL                                        ::  successful_hop
 
- print *, 'aom_env%futur_decohere_is', aom_env%futur_decohere
- print *, 'sh_env%decohere_is', sh_env%decohere
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
          !Finally, collapse the wavefunction if called for                 
