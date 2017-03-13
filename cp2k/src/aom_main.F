@@ -904,7 +904,7 @@ sh_env%active_state=active_state
 !COLLAPSE IF REQUIRED WITH THE WAVEFUNCTION COLLAPSE METHOD
 
 CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
-deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, atomic_kind_set, K_tot)
+deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, atomic_kind_set, K_tot, ext_pres)
 
 
 ctin=sh_env%ctin

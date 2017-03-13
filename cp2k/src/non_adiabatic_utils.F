@@ -67,7 +67,8 @@ MODULE non_adiabatic_utils
 CONTAINS
  
   SUBROUTINE decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
-                         deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, atomic_kind_set, K_tot)
+                         deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
+                         atomic_kind_set, K_tot, ext_pres)
 
 
         TYPE(section_vals_type), POINTER               :: adiab_section 
@@ -76,6 +77,7 @@ CONTAINS
         TYPE(sh_env_type)                              :: sh_env
         REAL(KIND=dp), INTENT(IN)                      :: deltatMD
         REAL(KIND=dp)                                  :: C_param, E_0_param
+        LOGICAL, dimension(:), ALLOCATABLE             :: ext_pres
 
         CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
                                        routineP = moduleN//':'//routineN
@@ -112,7 +114,7 @@ CONTAINS
           CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
           CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
           CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &                                               
-                      atomic_kind_set, K_tot)
+                      atomic_kind_set, K_tot, ext_pres)
 
           CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot)
  
@@ -243,15 +245,16 @@ CONTAINS
  
 
   SUBROUTINE calc_kinetic_tot(array, local_particles, atomic_kinds, &
-                                              nparticle_kind, atomic_kind_set, K_tot)
-        REAL(kind=dp), DIMENSION(:,:), POINTER    :: array
-        TYPE(distribution_1d_type), POINTER      :: local_particles
+                                              nparticle_kind, atomic_kind_set, K_tot, ext_pres)
+        REAL(kind=dp), DIMENSION(:,:), POINTER             :: array
+        TYPE(distribution_1d_type), POINTER                :: local_particles
         TYPE(atomic_kind_list_type), POINTER, OPTIONAL     :: atomic_kinds
         INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
         TYPE(atomic_kind_type), DIMENSION(:), &
              POINTER, OPTIONAL                             :: atomic_kind_set
 
-        REAL(kind=dp), INTENT(OUT)               :: K_tot
+        REAL(kind=dp), INTENT(OUT)                         :: K_tot
+        LOGICAL, dimension(:), ALLOCATABLE           :: ext_pres
 
         CHARACTER(len=*), PARAMETER :: routineN = 'calc_kinetic_tot', &
         routineP = moduleN//':'//routineN
@@ -283,16 +286,19 @@ CONTAINS
               nparticle_local = local_particles%n_el(iparticle_kind)
 
 !calculate kinetic energy according to the COM since the array is velocities_COM
-              DO iparticle_local= 1, nparticle_local
-                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                 K_tot = K_tot + mass*( &
+           DO iparticle_local= 1, nparticle_local
+                 if (ext_pres(iparticle_local)) then
+                     iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                     K_tot = K_tot + mass*( &
                                    array(1, iparticle)**2 + &
                                    array(2, iparticle)**2 + &
                                    array(3, iparticle)**2  ) 
+                 end if
               END DO
            END DO
            K_tot = 0.5*K_tot
 
+print *, 'K_tot =', K_tot
    END SUBROUTINE calc_kinetic_tot
  
 
