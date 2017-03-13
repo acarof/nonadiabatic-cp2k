@@ -482,7 +482,7 @@ CONTAINS
        ENDDO
 
     END IF
-    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%DENSITY_MATRIX")
    END SUBROUTINE adiab_print_matrix_density
 
 
@@ -763,7 +763,7 @@ CONTAINS
            WRITE( unit_nr, "(A,F20.10)" ) "   Energy difference   = ", delta_energy
            IF (successful_hop) THEN
                WRITE( unit_nr, "(A)") "SUCCESSFUL HOP!"
-               WRITE( unit_nr, "(A)") "   Isotropic rescale factor  = ", rescale_factor
+               WRITE( unit_nr, "(A, F20.10)") "   Isotropic rescale factor  = ", rescale_factor
                WRITE( unit_nr, "(A,I8)" ) "Final state   = ", new_state
                WRITE( unit_nr, "(A)") "  "
            ELSE
