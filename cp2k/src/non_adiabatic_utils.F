@@ -109,6 +109,9 @@ CONTAINS
           
           CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes,successful_hop)
 
+        CASE("TRESH_ONLY_COLLAPSE")  
+          CALL  wf_tresh_collaps(sh_print_env, sh_env, itimes)
+
         CASE("DAMPING")
 
           CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
@@ -152,6 +155,32 @@ CONTAINS
 
   END SUBROUTINE wf_collapse                                                               
                                                  
+
+ ! SUBROUTINE wf_ever_collaps(sh_print_env, sh_env, itimes, successful_hop)
+  SUBROUTINE wf_tresh_collaps(sh_print_env, sh_env, itimes)
+    
+    TYPE(sh_print_env_type)                        :: sh_print_env
+    TYPE(sh_env_type)                              :: sh_env
+
+    CHARACTER(len=*), PARAMETER :: routineN ='wf_collapse', &         
+    routineP = moduleN//':'//routineN                                                                 
+    
+    INTEGER, POINTER                               :: itimes
+ !   LOGICAL                                        ::  successful_hop
+
+ sh_print_env%decohere = .FALSE.                                      
+      IF (itimes.ge.1) THEN                                                
+         !Finally, collapse the wavefunction if called for                 
+         if (sh_env%decohere) then                                  
+!> Check if the surface_hop subroutine asks us to do the decoherence       
+                  sh_print_env%decohere = .TRUE.
+!                  print*, sh_env%c_tp(:,:)
+                     sh_env%ctin(:) = sh_env%C_tp(:, sh_env%active_state)
+         end if                                                            
+         CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
+      ENDIF
+
+  END SUBROUTINE wf_tresh_collaps
 
   SUBROUTINE  wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot)                    
 

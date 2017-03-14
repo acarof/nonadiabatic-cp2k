@@ -170,7 +170,8 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
-     LOGICAL                                      :: decohere, collapse, analytics
+    ! LOGICAL                                      :: decohere, collapse, analytics
+     LOGICAL                                      :: decohere, analytics
      INTEGER                                      :: new_state , ELsteps   
      REAL(KIND=dp)                                :: dR, times 
      REAL(KIND=dp)                                :: decohere_criterion
@@ -214,7 +215,7 @@ CONTAINS
              r_val=decohere_criterion)
      CALL section_vals_val_get(coupling_section,"NACV_INCREMENT",&
              r_val=dR)
-     CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
+!     CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
      CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
      CALL section_vals_val_get(coupling_section,"SELECT_FIRST_ADIABAT", l_val=select_first_adiabat)
      CALL section_vals_val_get(coupling_section,"CENTER_OF_MASS", l_val=keyword_translate)
