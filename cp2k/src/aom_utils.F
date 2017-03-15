@@ -1227,22 +1227,25 @@ end subroutine calcTDT
    END SUBROUTINE choose_firstadiabat
 
 
-
    SUBROUTINE simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime, rescale_factor)
         !TYPE(tmp_variables_type), POINTER        :: tmp
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
         REAL(kind=dp), INTENT(IN)                :: delta_energy
         REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime
-        !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
+         !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
         REAL(kind=dp), INTENT(OUT)               :: rescale_factor
 
         CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
         routineP = moduleN//':'//routineN
 
 
-!> Factor to rescale the velocities (Eq. 49 of PAPER_1)
+ !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
         rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
+!print *, 'rescale_factor', rescale_factor
+
         velocities = rescale_factor*velocities
+!print *, 'velocities', velocities 
+
    END SUBROUTINE simple_vel_rescaling
 
 
@@ -1301,7 +1304,8 @@ end subroutine calcTDT
    END SUBROUTINE calc_velocities_prime
 
 
-   SUBROUTINE check_hop_attempt(velocities, atomic_kind_set, nparticle_kind, local_particles, force_env)
+   SUBROUTINE check_hop_attempt(velocities, atomic_kind_set, nparticle_kind, local_particles, &
+ force_env)
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
         !TYPE(tmp_variables_type), POINTER        :: tmp
         TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1310,12 +1314,11 @@ end subroutine calcTDT
         TYPE(distribution_1d_type), POINTER      :: local_particles
         TYPE(force_env_type), POINTER            :: force_env
 
-
         CHARACTER(len=*), PARAMETER :: routineN = 'check_hop_attempt', &
         routineP = moduleN//':'//routineN
 
         REAL(kind=dp)                            :: delta_energy, rescale_factor
-        REAL(kind=dp)                            :: kinetic_energy_prime, A, B
+        REAL(kind=dp)                            :: kinetic_energy_prime, kinetic_energy_qsys, A, B
         REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE  :: hop_nacv, hop_nacv_oldold, hop_nacv_newnew
         REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE  :: hop_nacv_oldnew, hop_nacv_newold
         REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE  :: F_11, F_1, F_2, F_3
@@ -1344,6 +1347,7 @@ end subroutine calcTDT
         CASE("SIMPLE")
            CALL cal_delta_energy(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                                  local_particles, delta_energy, kinetic_energy_prime)
+!print *, 'kinetic_energy_prime is', kinetic_energy_prime          
            sh_print_env%old_state        = force_env%mixed_env%aom_env%active_state
            sh_print_env%new_state        = force_env%mixed_env%aom_env%new_state
            IF (delta_energy.lt.0) THEN
@@ -1366,6 +1370,39 @@ end subroutine calcTDT
            sh_print_env%kinetic_energy   = kinetic_energy_prime
            IF (sh_print_env%successful_hop) sh_print_env%rescale_factor = rescale_factor
            CALL adiab_print_sh_info(sh_print_env, keyword = 'SIMPLE_RESCALING')
+
+
+        CASE("SIMPLE_QSYS")
+           CALL cal_delta_ene_QSYS(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
+                         local_particles, delta_energy, kinetic_energy_qsys)
+!print *, 'kinetic_energy_qsys is', kinetic_energy_qsys           
+           sh_print_env%old_state        = force_env%mixed_env%aom_env%active_state
+           sh_print_env%new_state        = force_env%mixed_env%aom_env%new_state
+           IF (delta_energy.lt.0) THEN
+              force_env%mixed_env%aom_env%successful_hop = .FALSE.
+           ELSE 
+               !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
+              !rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
+              !velocities = rescale_factor*velocities
+              force_env%mixed_env%aom_env%successful_hop = .TRUE.
+              force_env%mixed_env%aom_env%old_state      = force_env%mixed_env%aom_env%active_state
+              force_env%mixed_env%aom_env%active_state   = force_env%mixed_env%aom_env%new_state
+              force_env%mixed_env%aom_env%kinetic_energy = kinetic_energy_qsys
+              force_env%mixed_env%aom_env%delta_energy   = delta_energy
+              CALL simple_vel_resc_qsys(atomic_kind_set, local_particles,  &
+                       force_env, nparticle_kind, velocities, delta_energy, kinetic_energy_qsys, &
+                         rescale_factor)
+
+           ENDIF
+
+           sh_print_env%adiab_energies_t = force_env%mixed_env%aom_env%adiab_energies_t
+           sh_print_env%delta_energy     = delta_energy
+           sh_print_env%successful_hop   = force_env%mixed_env%aom_env%successful_hop
+           sh_print_env%kinetic_energy   = kinetic_energy_qsys
+           IF (sh_print_env%successful_hop) sh_print_env%rescale_factor = rescale_factor
+           CALL adiab_print_sh_info(sh_print_env, keyword = 'SIMPLE_RESCALING')
+
+
         CASE("NACV")
            CALL section_vals_val_get(coupling_section,"METHOD_ADIABATIC_NACV",c_val=nacv_keyword)
            CALL cal_delta_energy(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
@@ -1718,7 +1755,103 @@ ENDIF
                      force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
                      force_env%mixed_env%aom_env%adiab_energies_t(old_state))
    END SUBROUTINE cal_delta_energy
-         
+
+
+!---> CHANGE SG to calculate kinetic energy only for the quantum system         
+
+   SUBROUTINE cal_delta_ene_QSYS(nparticle_kind, velocities, force_env, atomic_kind_set, &
+                               local_particles, delta_energy, kinetic_energy_qsys) 
+        INTEGER, INTENT(IN)                      :: nparticle_kind
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
+        TYPE(force_env_type), POINTER            :: force_env
+        TYPE(distribution_1d_type), POINTER      :: local_particles
+        TYPE(atomic_kind_type), DIMENSION(:), &
+             POINTER                                :: atomic_kind_set
+        REAL(kind=dp), INTENT(OUT)               :: delta_energy
+        REAL(kind=dp), INTENT(OUT)               :: kinetic_energy_qsys
+!        LOGICAL, dimension(:), ALLOCATABLE, INTENT(IN)           :: ext_pres
+
+
+        CHARACTER(len=*), PARAMETER :: routineN = 'cal_delta_ene_QSYS', &
+        routineP = moduleN//':'//routineN
+
+        REAL(kind=dp)                            :: mass
+        INTEGER                                  :: iparticle_kind, new_state, old_state
+        INTEGER                                  :: nparticle_local
+        INTEGER                                  :: iparticle_local, iparticle
+        TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+
+           kinetic_energy_qsys = 0.0D0
+           DO iparticle_kind=1,nparticle_kind
+              atomic_kind => atomic_kind_set(iparticle_kind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+              nparticle_local = local_particles%n_el(iparticle_kind)
+              DO iparticle_local=1,nparticle_local
+                 if (force_env%mixed_env%aom_env%ext_pres(iparticle_local)) then 
+                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                      kinetic_energy_qsys = kinetic_energy_qsys +   &
+                         mass*( &
+                         velocities(1, iparticle)**2 + &
+                         velocities(2, iparticle)**2 + &
+                         velocities(3, iparticle)**2  )
+                 end if
+              END DO
+           END DO
+          kinetic_energy_qsys = 0.5*kinetic_energy_qsys
+
+           new_state = force_env%mixed_env%aom_env%new_state
+           old_state = force_env%mixed_env%aom_env%active_state
+           delta_energy = kinetic_energy_qsys-( &
+                     force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
+                     force_env%mixed_env%aom_env%adiab_energies_t(old_state))
+   END SUBROUTINE cal_delta_ene_QSYS
+
+   SUBROUTINE simple_vel_resc_qsys(atomic_kind_set,local_particles, force_env, nparticle_kind, & 
+                                   velocities, delta_energy, kinetic_energy_qsys, rescale_factor)
+        
+        INTEGER, INTENT(IN)                      :: nparticle_kind 
+        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
+        TYPE(force_env_type), POINTER            :: force_env
+        TYPE(distribution_1d_type), POINTER      :: local_particles
+        TYPE(atomic_kind_type), DIMENSION(:), &
+             POINTER                                :: atomic_kind_set
+        TYPE(atomic_kind_type), POINTER          :: atomic_kind
+        REAL(kind=dp), INTENT(IN)                :: delta_energy
+        REAL(kind=dp), INTENT(IN)                :: kinetic_energy_qsys
+        !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
+        REAL(kind=dp), INTENT(OUT)               :: rescale_factor
+
+        CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_resc_qys', &
+        routineP = moduleN//':'//routineN
+
+        REAL(kind=dp)                            :: mass
+        INTEGER                                  :: iparticle_kind
+        INTEGER                                  :: iparticle_local, iparticle
+        INTEGER                                  :: nparticle_local
+
+!> Factor to rescale the velocities (Eq. 49 of PAPER_1)
+
+        rescale_factor = SQRT(  delta_energy /kinetic_energy_qsys)
+
+!print *, 'rescale_factor is', rescale_factor
+
+           DO iparticle_kind=1,nparticle_kind
+              atomic_kind => atomic_kind_set(iparticle_kind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+              nparticle_local = local_particles%n_el(iparticle_kind)
+              DO iparticle_local=1,nparticle_local
+                 if (force_env%mixed_env%aom_env%ext_pres(iparticle_local)) then 
+                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                         velocities(:, iparticle) =rescale_factor*velocities(:, iparticle)
+                 end if
+              END DO
+           END DO
+!print *, 'velocities are', velocities
+
+   END SUBROUTINE simple_vel_resc_qsys
+
+
 
    SUBROUTINE total_momentum(velocities, atomic_kind_set, nparticle_kind, &
                                local_particles, force_env) 
