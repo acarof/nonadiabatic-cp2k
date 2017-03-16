@@ -199,6 +199,7 @@ contains
   subroutine calc_rvecs(xyz, rvecs, connectlist)
 !     Calculates the p_pi direction in the general case for conjugated atoms
 !     using the plane of the 3 connecting atoms
+!     PC connlista is fed in as connectlist
 
       REAL(KIND=dp), intent(in) :: xyz(:,:)
       integer, intent(in) :: connectlist(:,:)
@@ -210,19 +211,26 @@ contains
       rvecs=0
 
       do i=1,size(connectlist,2)
+!
          do k = 2,size(connectlist,1)
               neighbourlist(:,k-1) = xyz(:,connectlist(k,i))
          end do
-
+!     
+!     PC find vectors between neighbours to define plane
          veca=neighbourlist(:,1)-neighbourlist(:,3)
          vecb=neighbourlist(:,2)-neighbourlist(:,3)
 
+!     PC cross product of vectors to find P vector
          rvecs(1,connectlist(1,i)) = veca(2)*vecb(3)-veca(3)*vecb(2)
          rvecs(2,connectlist(1,i)) = veca(3)*vecb(1)-veca(1)*vecb(3)
          rvecs(3,connectlist(1,i)) = veca(1)*vecb(2)-veca(2)*vecb(1)
 
          rvecs(:,connectlist(1,i)) = rvecs(:,connectlist(1,i))/&
          DNRM2(3 , rvecs(:,connectlist(1,i)) , 1)
+!     PC added a print here to get all the vectors and connectlist each time-step
+!         print *, "rvecs at connectlist (1,", i, ")  is", rvecs
+!         print *, "connectlist is", connectlist
+!         print *, "neighboutlist is", neighbourlist
       end do
 
   end subroutine 
@@ -385,16 +393,28 @@ contains
       integer :: i
       allocate(c(3,size(expcoeffa,2)), stat=stat_err)
       if (stat_err .ne. 0) CPABORT(" ")
-      c = expcoeffa * expcoeffb
+      ! _PC_ added print for expcoeffa, expcoeffb and c
+      !print *, "expcoeffa is ", expcoeffa
+      !print *, "size expcoeffa is ", size(expcoeffa)
+      !print *, "size 2 expcoeffa is ", size(expcoeffa,2)
+      !print *, "expcoeffb is ", expcoeffb
+      !print *, "size expcoeffb is ", size(expcoeffb)
+      !print *, "size 2 expcoeffb is ", size(expcoeffb,2)
+      c = expcoeffa * expcoeffb ! 
+      !print *, "c is", c
+      !print *, "size is 2 of c", size(c,2)
       do i=1,size(expcoeffa,2)
         if (dist(i) .gt. abs(epsilon(0.d0))) then
-          p = (mua + musb(i))/2.0D0*dist(i)
+          p = (mua + musb(i))/2.0D0*dist(i) !mua and musb are slater decay coefficients see eqn 5.12 F thesis
           t = (mua - musb(i))/(mua + musb(i)) !abs???
-          sarray(i) = (c(1,i) + c(2,i)) * S_ppi(p,t) + c(3,i) * S_psigma(p,t)
+          sarray(i) = (c(1,i) + c(2,i)) * S_ppi(p,t) + c(3,i) * S_psigma(p,t) !eqn 5.12 fruzina thesis
         else
          sarray(i) = 1.d0
         end if
       end do
+      ! PC addded print statments
+      ! print *, "c is", c
+      ! print *, "sarray is", sarray
       deallocate(c)
       return
   end subroutine calc_overlap_p
@@ -594,7 +614,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine calc_sab(prexyza, connlista, precoeffap, &
-                         sab, prexyzb, connlistb, precoeffbp)
+                         sab, prexyzb, connlistb, precoeffbp, print_rvecs, molA_index, molB_index)
 
 !     Original S_ab calculation program can calculate an pi_conjugated molecule
 !
@@ -602,8 +622,13 @@ contains
 !       by enabling lines 779-786
 !     - Inclusion of s orbitals can be achieved by enabling lines 876-883,916- 920, 
 !       930-944, 949, 974-981, 1011-1017 and 1036-1049
-
-
+!
+!       PC added top 3 lines for optional print_rvecs, molA_index and molBindex variables
+!
+!      REAL(KIND=dp), dimension(:), optional, intent(in) ::    print_rvecs
+      character(len=3), optional, intent(in) ::    print_rvecs
+      integer, optional, intent(in) ::  molA_index
+      integer, optional, intent(in) ::  molB_index
       REAL(KIND=dp), dimension(:,:),           intent(in) ::    prexyza
       REAL(KIND=dp), dimension(:),             intent(inout) :: precoeffap
       integer, dimension(:,:),           intent(in) ::    connlista
@@ -627,7 +652,7 @@ contains
       integer :: i,j
       REAL(KIND=dp) :: c
       REAL(KIND=dp) :: DDOT
-
+      REAL(KIND=dp), dimension(:,:), allocatable :: arraytoprint
       slaters(:,1)=(/0.0D0, 0.0D0, 3.0D0, 0.9560D0, 1.2881D0, 1.100D0, 1.9237D0, 2.2458D0/)
       slaters(:,2)=(/0.0D0, 0.0D0, 0.0D0, 0.0000D0, 1.2107D0, 1.000D0, 1.6000D0, 2.2266D0/)
 
@@ -642,14 +667,38 @@ contains
       do i=1,size(connlista,2)
            xyza(:,i)=prexyza(:,connlista(1,i))
            coeffap(i)=precoeffap(connlista(1,i))
-           rvecsa(:,i)=prervecsa(:,connlista(1,i))
+           rvecsa(:,i)=prervecsa(:,connlista(1,i))      
       end do
+
+!      
+!     PC added print statement for rvecsa
+!     
+
+      if (present(print_rvecs)) then
+          do i=1,size(prexyza,2)
+! PC removed and replaced with below line without xyz          print *, molA_index, i, prexyza(:,i), prervecsa(:,i)
+          print *, "_PC_", molA_index, i, prexyza(1,i), prervecsa(:,i)
+!          if (prexyza(1,i).eq. 6.0000000000000000) THEN
+!                arraytoprint(1,1) = molA_index
+!                arraytoprint(1,2) = i
+!                arraytoprint(1,3:5) = prerevcsa(:,i)
+          end if
+          end do
+          !print *, "rvecsa is", rvecsa
+          !print *, "prexyza is", prexyza
+          !print *, "connlista is", connlista
+!          print *, "carbon atom number (i) is ", i
+          !print *, "prervecsa is", prervecsa
+          !print *, "molA_index is", molA_index
+          !print *, "molB_index is", molB_index
+      end if
+
       deallocate(prervecsa)
  
       ! These variables are recaculated for each atom in A
       ! Inherent for B atom
 
-      if (present(prexyzb) .and. present(precoeffbp) .and. &
+if (present(prexyzb) .and. present(precoeffbp) .and. &
          present(sab) .and. present(connlistb)) then
 
          allocate(unitvecs(3,size(connlistb,2),3),stat=stat_err)
@@ -665,15 +714,39 @@ contains
          do i=1,size(connlistb,2)
              xyzb(:,i)=prexyzb(:,connlistb(1,i))
              coeffbp(i)=precoeffbp(connlistb(1,i))
-             rvecsb(:,i)=prervecsb(:,connlistb(1,i))
+             rvecsb(:,i)=prervecsb(:,connlistb(1,i))        
         end do  
   
+        !PC added print statement for rvecsb if print_rvecs is present     
+
+        if (present(print_rvecs)) then
+          do i=1,size(prexyzb,2)
+! PC removed and replaced wit bottom line without xyz          print *, molB_index, i, prexyzb(:,i), prervecsb(:,i)
+          print *, "_PC_", molB_index, i, prexyzb(1,i), prervecsb(:,i)
+!          if (prexyzb(1,i).eq. 6.0000000000000000) THEN
+!                arraytoprint(2,1) = molB_index
+!                arraytoprint(2,2) = i
+!                arraytoprint(2,3:5) = prerevcsb(:,i)
+!          call adiab_print_pvecs(adiab_section, arraytoprint)
+          end if          
+          end do
+          !print *, "rvecsb is", rvecsb
+          !print *, "prexyzb is", 
+          !print *, "connlistb is", connlistb
+!          print *, "Carbon atom number (i) is ", i
+          !print *, "prervecsb is", prervecsb
+          !print *, "molA_index is", molA_index
+          !print *, "molB_index is", molB_index
+        end if
+
         deallocate(prervecsb)
        
         allocate(musbp(size(xyzb,2)),stat=stat_err)
         allocate(sarrayp(size(xyzb,2),size(xyza,2)), stat=stat_err)
 
         do i=1,size(xyzb,2)
+        ! pc added print statement
+        ! print *, "before slaters xyzb", xyzb
          musbp(i)=slaters(int(xyzb(1,i)),2)
         end do
 
@@ -691,6 +764,8 @@ contains
           call project_onto_unitvectors(unitvecs, rvecsb, expcoeffb)
 
           !Calculate the overlaps
+          ! _PC_ added print
+          !print *, "calling calc_overlap_p from calc_sab routine"
           call calc_overlap_p(expcoeffa, expcoeffb, muap, musbp, dist, sarrayp(:,i))
         end do
 
@@ -715,10 +790,14 @@ contains
 
         do i=1,size(xyza,2)
          musbp(i)=slaters(int(xyza(1,i)),2)
+         ! pc added print statement
+         ! print *, "musbp is", musbp
         end do
 
           do i=2,size(xyza,2)
              muap=slaters(int(xyza(1,i)),2)
+             ! PC added print statement
+             ! print *, "muap is", muap
 
 !            Only calculates lower triangle of the overlap matrix in the normalisation step
 !            then mirrors it (all real) over the diagonal 
@@ -731,6 +810,8 @@ contains
              call calc_unit_vecs(xyza(2:4,i), xyza(2:4,1:j), dist(1:j), unitvecs(:,1:j,:))    
              call project_onto_unitvectors(unitvecs(:,1:j,:), rvecsa(:,i), expcoeffa(:,1:j))
              call project_onto_unitvectors(unitvecs(:,1:j,:), rvecsa(:,1:j), expcoeffb(:,1:j))
+              !_PC_
+             !print *, "calling calc_overlap_p from calc_sab routine"
              call calc_overlap_p(expcoeffa(:,1:j), expcoeffb(:,1:j), muap, musbp(1:j), dist(1:j), sarrayp(1:j,i))
           end do
 

@@ -361,7 +361,11 @@ CONTAINS
                 pcoeffs(i,j) = pcoefftot( i + (j-1)*orb)
           end do
           scoeffs(i) = scoefftot(i)
-     end do
+          ! PC added print
+          print *, "pcoeffs are", pcoeffs
+      end do
+ !print the AOM coefficients
+
 !END READ THE AOM COEFFICIENT
 
      !these arrays are data for the non-adiabatic coupling calculation
@@ -470,7 +474,8 @@ CONTAINS
 
 !CHECK IF WE ARE IN A POST-HOP RUN
      successful_hop = aom_env%successful_hop
-
+     !pc print succesful hop
+     print *, "_PC_ succesful hop", successful_hop
      !used to give correct commands to ZGEMX subroutines later
      zgemm_type = 'N'
 
@@ -490,7 +495,7 @@ CONTAINS
                          Atp(d,j) = crds(d-1,(i-1)*atoms+j,3)
                     end do
                end do
-
+!PC call calc sab to store pvecs in array here
                !then for each other molecule
                do k=1,mol
                     !create the array of its atomic coordinates at both t and t+dt
@@ -576,8 +581,10 @@ CONTAINS
                               else
                                    do d=1,orb
                                         do m=1,orb
+                                        !PC added print_rvecs =yes so p vectors and coords would be printed 
                                              call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
-                                             & S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
+                                             & S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3),& 
+                                             & print_rvecs='yes', molA_index=i, molB_index=k)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
@@ -777,6 +784,9 @@ CONTAINS
                     end if
                     !update
                     H_t = H_tp
+                    !PC added print
+                    print *, "_PC_", ctotal
+                    print *, "_PC_ ctout", ctout
                     ctin = ctout
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
@@ -886,6 +896,7 @@ CONTAINS
          ENDDO
       endif !END OF THE BIG IF-LOOP itimes.ge.1
 
+      !pc added print statement out of loop for successful hop or not
 
 
 !DO THE HOPPING TEST 

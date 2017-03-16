@@ -83,6 +83,51 @@ IMPLICIT NONE
 
 CONTAINS
 
+!----PC------
+
+!   SUBROUTINE adiab_print_pvecs(adiab_section, coefficients, nadiab, norbitals,itimes, deltatMD, times)
+!    TYPE(section_vals_type), POINTER           :: adiab_section
+!    COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN) :: pvecs
+!    INTEGER, INTENT(IN)                        :: nadiab, norbitals, itimes
+!    REAL(KIND=dp), INTENT(IN)                  :: times, deltatMD
+!
+!    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_coeff', &
+!      routineP = moduleN//':'//routineN
+!
+!    INTEGER                                  :: unit_nr
+!    REAL(KIND=dp)                            :: unit_conv_fs, time
+!    INTEGER                                  :: iadiab, iorbitals
+!    CHARACTER(LEN=default_string_length)     :: my_format
+!    TYPE(cp_logger_type), POINTER            :: logger
+!
+!    NULLIFY(logger)
+!    logger => cp_get_default_logger()
+!
+!    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%PVECS",&
+!               extension=".xyz", middle_name="pvecs", log_filename=.FALSE.)
+!    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
+
+ !   IF (unit_nr>0) THEN
+
+ !      time = times*deltatMD*unit_conv_fs
+ !      WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Psi", "; nadiab =", nadiab, "; norbitals =",&
+ !                                  norbitals
+ !      WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",itimes,", time =",time, " (fs)"
+!
+!       DO i=1, size(prexyzb,2)
+!          IF (prexyzb(1,i) .eq. '6.0000000') THEN
+!                my_format="(I4,1X,I4,"
+!                WRITE(unit_nr,TRIM(my_format)//"1X,2F20.10)") molB_index, i, &
+!                        prervecsb(:i),   &
+!                        AIMAG(coefficients((iadiab-1)*norbitals + iorbitals))
+!         ENDDO
+!       ENDDO
+!
+!    END IF
+
+ !   CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%PVECS")
+ !  END SUBROUTINE adiab_print_pvecs
+
 
    SUBROUTINE adiab_print_coeff(adiab_section, coefficients, nadiab, norbitals,itimes, deltatMD, times)
     TYPE(section_vals_type), POINTER           :: adiab_section
