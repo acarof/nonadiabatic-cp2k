@@ -507,7 +507,7 @@ print *, 'K_tot =', K_tot
                     ctin = ctout
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
-                    times = DBLE(itimes) + t2*1/DBLE(ELsteps)
+                    times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
                     CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
                                            times)
                     CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes, deltatMD, &

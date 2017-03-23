@@ -773,7 +773,7 @@ CONTAINS
          enddo !loop-over i
          nacv = cbar*nacv
          DO t2=1,int(deltatMD/deltatE)
-                    times = DBLE(itimes) + t2*1/DBLE(ELsteps)
+                    times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
                     CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, times)
                     CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes,deltatMD, times)
                     CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes, &
