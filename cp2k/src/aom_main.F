@@ -187,7 +187,7 @@ CONTAINS
 
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
-     CHARACTER(LEN=default_string_length)           :: deco_keyword 
+     CHARACTER(LEN=default_string_length)           :: deco_keyword, keyword_init 
         COMPLEX(KIND=dp), dimension(:), allocatable :: pop
         COMPLEX(KIND=dp), dimension(:), allocatable :: adiab
 
@@ -201,8 +201,6 @@ CONTAINS
      CALL section_vals_val_get(coupling_section,"SCALING_FACTOR",&
              r_val=scaling)
 !> Starting site number
-     CALL section_vals_val_get(coupling_section,"FIRST_DIABAT",&
-             i_val=first_diabat)
 !> cbar factor : Sab = cbar*Sab_bar
      CALL section_vals_val_get(coupling_section,"CBAR",&
              r_val=cbar)
@@ -217,7 +215,7 @@ CONTAINS
              r_val=dR)
 !     CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
      CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
-     CALL section_vals_val_get(coupling_section,"SELECT_FIRST_ADIABAT", l_val=select_first_adiabat)
+!     CALL section_vals_val_get(coupling_section,"SELECT_FIRST_ADIABAT", l_val=select_first_adiabat)
      CALL section_vals_val_get(coupling_section,"CENTER_OF_MASS", l_val=keyword_translate)
 
 !> Number of sites
@@ -754,19 +752,6 @@ CONTAINS
                end do !loop over k
          enddo !loop-over i
          nacv = cbar*nacv
-         !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
-         do i=1,mat
-              ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
-         end do
-         ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-         aom_env%population(1:mat) = abs(ctin(1:mat)) 
-         DO t2=1,int(deltatMD/deltatE)
-                    times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
-                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, times)
-                    CALL adiab_print_pop(adiab_section, abs(ctin),nadiab,norbitals,itimes,deltatMD, times)
-                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes, &
-                                                    deltatMD, times)
-         ENDDO
       endif !END OF THE BIG IF-LOOP itimes.ge.1
 
 
@@ -795,65 +780,74 @@ do i= 1,mol
 
 end do
 
-
-      !The eigenvectors are needed to calculate the surface hopping probabilities
-      !The surfacehop subroutine calculates these probabilites and decides on the
-      !new (possibly unchanged) surface for simulation
-      IF (my_bo_keyword) THEN
-          !new_state = first_diabat
-          active_state = first_diabat
-          decohere = .FALSE.
-          sh_env%decohere = .FALSE.
-          attempt_hop = .FALSE.
-      ELSE    
-          IF (itimes.eq.0) THEN
-             IF (my_test_keyword) THEN
-                attempt_hop = .TRUE.
-                active_state = 1
-                new_state = mod(active_state + 1, mat) 
-                IF ((new_state).EQ.0) new_state = mat
-             ELSE
-                IF (select_first_adiabat) THEN
-                   CALL section_vals_val_get(coupling_section,"FIRST_ADIABAT",&
-                                           i_val=first_adiabat)
-                ELSE
-                   CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
-                   !new_state = first_adiabat
-                ENDIF
-                active_state = first_adiabat
-                decohere = .FALSE.
-                sh_env%decohere = .FALSE.
+      IF (itimes.EQ.0) THEN 
+         CALL section_vals_val_get(adiab_section, "INITIALIZATION", c_val=keyword_init)
+         SELECT CASE(keyword_init)
+         CASE("DIABATIC")
+             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
+                                       i_val=first_diabat)
+             !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
+             do i=1,mat
+                ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
+             end do
+             ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+             aom_env%population(1:mat) = abs(ctin(1:mat)) 
+             CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
+             active_state = first_adiabat
+             decohere = .FALSE.
+             sh_env%decohere = .FALSE.
+             attempt_hop = .FALSE.
+         CASE("ADIABATIC")
+             CALL section_vals_val_get(adiab_section,"FIRST_ADIABAT",&
+                                       i_val=first_adiabat)
+             active_state = first_adiabat
+             decohere = .FALSE.
+             sh_env%decohere = .FALSE.
+             attempt_hop = .FALSE.
+             ctin(:) = C_tp(:, first_adiabat)
+         CASE DEFAULT
+             CPABORT("INITIALIZATION implemented: DIABATIC, ADIABATIC")
+         END SELECT
+         DO t2=1,int(deltatMD/deltatE)
+                    times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
+                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, times)
+                    CALL adiab_print_pop(adiab_section, abs(ctin),nadiab,norbitals,itimes,deltatMD, times)
+                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes, &
+                                                    deltatMD, times)
+         ENDDO
+      ELSE 
+         !The eigenvectors are needed to calculate the surface hopping probabilities
+         !The surfacehop subroutine calculates these probabilites and decides on the
+         !new (possibly unchanged) surface for simulation
+         IF (my_bo_keyword) THEN
+             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
+                                       i_val=first_diabat)
+             active_state = first_diabat
+             decohere = .FALSE.
+             sh_env%decohere = .FALSE.
+             attempt_hop = .FALSE.
+         ELSE IF (my_test_keyword) THEN   
+             attempt_hop = .TRUE.
+             active_state = 1
+             new_state = mod(active_state + 1, mat) 
+             IF ((new_state).EQ.0) new_state = mat
+         ELSE
+            IF (.NOT.successful_hop) THEN
+                call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, sh_env,  &
+                                new_state, &
+                                attempt_hop, &
+                                decohere_criterion, &
+                                sh_print_env)
+            ELSE
                 attempt_hop = .FALSE.
-              ENDIF 
-          ELSE
-             IF (my_test_keyword) THEN
-                attempt_hop = .TRUE.
-                new_state = mod(active_state + 1, mat)
-                IF ((new_state).EQ.0) new_state = mat
-             ELSE
-                IF (.NOT.successful_hop) THEN
-                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, sh_env,  &
-                                 !new_state, is_hop)
-                                   new_state, &
-                                   attempt_hop, &
-                                   decohere_criterion, &
-                                   sh_print_env)
+                decohere = .FALSE.
+                sh_env%decohere = .FALSE.    
+            ENDIF
+         ENDIF
+!END DO THE HOPPING TEST         
+      ENDIF ! itimes-loop
 
-!                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, decohere,  &      
- !                                !new_state, is_hop)
- !                                  new_state, &
- !                                  attempt_hop, &
- !                                  decohere_criterion, &
- !                                  sh_print_env)
-                ELSE
-                   attempt_hop = .FALSE.
-                   decohere = .FALSE.
-                   sh_env%decohere = .FALSE.    
-                ENDIF
-             ENDIF
-          ENDIF
-      ENDIF
-!END DO THE HOPPING TEST 
+
 
 
 !CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE RESULT OF THE SURFACE
