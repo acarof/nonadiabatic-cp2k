@@ -162,7 +162,7 @@ CONTAINS
      REAL(KIND=dp), dimension(:,:,:), allocatable :: crds, pcoeffsrun
      REAL(KIND=dp), dimension(:,:), allocatable :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm, pcoeffs
      REAL(KIND=dp), dimension(:,:), allocatable :: dist
-     COMPLEX(KIND=dp), dimension(:), allocatable :: ctin, ctout, ctotal
+     COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_t, H_tp
      REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
@@ -288,8 +288,6 @@ CONTAINS
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
      IF (.NOT.ALLOCATED(ctin)) CPABORT("CTIN NOT ALLOCATED CORRECTLY.")
-     allocate(ctout(mat))     !ctout comes out of it (so essentially ctin = c(t), ctout = c(t+1))
-     allocate(ctotal(mat))    !ctotal is |c(t)|^2: this is the output for diabatic electronic state
 
      !need to allocate these square matrices
      !first the real, S-related ones
@@ -370,22 +368,6 @@ CONTAINS
      bneighbour = 0
      allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
      neighbourlist = 0
-
-!INITIALIZATION OR READING OF CTIN      
-     if (itimes.eq.0) then
-          !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
-          do i=1,mat
-               ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
-               ctotal(i) = CMPLX(0.0D0, 0.0D0,dp)
-          end do
-          ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-          ctotal(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-          aom_env%population(1:mat) = abs(ctotal(1:mat)) 
-     else
-          ctin(:) = aom_env%ctin(:)
-     end if
-!END INITIALIZATION OR READING OF CTIN      
-
 
 !READ THE COORDINATES, ENERGIES AND STATE
      velocities_t = aom_env%velocities_t
@@ -682,9 +664,9 @@ CONTAINS
 !PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
 
          IF (.NOT.successful_hop) THEN
-            
+            ctin(:) = aom_env%ctin(:)
             CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,    &
-                          ctin, ctout, ctotal, aom_env, nadiab,  norbitals, ELsteps, &
+                          ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,    &
                             mat)
          ENDIF !ONLY IF NOT POST-HOP RUN
@@ -772,10 +754,16 @@ CONTAINS
                end do !loop over k
          enddo !loop-over i
          nacv = cbar*nacv
+         !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
+         do i=1,mat
+              ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
+         end do
+         ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+         aom_env%population(1:mat) = abs(ctin(1:mat)) 
          DO t2=1,int(deltatMD/deltatE)
                     times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
                     CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, times)
-                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes,deltatMD, times)
+                    CALL adiab_print_pop(adiab_section, abs(ctin),nadiab,norbitals,itimes,deltatMD, times)
                     CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes, &
                                                     deltatMD, times)
          ENDDO
@@ -969,8 +957,6 @@ active_state=sh_env%active_state
        deallocate(scoefftot, pcoefftot)
        deallocate(pcoeffs, pcoeffsrun, scoeffs)
        deallocate(ctin)
-       deallocate(ctout)
-       deallocate(ctotal)
        deallocate(siteenergies)
        deallocate(crds)
        deallocate(coms)
