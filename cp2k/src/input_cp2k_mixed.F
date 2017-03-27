@@ -195,13 +195,20 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="SURF_HOP_CHOICE",&
+         description="Decide whether to use or not the trivial hopping correction",&
+         usage="SURF_HOP_CHOICE: BASIC EXACT", type_of_var=char_t,&
+         n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+  
     CALL keyword_create(keyword, name="DECOHERENCE_CORRECTIONS",&
          description="Defines the methods to decohere the wavefunction if required.",&
          usage="DECOHERENCE_CORRECTIONS: BASIC EXACT", type_of_var=char_t,&
          n_var=-1)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
-
+    
     
     CALL keyword_create(keyword, name="EDC_C",&
          description="C parameter in the Energy-based deco. correction formula",&

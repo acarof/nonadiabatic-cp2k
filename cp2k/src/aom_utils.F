@@ -116,7 +116,7 @@ IMPLICIT NONE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'aom_utils'
 
    PUBLIC :: makeX,            &
-             surfacehop,       &
+!             surfacehop,       &
              adiabaticity,     &
              calcforces,           &
              read_listcoeff,       & 
@@ -124,13 +124,15 @@ IMPLICIT NONE
              simple_vel_rescaling, &
              check_hop_attempt,    &
              total_momentum,       &
-             translate_com
+!             translate_com
+             translate_com,       &
+             surf_hop_type
 
 CONTAINS
   
 subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         !X is the name I give to the matrix in the solution to the Schroedinger equation:
-        !dc/dt = X*c
+        !dc/dt = X*sh_env%ctt
         !makeX constructs an X matrix from inputs of S and H
 
         implicit none
@@ -196,8 +198,393 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
 end subroutine makeX
 
 
-subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_state, & 
-                       sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
+           sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+
+!Choose whether doing surface hopping with trivial hopping correction or witgout
+!it following the old code 
+        
+       implicit none
+       TYPE(section_vals_type), POINTER               :: adiab_section
+       REAL(KIND=dp), INTENT(IN) :: decohere_criterion
+       integer, intent(in) :: old_state
+       REAL(KIND=dp), intent(in) :: deltat
+       REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
+       INTEGER, INTENT(OUT)        :: new_state
+       LOGICAL, INTENT(OUT)        :: attempt_hop
+       TYPE(sh_print_env_type)     :: sh_print_env
+       TYPE(sh_env_type)           :: sh_env
+       !COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
+       
+       CHARACTER(len=*), PARAMETER :: routineN ='surf_hop_type', &
+                               routineP = moduleN//':'//routineN
+
+       CHARACTER(LEN=default_string_length)           :: surfhop_keyword
+
+
+       CALL section_vals_val_get(adiab_section,"SURF_HOP_CHOICE", c_val=surfhop_keyword)
+
+       SELECT CASE(surfhop_keyword)
+       CASE("TRIVIAL_HOP_CORRECT")
+
+       CALL modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
+                        sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+
+PRINT *, 'TO BE CONTINUED'
+       
+
+       CASE("UNMODIFIED_SURF_HOP")
+        
+       CALL surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
+                        sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+       
+print *, "OKKKKKKKKKKK????????"
+
+       CASE DEFAULT
+         CPABORT("There is no method to add the decoherence.")
+       
+       END SELECT
+
+END SUBROUTINE surf_hop_type
+
+subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
+              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+
+        !using the method outlined in John Tully's Electronic Transitions paper
+        !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
+
+        implicit none
+
+        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
+        integer, intent(in) :: old_state
+        REAL(KIND=dp), intent(in) :: deltat
+        REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
+        INTEGER, INTENT(OUT)        :: new_state
+        LOGICAL, INTENT(OUT)        :: attempt_hop
+        TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
+        TYPE(sh_env_type), INTENT(OUT) :: sh_env
+
+        LOGICAL        :: trivial_correction
+        integer :: i, j, mol, k, l
+        REAL(KIND=dp) :: hop, sumg, ex_prob, min, g_exa, err, threshold
+        REAL(KIND=dp), dimension(:,:), allocatable :: dphi
+        REAL(KIND=dp), dimension(:), allocatable :: b, g
+        REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
+       ! COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
+        COMPLEX(KIND=dp), dimension(:), allocatable :: ct, cttm_ad
+        COMPLEX(KIND=dp), dimension(:), allocatable :: ak, akttm
+        COMPLEX(KIND=dp) :: cstate, cstate_tm
+
+        mol = size(Stt,1)
+
+        !many allocations
+        allocate(ak(mol))
+        allocate(b(mol))
+        allocate(g(mol))
+        allocate(ct(mol))
+        allocate(cttm_ad(mol))
+        allocate(akttm(mol))        
+
+        allocate(dphi(mol,mol))
+        allocate(T1(mol,mol))
+        allocate(T2(mol,mol))
+        allocate(DT(mol,mol))
+        allocate(TST(mol,mol))
+        allocate(TDT(mol,mol))
+        allocate(DS(mol,mol))
+        allocate(DC(mol,mol))
+        allocate(sh_env%enerdiff(mol)) 
+        
+        ALLOCATE(sh_print_env%proba(mol))
+
+print *, "ADIAB ENERGY t-dt", sh_env%E_t
+print *, "A_EN t-dt OLD_STATE", sh_env%E_t(old_state)
+print *, "ADIAB ENERGY t", sh_env%E_tp
+
+        do i=1,mol
+                if (i .ne. old_state) then 
+                        sh_env%enerdiff(i) = abs(sh_env%E_t(i) - sh_env%E_t(old_state)) 
+                else if (i .eq. old_state) then 
+                        sh_env%enerdiff(old_state) = 0.0D0
+                end if
+        end do
+        print *, "sh_env%enerdiff = ", sh_env%enerdiff
+        print *, "old_state", old_state
+       
+        if (sh_env%enerdiff(1) == sh_env%enerdiff(old_state)) then
+                min = sh_env%enerdiff(2)
+                do i= 3,mol
+                       if (sh_env%enerdiff(i) < min .and. i .ne. old_state) then
+                               min = sh_env%enerdiff(i)
+!                               sh_env%state_min = i
+                        end if          
+                end do
+        else 
+                min = sh_env%enerdiff(1)
+                do i= 2,mol
+                       if (sh_env%enerdiff(i) < min .and. i .ne. old_state) then
+                               min = sh_env%enerdiff(i)
+!                               sh_env%state_min = i
+                        end if          
+                end do
+        end if
+
+
+        do i =1,mol
+                if (sh_env%enerdiff(i) == min) then
+                       sh_env%state_min = i
+                end if
+        end do
+
+print *, "MIN_ENER_DIFF", min
+print *,"state_min", sh_env%state_min
+
+
+        !use the matinvsqrt subroutine to find T = S^(-1/2)
+        T1 = Stmtm
+        T2 = Stptp
+        call matinvsqrt(mol, .TRUE., T1)
+        call matinvsqrt(mol, .TRUE., T2)
+
+        !and do some straightforward first-order numerical derivatives
+        DT = (0.5D0/deltat)*(T2 - T1)
+        DS = (0.5D0/deltat)*(Sttp - Sttm)
+        DC = (1.0D0/deltat)*(C2 - C1)
+        
+        !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
+        !by transforming from the diabatic overlaps
+        do i=1,mol
+                do j=1,mol
+                        TST(i,j) = 0.0D0
+                        TDT(i,j) = 0.0D0
+                        do k=1,mol
+                                do l=1,mol
+                                        TST(i,j) = TST(i,j) + T1(k,i)*Stt(k,l)*DT(l,j)
+                                        TDT(i,j) = TDT(i,j) + T1(k,i)*DS(k,l)*T1(l,j)
+                                end do
+                        end do
+                end do
+        end do
+        do i=1,mol
+                do j=1,mol
+                        dphi(i,j) = 0.0D0
+                        do k=1,mol
+                                dphi(i,j) = dphi(i,j) + C2(k,i)*DC(k,j)
+                                do l=1,mol
+                                        dphi(i,j) = dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
+                                end do
+                        end do
+                end do
+        end do
+
+        !now also calculate the adiabatic electronic coefficients by transforming from the diabatic
+        !and fill out electronic density matrix elements a(i,j) for i = current adiabatic state
+        cstate = cmplx(0.0D0, 0.0D0, dp)
+        cstate_tm = cmplx(0.0D0, 0.0D0, dp)
+        do i=1,mol
+                cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
+                cstate_tm = cstate_tm + cmplx(C1(i,old_state),0.0D0,dp)*sh_env%cttm(i)
+        end do
+        do i=1,mol
+                !calculate a and b
+                ct(i) = cmplx(0.0D0, 0.0D0,dp)
+                cttm_ad(i) = cmplx(0.0D0, 0.0D0,dp)
+                do j=1,mol
+                        ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
+                        cttm_ad(i) = cttm_ad(i) + cmplx(C1(j,i),0.0D0,dp)*sh_env%cttm(j)
+                end do
+!construct state density for t present and t-deltat from the active state to
+!other state
+                ak(i) = ct(i)*conjg(cstate)
+                akttm(i) = cttm_ad(i)*conjg(cstate_tm)
+
+                b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,old_state))
+!print*, "i b dphi", i, b(i), dphi(i, old_state)
+        end do
+
+!calc exact total surface hopping probability (also termed g_tot) according to Prezhdo and Wang 2014
+
+
+        ex_prob = (abs(akttm(old_state))- abs(ak(old_state)))/abs(akttm(old_state))
+        if (ex_prob < 0.0D0) then
+            ex_prob = 0.0D0
+        end if
+
+print *, "akttm(old_state)", abs(akttm(old_state))
+print *, "ak(old_state)", abs(ak(old_state))
+print *, "ex_prob =", ex_prob
+
+        sumg = 0.0D0
+        !calculate g and sum(g)
+        do i=1,mol
+!print*, "deltat b ak", i, deltat, b(i), abs(ak(old_state))
+!g(i) is the probability to hop from the current state (old_state) to any other
+!state (i) 
+                g(i) = (deltat*b(i))/abs(ak(old_state))
+                !as in Tully, set negative probabilities to 0
+                if (g(i) < 0.0D0) then
+                        g(i) = 0.0D0
+                end if
+                if (i .ne. old_state) then
+                        sumg = sumg + g(i)
+!                        print *, "Probability_gi: ", i, g(i)
+                end if
+        end do
+print*, "sumg_tot", sumg
+!print *, "Probability_gi: ", g
+        !due to finite timestep, sometimes the probabilities may sum to greater than 1
+        !if this happens, rescale them down to sum = 1
+        if (sumg > 1.0D0) then
+                do i=1,mol
+                        g(i) = g(i)/sumg
+                        g(old_state) = 0.0D0
+                end do
+!> CHANGE_AC
+                sh_print_env%renorm = .TRUE.
+                sh_print_env%sumprob   = sumg        
+        else
+!> CHANGE_AC
+                sh_print_env%renorm = .FALSE.
+                sh_print_env%sumprob   = sumg        
+                g(old_state) = 1.0D0 - sumg
+        end if
+
+print *, "sh_print_env%renorm", sh_print_env%renorm
+print *, "Prob_gi_RESCALING1: ", g  !this case assigns also g_old_state=
+!1-g_i
+
+!print*, "sum proba", sumg
+
+!> CHANGE_AC
+        sh_print_env%proba     = g
+
+!to move on in the trivial hopping correction we use rescaled g to avoid
+!unphysical number larger than 1. 
+
+
+!threshold =  PUT INTO THE INPUT and call it form section_val_get 
+!DECLARE VARIABLES err and threshold
+        
+        threshold = 1e-03
+        trivial_correction = .FALSE.
+        err = abs(sumg - ex_prob)
+        if (err >= threshold) then 
+                trivial_correction = .TRUE.
+                g_exa = ex_prob - sumg + g(sh_env%state_min)  
+print *, "g(sh_env%state_min)", g(sh_env%state_min)
+print *, "g_exa =", g_exa
+!!ADD IF STATEMENT! g_exa CANNOT BE NEGATIVE
+                if (g_exa < 0.0D0) then
+                        g_exa = 0.0D0
+                end if
+                do i=1,mol
+                        if (i == sh_env%state_min) then
+                                g(i) = g_exa
+                        end if
+                end do 
+print *, "Prob_gi__CORRECT_WITHg_ex_NOT_RESC: ", g
+
+!! G RENORMALIZATION; BUILT A SUBROUTINE THAT DOES THIS
+                sumg = 0.0D0
+                do i=1,mol
+                        if (i .ne. old_state) then
+                                sumg = sumg + g(i)
+                        end if
+                end do
+                if (sumg > 1.0D0) then
+                        do i=1,mol
+                                g(i) = g(i)/sumg
+                                g(old_state) = 0.0D0
+                        end do
+         !> CHANGE_SG
+                        sh_print_env%renorm = .TRUE.
+                        sh_print_env%sumprob   = sumg        
+                else
+         !> CHANGE_SG
+                        sh_print_env%renorm = .FALSE.
+                        sh_print_env%sumprob   = sumg        
+                        g(old_state) = 1.0D0 - sumg
+                end if
+
+        end if
+print *, "trivial_correction", trivial_correction
+print *, "Prob_gi_RECALING2: ", g    
+
+        !call a random number
+        call init_random_seed()
+        call random_number(hop)
+        sh_print_env%hop       = hop
+print *, "RANDOM_NUMB", hop
+        sh_print_env%old_state = old_state
+        !and see if this random number causes a surface hop
+        sumg = 0.0D0
+        do i=1,mol
+print *, "Prob_gi: ", g(i)
+                sumg = sumg + g(i)
+                if (hop <= sumg) then
+                        if (i .ne. old_state) then
+                                new_state = i
+print *, "new_state", new_state
+!                                write(24,*) i                        
+                               ! decohere = .FALSE.
+                                sh_env%decohere = .FALSE.
+                                attempt_hop = .TRUE.
+print *, "attempt_hop", attempt_hop
+                                sh_print_env%attempt_hop    = attempt_hop
+                                sh_print_env%new_state = new_state
+                                EXIT
+                        elseif (i == old_state) then
+                                new_state = old_state
+                                attempt_hop = .FALSE.
+print *, "new_state", new_state
+print *, "attempt_hop", attempt_hop
+                                sh_print_env%attempt_hop    = attempt_hop
+                                sh_print_env%new_state = new_state
+!                                write(24,*) state
+                                
+                                !if there has not been any surfacehop, we need to consider the possibility of the decoherence correction
+                                !if the non-adiabatic coupling dphi to all other states is below a certain threshold
+                                !then a wavefunction collapse will be enforced
+                                do j=1,mol
+                                        if (abs(dphi(old_state,j)) > decohere_criterion .and. old_state .ne. j) then
+                                               ! decohere = .FALSE.
+                                                sh_env%decohere = .FALSE.
+                                                EXIT
+                                        end if
+                                end do
+                               ! decohere = .TRUE.
+                                sh_env%decohere = .TRUE.
+                                EXIT
+                        end if
+                end if
+        end do
+
+
+        CALL adiab_print_sh_info(sh_print_env, keyword = 'TULLY_TEST') 
+
+        DEALLOCATE(sh_print_env%proba)
+
+        deallocate(ak)
+        deallocate(b)
+        deallocate(G)
+        deallocate(ct)
+        deallocate(akttm)
+        deallocate(cttm_ad)
+
+        deallocate(dphi)
+        deallocate(T1)
+        deallocate(T2)
+        deallocate(DT)
+        deallocate(TST)
+        deallocate(TDT)
+        deallocate(DS)
+        deallocate(DC)
+
+end subroutine modified_surfacehop
+
+
+subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
+              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -218,7 +605,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
         REAL(KIND=dp), dimension(:,:), allocatable :: dphi
         REAL(KIND=dp), dimension(:), allocatable :: b, g
         REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
-        COMPLEX(KIND=dp), dimension(:), intent(in) :: c
+        !COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
         COMPLEX(KIND=dp), dimension(:), allocatable :: ct
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak
         COMPLEX(KIND=dp) :: cstate
@@ -283,13 +670,13 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
         !and fill out electronic density matrix elements a(i,j) for i = current adiabatic state
         cstate = cmplx(0.0D0, 0.0D0, dp)
         do i=1,mol
-                cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*c(i)
+                cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
         end do
         do i=1,mol
                 !calculate a and b
                 ct(i) = cmplx(0.0D0, 0.0D0,dp)
                 do j=1,mol
-                        ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*c(j)
+                        ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
                 end do
                 ak(i) = ct(i)*conjg(cstate)
                 b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,old_state))

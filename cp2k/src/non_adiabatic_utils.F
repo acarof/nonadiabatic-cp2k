@@ -33,7 +33,7 @@ MODULE non_adiabatic_utils
 
      USE aom_utils,                    ONLY: makeX,  &
                                              adiabaticity,   &
-                                            surfacehop,     &
+                                            !surfacehop,     &
                                              calcforces,     &
                                             read_listcoeff, &
                                             choose_firstadiabat, &

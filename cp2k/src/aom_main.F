@@ -50,7 +50,8 @@ MODULE aom_main
 
      USE aom_utils,                    ONLY: makeX,    &
                                              adiabaticity,   &
-                                             surfacehop,     &
+                                             !surfacehop,     &
+                                             surf_hop_type,     &
                                              calcforces,     &
                                              read_listcoeff, &
                                              choose_firstadiabat, &
@@ -162,6 +163,7 @@ CONTAINS
      REAL(KIND=dp), dimension(:,:,:), allocatable :: crds, pcoeffsrun
      REAL(KIND=dp), dimension(:,:), allocatable :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm, pcoeffs
      REAL(KIND=dp), dimension(:,:), allocatable :: dist
+     !COMPLEX(KIND=dp), dimension(:), allocatable :: ctin, ctout, ctotal
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin, ctout, ctotal
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_t, H_tp
      REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
@@ -188,8 +190,8 @@ CONTAINS
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
      CHARACTER(LEN=default_string_length)           :: deco_keyword 
-        COMPLEX(KIND=dp), dimension(:), allocatable :: pop
-        COMPLEX(KIND=dp), dimension(:), allocatable :: adiab
+       ! COMPLEX(KIND=dp), dimension(:), allocatable :: pop
+       ! COMPLEX(KIND=dp), dimension(:), allocatable :: adiab
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -242,6 +244,8 @@ CONTAINS
        ALLOCATE(aom_env%population(mat))
        ALLOCATE(aom_env%ctin(mat))
        ALLOCATE(sh_env%ctin(mat))
+       ALLOCATE(sh_env%cttm(mat))
+       ALLOCATE(sh_env%ctt(mat))
        ALLOCATE(sh_env%C_tp(mat,mat))
        ALLOCATE(aom_env%hamiltonian(mat,mat))
        ALLOCATE(aom_env%eigenvector_matrix(mat,mat))
@@ -275,10 +279,11 @@ CONTAINS
      else
        sh_print_env = aom_env%sh_print_env
      endif
-
+     
      ALLOCATE(E_t(mat))
      ALLOCATE(E_tp(mat))
      ALLOCATE(sh_env%E_tp(mat))
+     ALLOCATE(sh_env%E_t(mat))
 
      ALLOCATE(my_forces_adiab(3,natom))
      ALLOCATE(positions_com_tp(3, natom))
@@ -387,6 +392,9 @@ CONTAINS
 !END INITIALIZATION OR READING OF CTIN      
 
 
+
+
+
 !READ THE COORDINATES, ENERGIES AND STATE
      velocities_t = aom_env%velocities_t
      CALL translate_com(positions_tp, keyword_translate, positions_com_tp, local_particles, atomic_kinds = atomic_kinds)  
@@ -411,6 +419,19 @@ CONTAINS
            endif
      enddo
 !READ THE COORDINATES, ENERGIES AND STATE
+
+
+
+!store diabatic coefficients at tdeltat, this will be useful to find the adiabatic
+!coefficients at tdeltat and to use them to solve the trivial crossing problem
+
+     ALLOCATE(sh_env%cttm(mat))
+     sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
+     sh_env%cttm(:) = ctin(:)
+         
+print *, "coefficients at t minus deltat", sh_env%cttm
+print *, "active state", sh_env%cttm(active_state)
+
 
 !CALCULATE THE CENTER OF MASS
      !calculate CoMs at first timestep
@@ -688,7 +709,7 @@ CONTAINS
                            itimes, adiab_section, deltatMD, deltatE , times,    &
                             mat)
          ENDIF !ONLY IF NOT POST-HOP RUN
-
+print *, "ctin", ctin
       ELSE IF (itimes.eq.0) THEN
           !for each molecule
           do i=1,mol
@@ -782,8 +803,15 @@ CONTAINS
       endif !END OF THE BIG IF-LOOP itimes.ge.1
 
 
+!CHECK T PRESENT
 
-       sh_print_env%times = times
+      ALLOCATE(sh_env%ctt(mat))
+      sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
+      sh_env%ctt(:) = ctin(:)
+print *, "coefficients at t present", sh_env%ctt
+
+      sh_print_env%times = times
+
 !DO THE HOPPING TEST
 
  
@@ -791,21 +819,27 @@ CONTAINS
                !It gives us back the eigenvalues and eigenvectors
       IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
       call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
-      CALL adiab_print_adiabat_energies(adiab_section, E_tp,nadiab,deltatMD, times)
+      CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
+
+!initialize Adiabatic energies that will be used for trivial hopping and
+!decoherence corrections
+      sh_env%E_t = E_t
+      sh_env%E_tp = E_tp
+      
 
 
-allocate(pop(mol))
-allocate(adiab(mol))
+!allocate(pop(mol))
+!allocate(adiab(mol))
 
 !TEST for printing adiabatic population
-do i= 1,mol
-        adiab(i) = cmplx(0.0D0, 0.0D0,dp)
-     do j=1, mol
-        adiab(i) = adiab(i) + cmplx(C_tp(j,i), 0.0D0,dp)*ctin(j)
-     end do 
-     pop(i) = adiab(i)*conjg(adiab(i))
+!do i= 1,mol
+!        adiab(i) = cmplx(0.0D0, 0.0D0,dp)
+!     do j=1, mol
+!        adiab(i) = adiab(i) + cmplx(C_tp(j,i), 0.0D0,dp)*ctin(j)
+!     end do 
+!     pop(i) = adiab(i)*conjg(adiab(i))
 
-end do
+!end do
 
 
       !The eigenvectors are needed to calculate the surface hopping probabilities
@@ -844,19 +878,30 @@ end do
                 IF ((new_state).EQ.0) new_state = mat
              ELSE
                 IF (.NOT.successful_hop) THEN
-                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, sh_env,  &
+
+                   call surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp,   &
+                                  deltatMD, active_state, sh_env,  &
                                  !new_state, is_hop)
                                    new_state, &
                                    attempt_hop, &
                                    decohere_criterion, &
                                    sh_print_env)
 
-!                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, decohere,  &      
- !                                !new_state, is_hop)
- !                                  new_state, &
- !                                  attempt_hop, &
- !                                  decohere_criterion, &
- !                                  sh_print_env)
+!                  call surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp,   &
+!                                 deltatMD, active_state, sh_env,  &
+!                                !new_state, is_hop)
+!                                  new_state, &
+!                                  attempt_hop, &
+!                                  decohere_criterion, &
+!                                  sh_print_env)
+!
+!                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, sh_env,  &
+                                 !new_state, is_hop)
+!                                   new_state, &
+!                                   attempt_hop, &
+!                                   decohere_criterion, &
+!                                   sh_print_env)
+
                 ELSE
                    attempt_hop = .FALSE.
                    decohere = .FALSE.
@@ -895,10 +940,9 @@ end do
       !ENDIF
 !END CALCULATE THE FORCES
 
-!> initialize derived type variables
-ALLOCATE(sh_env%ctin(mat))
+!> initialize derived type variables for sh_env
 
-sh_env%E_tp=E_tp
+ALLOCATE(sh_env%ctin(mat))
 sh_env%ctin=ctin
 sh_env%active_state=active_state
 
@@ -936,6 +980,7 @@ active_state=sh_env%active_state
 !PREPARE THE PRINT
        IF (.NOT.successful_hop) THEN 
           aom_env%ctin        = ctin
+print *, "ctin end", ctin
           aom_env%attempt_hop  = attempt_hop
           aom_env%hamiltonian = -AIMAG(H_tp)
           aom_env%nacv        = nacv
@@ -969,6 +1014,8 @@ active_state=sh_env%active_state
        deallocate(scoefftot, pcoefftot)
        deallocate(pcoeffs, pcoeffsrun, scoeffs)
        deallocate(ctin)
+       !deallocate(cttm)
+       !deallocate(ct)
        deallocate(ctout)
        deallocate(ctotal)
        deallocate(siteenergies)
