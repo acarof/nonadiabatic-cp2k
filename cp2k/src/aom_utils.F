@@ -297,6 +297,8 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         
         ALLOCATE(sh_print_env%proba(mol))
 
+print *, "OKAAYYYYY"
+
 print *, "ADIAB ENERGY t-dt", sh_env%E_t
 print *, "A_EN t-dt OLD_STATE", sh_env%E_t(old_state)
 print *, "ADIAB ENERGY t", sh_env%E_tp
@@ -308,8 +310,8 @@ print *, "ADIAB ENERGY t", sh_env%E_tp
                         sh_env%enerdiff(old_state) = 0.0D0
                 end if
         end do
-        print *, "sh_env%enerdiff = ", sh_env%enerdiff
-        print *, "old_state", old_state
+print *, "sh_env%enerdiff = ", sh_env%enerdiff
+print *, "old_state", old_state
        
         if (sh_env%enerdiff(1) == sh_env%enerdiff(old_state)) then
                 min = sh_env%enerdiff(2)
@@ -359,8 +361,6 @@ print *,"state_min", sh_env%state_min
                         TDT(i,j) = 0.0D0
                         do k=1,mol
                                 do l=1,mol
-                                        TST(i,j) = TST(i,j) + T1(k,i)*Stt(k,l)*DT(l,j)
-                                        TDT(i,j) = TDT(i,j) + T1(k,i)*DS(k,l)*T1(l,j)
                                 end do
                         end do
                 end do
@@ -385,6 +385,8 @@ print *,"state_min", sh_env%state_min
                 cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
                 cstate_tm = cstate_tm + cmplx(C1(i,old_state),0.0D0,dp)*sh_env%cttm(i)
         end do
+print *, "cstate", cstate
+print *, "cstate_tm", cstate_tm
         do i=1,mol
                 !calculate a and b
                 ct(i) = cmplx(0.0D0, 0.0D0,dp)
@@ -395,9 +397,12 @@ print *,"state_min", sh_env%state_min
                 end do
 !construct state density for t present and t-deltat from the active state to
 !other state
+print *, "ct(i)", ct(i)
+print *, "cttm_ad(i)", cttm_ad(i)
                 ak(i) = ct(i)*conjg(cstate)
                 akttm(i) = cttm_ad(i)*conjg(cstate_tm)
-
+print *, "ak(i)", ak(i)
+print *, "akttm(i)", akttm(i)
                 b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,old_state))
 !print*, "i b dphi", i, b(i), dphi(i, old_state)
         end do
@@ -406,12 +411,14 @@ print *,"state_min", sh_env%state_min
 
 
         ex_prob = (abs(akttm(old_state))- abs(ak(old_state)))/abs(akttm(old_state))
-        if (ex_prob < 0.0D0) then
-            ex_prob = 0.0D0
-        end if
+        !if (ex_prob < 0.0D0) then
+         !   ex_prob = 0.0D0
+        !end if
 
-print *, "akttm(old_state)", abs(akttm(old_state))
-print *, "ak(old_state)", abs(ak(old_state))
+print *, "ak(old_state)", (ak(old_state))
+print *, "abs(akttm(old_state))", (akttm(old_state))
+print *, "ABS(ak(old_state))", abs(ak(old_state))
+print *, "ABS(akttm(old_state))", abs(akttm(old_state))
 print *, "ex_prob =", ex_prob
 
         sumg = 0.0D0
@@ -422,15 +429,20 @@ print *, "ex_prob =", ex_prob
 !state (i) 
                 g(i) = (deltat*b(i))/abs(ak(old_state))
                 !as in Tully, set negative probabilities to 0
-                if (g(i) < 0.0D0) then
-                        g(i) = 0.0D0
-                end if
+                
+               ! if (g(i) < 0.0D0) then
+               !         g(i) = 0.0D0
+               ! end if
+
                 if (i .ne. old_state) then
                         sumg = sumg + g(i)
 !                        print *, "Probability_gi: ", i, g(i)
                 end if
         end do
 print*, "sumg_tot", sumg
+
+print *, "DIFF_SUMG_EXACT", abs(sumg-ex_prob)
+
 !print *, "Probability_gi: ", g
         !due to finite timestep, sometimes the probabilities may sum to greater than 1
         !if this happens, rescale them down to sum = 1
@@ -464,51 +476,58 @@ print *, "Prob_gi_RESCALING1: ", g  !this case assigns also g_old_state=
 
 !threshold =  PUT INTO THE INPUT and call it form section_val_get 
 !DECLARE VARIABLES err and threshold
+
         
         threshold = 1e-03
         trivial_correction = .FALSE.
         err = abs(sumg - ex_prob)
         if (err >= threshold) then 
                 trivial_correction = .TRUE.
-                g_exa = ex_prob - sumg + g(sh_env%state_min)  
-print *, "g(sh_env%state_min)", g(sh_env%state_min)
-print *, "g_exa =", g_exa
-!!ADD IF STATEMENT! g_exa CANNOT BE NEGATIVE
-                if (g_exa < 0.0D0) then
-                        g_exa = 0.0D0
-                end if
-                do i=1,mol
-                        if (i == sh_env%state_min) then
-                                g(i) = g_exa
-                        end if
-                end do 
-print *, "Prob_gi__CORRECT_WITHg_ex_NOT_RESC: ", g
+                g_exa = ex_prob - sumg + g(sh_env%state_min)
+                
+!print *, "g(sh_env%state_min)", g(sh_env%state_min)
+!print *, "g_exa =", g_exa
+!ADD IF STATEMENT! g_exa CANNOT BE NEGATIVE
 
+
+
+!                if (g_exa < 0.0D0) then
+!                        g_exa = 0.0D0
+!                end if
+!                g(sh_env%state_min) = g_exa
+!!                do i=1,mol
+!!                        if (i == sh_env%state_min) then
+!!                                g(i) = g_exa
+!!                        end if
+!!                end do 
+!print *, "Prob_gi__CORRECT_WITHg_ex_NOT_RESC: ", g
+!
 !! G RENORMALIZATION; BUILT A SUBROUTINE THAT DOES THIS
-                sumg = 0.0D0
-                do i=1,mol
-                        if (i .ne. old_state) then
-                                sumg = sumg + g(i)
-                        end if
-                end do
-                if (sumg > 1.0D0) then
-                        do i=1,mol
-                                g(i) = g(i)/sumg
-                                g(old_state) = 0.0D0
-                        end do
-         !> CHANGE_SG
-                        sh_print_env%renorm = .TRUE.
-                        sh_print_env%sumprob   = sumg        
-                else
-         !> CHANGE_SG
-                        sh_print_env%renorm = .FALSE.
-                        sh_print_env%sumprob   = sumg        
-                        g(old_state) = 1.0D0 - sumg
-                end if
+!                sumg = 0.0D0
+!                do i=1,mol
+!                        if (i .ne. old_state) then
+!                                sumg = sumg + g(i)
+!                        end if
+!                end do
+!                if (sumg > 1.0D0) then
+!                        do i=1,mol
+!                                g(i) = g(i)/sumg
+!                                g(old_state) = 0.0D0
+!                        end do
+!         !> CHANGE_SG
+!                        sh_print_env%renorm = .TRUE.
+!                        sh_print_env%sumprob   = sumg        
+!                else
+!         !> CHANGE_SG
+!                        sh_print_env%renorm = .FALSE.
+!                        sh_print_env%sumprob   = sumg        
+!                        g(old_state) = 1.0D0 - sumg
+!                end if
 
         end if
-print *, "trivial_correction", trivial_correction
-print *, "Prob_gi_RECALING2: ", g    
+
+!print *, "trivial_correction", trivial_correction
+!print *, "Prob_gi_RECALING2: ", g    
 
         !call a random number
         call init_random_seed()
@@ -2248,18 +2267,17 @@ ENDIF
         INTEGER, INTENT(IN)                      :: nparticle_kind
         TYPE(distribution_1d_type), POINTER      :: local_particles
         TYPE(force_env_type), POINTER            :: force_env
-
+ 
         CHARACTER(len=*), PARAMETER :: routineN = 'total_momentum', &
         routineP = moduleN//':'//routineN
-
+ 
         REAL(kind=dp)                            :: mass
         INTEGER                                  :: iparticle_kind
         INTEGER                                  :: nparticle_local
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
         REAL(kind=dp), DIMENSION(3)                       :: momentum
-
-           momentum = 0.0D0
+ 
            DO iparticle_kind=1,nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
