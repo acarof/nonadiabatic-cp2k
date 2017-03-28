@@ -183,7 +183,7 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
-     LOGICAL                                      :: successful_hop, select_first_adiabat, keyword_translate
+     LOGICAL                                      :: successful_hop, keyword_translate
 
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
@@ -780,7 +780,7 @@ do i= 1,mol
 
 end do
 
-      IF (itimes.EQ.0) THEN 
+      IF ( (itimes.EQ.0) .AND. (.NOT. my_bo_keyword) .AND. (.NOT. my_test_keyword)) THEN 
          CALL section_vals_val_get(adiab_section, "INITIALIZATION", c_val=keyword_init)
          SELECT CASE(keyword_init)
          CASE("DIABATIC")
@@ -858,6 +858,7 @@ end do
                      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
                   ENDDO
                ENDDO
+               print*, "ACTIVE STATE = ", active_state
                call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
