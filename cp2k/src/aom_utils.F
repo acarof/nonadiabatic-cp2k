@@ -361,6 +361,8 @@ print *,"state_min", sh_env%state_min
                         TDT(i,j) = 0.0D0
                         do k=1,mol
                                 do l=1,mol
+                                        TST(i,j) = TST(i,j) + T1(k,i)*Stt(k,l)*DT(l,j)
+                                        TDT(i,j) = TDT(i,j) + T1(k,i)*DS(k,l)*T1(l,j)
                                 end do
                         end do
                 end do
@@ -403,6 +405,7 @@ print *, "cttm_ad(i)", cttm_ad(i)
                 akttm(i) = cttm_ad(i)*conjg(cstate_tm)
 print *, "ak(i)", ak(i)
 print *, "akttm(i)", akttm(i)
+
                 b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,old_state))
 !print*, "i b dphi", i, b(i), dphi(i, old_state)
         end do
@@ -411,6 +414,7 @@ print *, "akttm(i)", akttm(i)
 
 
         ex_prob = (abs(akttm(old_state))- abs(ak(old_state)))/abs(akttm(old_state))
+
         !if (ex_prob < 0.0D0) then
          !   ex_prob = 0.0D0
         !end if
@@ -516,18 +520,18 @@ print *, "Prob_gi_RESCALING1: ", g  !this case assigns also g_old_state=
 !                        end do
 !         !> CHANGE_SG
 !                        sh_print_env%renorm = .TRUE.
-!                        sh_print_env%sumprob   = sumg        
+!                        sh_print_env%sumprob   = sumg
 !                else
 !         !> CHANGE_SG
 !                        sh_print_env%renorm = .FALSE.
-!                        sh_print_env%sumprob   = sumg        
+!                        sh_print_env%sumprob   = sumg
 !                        g(old_state) = 1.0D0 - sumg
 !                end if
 
         end if
 
 !print *, "trivial_correction", trivial_correction
-!print *, "Prob_gi_RECALING2: ", g    
+!print *, "Prob_gi_RECALING2: ", g
 
         !call a random number
         call init_random_seed()
@@ -2277,7 +2281,9 @@ ENDIF
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
         REAL(kind=dp), DIMENSION(3)                       :: momentum
- 
+
+
+           momentum = 0.0D0 
            DO iparticle_kind=1,nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
