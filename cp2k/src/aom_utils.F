@@ -264,7 +264,7 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
         TYPE(sh_env_type), INTENT(OUT) :: sh_env
 
-        LOGICAL        :: trivial_correction
+        LOGICAL        :: trivial_correction, correct_for_negative
         integer :: i, j, mol, k, l
         REAL(KIND=dp) :: hop, sumg, ex_prob, min, g_exa, err, threshold
         REAL(KIND=dp), dimension(:,:), allocatable :: dphi
@@ -299,13 +299,13 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
 
 print *, "OKAAYYYYY"
 
-print *, "ADIAB ENERGY t-dt", sh_env%E_t
-print *, "A_EN t-dt OLD_STATE", sh_env%E_t(old_state)
+!print *, "ADIAB ENERGY t-dt", sh_env%E_t
+!print *, "A_EN t-dt OLD_STATE", sh_env%E_t(old_state)
 print *, "ADIAB ENERGY t", sh_env%E_tp
 
         do i=1,mol
                 if (i .ne. old_state) then 
-                        sh_env%enerdiff(i) = abs(sh_env%E_t(i) - sh_env%E_t(old_state)) 
+                        sh_env%enerdiff(i) = abs(sh_env%E_tp(i) - sh_env%E_tp(old_state)) 
                 else if (i .eq. old_state) then 
                         sh_env%enerdiff(old_state) = 0.0D0
                 end if
@@ -410,10 +410,12 @@ print *, "akttm(i)", akttm(i)
 !print*, "i b dphi", i, b(i), dphi(i, old_state)
         end do
 
+
 !calc exact total surface hopping probability (also termed g_tot) according to Prezhdo and Wang 2014
-
-
         ex_prob = (abs(akttm(old_state))- abs(ak(old_state)))/abs(akttm(old_state))
+
+!this probability can be negative when there is flux toward the current state
+!meaning more probability to stay on the current state
 
         !if (ex_prob < 0.0D0) then
          !   ex_prob = 0.0D0
@@ -425,6 +427,9 @@ print *, "ABS(ak(old_state))", abs(ak(old_state))
 print *, "ABS(akttm(old_state))", abs(akttm(old_state))
 print *, "ex_prob =", ex_prob
 
+! calculate sumg that can also be negative because each individual probability
+! could be negative 
+
         sumg = 0.0D0
         !calculate g and sum(g)
         do i=1,mol
@@ -432,7 +437,6 @@ print *, "ex_prob =", ex_prob
 !g(i) is the probability to hop from the current state (old_state) to any other
 !state (i) 
                 g(i) = (deltat*b(i))/abs(ak(old_state))
-                !as in Tully, set negative probabilities to 0
                 
                ! if (g(i) < 0.0D0) then
                !         g(i) = 0.0D0
@@ -440,47 +444,15 @@ print *, "ex_prob =", ex_prob
 
                 if (i .ne. old_state) then
                         sumg = sumg + g(i)
-!                        print *, "Probability_gi: ", i, g(i)
                 end if
         end do
+
 print*, "sumg_tot", sumg
-
-print *, "DIFF_SUMG_EXACT", abs(sumg-ex_prob)
-
-!print *, "Probability_gi: ", g
-        !due to finite timestep, sometimes the probabilities may sum to greater than 1
-        !if this happens, rescale them down to sum = 1
-        if (sumg > 1.0D0) then
-                do i=1,mol
-                        g(i) = g(i)/sumg
-                        g(old_state) = 0.0D0
-                end do
-!> CHANGE_AC
-                sh_print_env%renorm = .TRUE.
-                sh_print_env%sumprob   = sumg        
-        else
-!> CHANGE_AC
-                sh_print_env%renorm = .FALSE.
-                sh_print_env%sumprob   = sumg        
-                g(old_state) = 1.0D0 - sumg
-        end if
-
-print *, "sh_print_env%renorm", sh_print_env%renorm
-print *, "Prob_gi_RESCALING1: ", g  !this case assigns also g_old_state=
-!1-g_i
-
-!print*, "sum proba", sumg
-
-!> CHANGE_AC
-        sh_print_env%proba     = g
-
-!to move on in the trivial hopping correction we use rescaled g to avoid
-!unphysical number larger than 1. 
-
+print *, "DIFF_SUMG_EXACT", ex_prob - sumg
+print *, "Proba_gi_before_corrections: ", g
 
 !threshold =  PUT INTO THE INPUT and call it form section_val_get 
 !DECLARE VARIABLES err and threshold
-
         
         threshold = 1e-03
         trivial_correction = .FALSE.
@@ -488,50 +460,90 @@ print *, "Prob_gi_RESCALING1: ", g  !this case assigns also g_old_state=
         if (err >= threshold) then 
                 trivial_correction = .TRUE.
                 g_exa = ex_prob - sumg + g(sh_env%state_min)
-                
-!print *, "g(sh_env%state_min)", g(sh_env%state_min)
-!print *, "g_exa =", g_exa
-!ADD IF STATEMENT! g_exa CANNOT BE NEGATIVE
-
-
-
 !                if (g_exa < 0.0D0) then
 !                        g_exa = 0.0D0
 !                end if
-!                g(sh_env%state_min) = g_exa
+                g(sh_env%state_min) = g_exa
 !!                do i=1,mol
 !!                        if (i == sh_env%state_min) then
 !!                                g(i) = g_exa
 !!                        end if
 !!                end do 
-!print *, "Prob_gi__CORRECT_WITHg_ex_NOT_RESC: ", g
-!
-!! G RENORMALIZATION; BUILT A SUBROUTINE THAT DOES THIS
-!                sumg = 0.0D0
-!                do i=1,mol
-!                        if (i .ne. old_state) then
-!                                sumg = sumg + g(i)
-!                        end if
-!                end do
-!                if (sumg > 1.0D0) then
-!                        do i=1,mol
-!                                g(i) = g(i)/sumg
-!                                g(old_state) = 0.0D0
-!                        end do
-!         !> CHANGE_SG
-!                        sh_print_env%renorm = .TRUE.
-!                        sh_print_env%sumprob   = sumg
-!                else
-!         !> CHANGE_SG
-!                        sh_print_env%renorm = .FALSE.
-!                        sh_print_env%sumprob   = sumg
-!                        g(old_state) = 1.0D0 - sumg
-!                end if
-
         end if
+print *, "trivial_correction", trivial_correction
+print *, "Prob_gi_CORRECT_for_trivial: ", g
 
-!print *, "trivial_correction", trivial_correction
-!print *, "Prob_gi_RECALING2: ", g
+!! CORRECTION FOR NEGATIVE NUMBER
+       correct_for_negative = .FALSE.
+       do i =1,mol
+                if (g(i) < 0.0D0) then
+                        g(i) = 0.0D0
+                        correct_for_negative = .TRUE.
+                end if
+       end do
+print *, "correct_for_negative", correct_for_negative
+print *, "Prob_gi_CORRECT_for_NEGA: ", g
+
+!! G RENORMALIZATION; BUILT A SUBROUTINE THAT DOES THIS
+       sumg = 0.0D0
+       do i=1,mol
+               if (i .ne. old_state) then
+                       sumg = sumg + g(i)
+               end if
+       end do
+       if (sumg > 1.0D0) then
+               do i=1,mol
+                       g(i) = g(i)/sumg
+                       g(old_state) = 0.0D0
+               end do
+!> CHANGE_AC
+               sh_print_env%renorm = .TRUE.
+               sh_print_env%sumprob   = sumg
+       else
+!> CHANGE_AC
+               sh_print_env%renorm = .FALSE.
+               sh_print_env%sumprob   = sumg
+               g(old_state) = 1.0D0 - sumg
+       end if
+
+
+
+
+
+!        !due to finite timestep, sometimes the probabilities may sum to greater than 1
+!        !if this happens, rescale them down to sum = 1
+!        if (sumg > 1.0D0) then
+!                do i=1,mol
+!                        g(i) = g(i)/sumg
+!                        g(old_state) = 0.0D0
+!                end do
+!!> CHANGE_AC
+!                sh_print_env%renorm = .TRUE.
+!                sh_print_env%sumprob   = sumg        
+!        else
+!!> CHANGE_AC
+!                sh_print_env%renorm = .FALSE.
+!                sh_print_env%sumprob   = sumg        
+!                g(old_state) = 1.0D0 - sumg
+!        end if
+
+!print *, "sh_print_env%renorm", sh_print_env%renorm
+!print *, "Prob_gi_RESCALING1: ", g  !this case assigns also g_old_state=
+!1-g_i
+
+!print*, "sum proba", sumg
+
+
+!> CHANGE_AC
+        sh_print_env%proba     = g
+
+print *, "sh_print_env%renorm", sh_print_env%renorm
+print *, "Prob_gi_after_RINORMALIZATION: ", g
+
+!to move on in the trivial hopping correction we use rescaled g to avoid
+!unphysical number larger than 1. 
+
+
 
         !call a random number
         call init_random_seed()
