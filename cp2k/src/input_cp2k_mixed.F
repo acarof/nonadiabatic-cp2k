@@ -228,6 +228,25 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="INITIALIZATION",&
+         description="Decide how to initiate the system for wavefunction and surface.",&
+         usage="DIABATIC or ADIABATIC", & 
+         type_of_var=char_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="FIRST_DIABAT",&
+         description="starting molecule number",&
+         usage="1", type_of_var=integer_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="FIRST_ADIABAT",&
+         description="starting molecule number",&
+         usage="1", type_of_var=integer_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
 
     NULLIFY(sub2section)
     CALL section_create(sub2section,name="AOM",&
@@ -275,28 +294,8 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="DECOHERENCE_CRITERION",&
-         description="Criteiron to decohere",&
+         description="Criterion to decohere",&
          usage="1.0E-05", type_of_var=real_t)
-    CALL section_add_keyword(sub2section,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="FIRST_DIABAT",&
-         description="starting molecule number",&
-         usage="1", type_of_var=integer_t)
-    CALL section_add_keyword(sub2section,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="SELECT_FIRST_ADIABAT",&
-         description="Decide if we should select the first adiabat in the input file",&
-         usage="False", & 
-         default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(sub2section,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="FIRST_ADIABAT",&
-         description="starting molecule number",&
-         usage="1", type_of_var=integer_t)
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
