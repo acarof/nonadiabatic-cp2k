@@ -756,7 +756,7 @@ CONTAINS
 
 
 
-       sh_print_env%times = times
+       sh_print_env%times = DBLE(itimes)
 !DO THE HOPPING TEST
 
  
