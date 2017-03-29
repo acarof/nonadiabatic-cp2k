@@ -189,8 +189,8 @@ CONTAINS
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
      CHARACTER(LEN=default_string_length)           :: deco_keyword, keyword_init 
-        COMPLEX(KIND=dp), dimension(:), allocatable :: pop
-        COMPLEX(KIND=dp), dimension(:), allocatable :: adiab
+       ! COMPLEX(KIND=dp), dimension(:), allocatable :: pop
+       ! COMPLEX(KIND=dp), dimension(:), allocatable :: adiab
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
