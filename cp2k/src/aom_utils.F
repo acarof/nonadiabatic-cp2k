@@ -220,6 +220,7 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
                                routineP = moduleN//':'//routineN
 
        CHARACTER(LEN=default_string_length)           :: surfhop_keyword
+       REAL(KIND=dp) :: triv_threshold
 
 
        CALL section_vals_val_get(adiab_section,"SURF_HOP_CHOICE", c_val=surfhop_keyword)
@@ -227,8 +228,10 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
        SELECT CASE(surfhop_keyword)
        CASE("TRIVIAL_HOP_CORRECT")
 
+       CALL section_vals_val_get(adiab_section,"THRESHOLD_TRIVIAL_CROSS", r_val=triv_threshold)
        CALL modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-                        sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+                        sh_env, new_state, attempt_hop, decohere_criterion, &
+                       sh_print_env, triv_threshold)
 
 PRINT *, 'TO BE CONTINUED'
        
@@ -241,14 +244,15 @@ PRINT *, 'TO BE CONTINUED'
 print *, "OKKKKKKKKKKK????????"
 
        CASE DEFAULT
-         CPABORT("There is no method to add the decoherence.")
+         CPABORT("There is no method to add trivial crossing correction")
        
        END SELECT
 
 END SUBROUTINE surf_hop_type
 
 subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+              sh_env, new_state, attempt_hop, decohere_criterion, &
+              sh_print_env, triv_threshold)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -266,7 +270,8 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
 
         LOGICAL        :: trivial_correction, correct_for_negative
         integer :: i, j, mol, k, l
-        REAL(KIND=dp) :: hop, sumg, ex_prob, min, g_exa, err, threshold
+        REAL(KIND=dp) :: hop, sumg, ex_prob, min, g_exa, err
+        REAL(KIND=dp) :: triv_threshold
         REAL(KIND=dp), dimension(:,:), allocatable :: dphi
         REAL(KIND=dp), dimension(:), allocatable :: b, g
         REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
@@ -451,24 +456,25 @@ print*, "sumg_tot", sumg
 print *, "DIFF_SUMG_EXACT", ex_prob - sumg
 print *, "Proba_gi_before_corrections: ", g
 
-!threshold =  PUT INTO THE INPUT and call it form section_val_get 
-!DECLARE VARIABLES err and threshold
-        
-        threshold = 1e-03
+!EFFECTIVE TRIVIAL CROSSINGS CORRECTION
+
         trivial_correction = .FALSE.
+        
         err = abs(sumg - ex_prob)
-        if (err >= threshold) then 
+        if (err >= triv_threshold) then 
                 trivial_correction = .TRUE.
-                g_exa = ex_prob - sumg + g(sh_env%state_min)
+                        if (trivial_correction) then  
+                                g_exa = ex_prob - sumg + g(sh_env%state_min)
 !                if (g_exa < 0.0D0) then
 !                        g_exa = 0.0D0
 !                end if
-                g(sh_env%state_min) = g_exa
+                                g(sh_env%state_min) = g_exa
 !!                do i=1,mol
 !!                        if (i == sh_env%state_min) then
 !!                                g(i) = g_exa
 !!                        end if
 !!                end do 
+                        end if
         end if
 print *, "trivial_correction", trivial_correction
 print *, "Prob_gi_CORRECT_for_trivial: ", g
@@ -542,8 +548,6 @@ print *, "Prob_gi_after_RINORMALIZATION: ", g
 
 !to move on in the trivial hopping correction we use rescaled g to avoid
 !unphysical number larger than 1. 
-
-
 
         !call a random number
         call init_random_seed()
@@ -723,6 +727,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
         do i=1,mol
 !print*, "deltat b ak", i, deltat, b(i), abs(ak(old_state))
                 g(i) = (deltat*b(i))/abs(ak(old_state))
+print *, "Probability_INIT: ", i, g(i)
                 !as in Tully, set negative probabilities to 0
                 if (g(i) < 0.0D0) then
                         g(i) = 0.0D0
@@ -730,7 +735,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
                 if (i .ne. old_state) then
                         sumg = sumg + g(i)
 !print*, "sum proba", sumg, g(i)
-                        print *, "Probability: ", i, g(i)
+print *, "Probability_other_states: ", i, g(i)
                 end if
         end do
         !due to finite timestep, sometimes the probabilities may sum to greater than 1
@@ -750,6 +755,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
                 g(old_state) = 1.0D0 - sumg
         end if
 
+print *, "Probability_RENORM: ", g
 
 !> CHANGE_AC
         sh_print_env%proba     = g

@@ -201,6 +201,12 @@ CONTAINS
          n_var=-1)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="THRESHOLD_TRIVIAL_CROSS",&
+         description="parameter used as a threshold to activate trivial correction", &
+          usage="1e-03", type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
   
     CALL keyword_create(keyword, name="DECOHERENCE_CORRECTIONS",&
          description="Defines the methods to decohere the wavefunction if required.",&
