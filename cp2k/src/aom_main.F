@@ -398,16 +398,6 @@ CONTAINS
 
 
 
-!store diabatic coefficients at tdeltat, this will be useful to find the adiabatic
-!coefficients at tdeltat and to use them to solve the trivial crossing problem
-
-     ALLOCATE(sh_env%cttm(mat))
-     sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
-     sh_env%cttm(:) = ctin(:)
-         
-print *, "coefficients at t minus deltat", sh_env%cttm
-print *, "active state", sh_env%cttm(active_state)
-
 
 !CALCULATE THE CENTER OF MASS
      !calculate CoMs at first timestep
@@ -680,10 +670,27 @@ print *, "active state", sh_env%cttm(active_state)
 
          IF (.NOT.successful_hop) THEN
             ctin(:) = aom_env%ctin(:)
+!store diabatic coefficients at tdeltat, this will be useful to find the adiabatic
+!coefficients at tdeltat and to use them to solve the trivial crossing problem
+
+     ALLOCATE(sh_env%cttm(mat))
+     sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
+     sh_env%cttm(:) = ctin(:)
+         
+print *, "coefficients at t minus deltat", sh_env%cttm
+print *, "active state", sh_env%cttm(active_state)
+
             CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,    &
                           ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,    &
                             mat)
+!CHECK T PRESENT
+
+      ALLOCATE(sh_env%ctt(mat))
+      sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
+      sh_env%ctt(:) = ctin(:)
+print *, "coefficients at t present", sh_env%ctt
+
          ENDIF !ONLY IF NOT POST-HOP RUN
 print *, "ctin", ctin
       ELSE IF (itimes.eq.0) THEN
@@ -771,13 +778,6 @@ print *, "ctin", ctin
          nacv = cbar*nacv
       endif !END OF THE BIG IF-LOOP itimes.ge.1
 
-
-!CHECK T PRESENT
-
-      ALLOCATE(sh_env%ctt(mat))
-      sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
-      sh_env%ctt(:) = ctin(:)
-print *, "coefficients at t present", sh_env%ctt
 
        sh_print_env%times = DBLE(itimes)
 !DO THE HOPPING TEST
