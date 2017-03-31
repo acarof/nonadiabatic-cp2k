@@ -195,6 +195,27 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="DECOHERENCE_CORRECTIONS",&
+         description="Defines the methods to decohere the wavefunction if required.",&
+         usage="DECOHERENCE_CORRECTIONS: BASIC EXACT", type_of_var=char_t,&
+         n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    
+    CALL keyword_create(keyword, name="EDC_C",&
+         description="C parameter in the Energy-based deco. correction formula",&
+         usage="1.0D0", type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="EDC_E0",&
+         description="E0 parameter in the Energy-based deco. correction formula",&
+         usage="0.1D0", type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+
     NULLIFY(sub2section)
     CALL section_create(sub2section,name="AOM",&
          description="Defines the methods to obtain the adiabatic forces.",&
@@ -308,9 +329,31 @@ CONTAINS
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="CENTER_OF_MASS",&
+         description="Decide if do all electronic propagation and velocities "//&
+                     "rescaling into the center-of-mass frame.",&
+         usage="True", &
+         default_l_val=.TRUE., &
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="METHOD_RESCALING",&
          description="Defines the methods to rescale the velocities if required.",&
+         usage="METHOD_RESCALING: BASIC EXACT", type_of_var=char_t,&
+         n_var=-1)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="METHOD_ADIABATIC_NACV",&
+         description="Defines the methods to compute the adiabatic NACV for the rescaling.",&
+         usage="METHOD_RESCALING: BASIC EXACT", type_of_var=char_t,&
+         n_var=-1)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="METHOD_REVERSAL",&
+         description="Defines the methods to reverse the velocities after a frustrated hop if required.",&
          usage="METHOD_RESCALING: BASIC EXACT", type_of_var=char_t,&
          n_var=-1)
     CALL section_add_keyword(sub2section,keyword)
@@ -357,6 +400,15 @@ CONTAINS
           filename="")
      CALL section_add_subsection(sub2section,print_key)
      CALL section_release(print_key)
+    !----------PC
+     CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="PVECS",&
+          description="Control the output of the p-vectors for PCs visualisation script.",&
+          common_iter_levels=1,&
+          filename="")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+     !-------------------
 
      CALL cp_print_key_section_create(print_key_section=print_key,&
           name="POPULATIONS",&
@@ -414,6 +466,15 @@ CONTAINS
 
      CALL cp_print_key_section_create(print_key_section=print_key,&
           name="NACV",&
+          description="Control the output of the NACV.",&
+          common_iter_levels=1,&
+          filename="",         &
+          unit_str = "bohr^-1")
+     CALL section_add_subsection(sub2section,print_key)
+     CALL section_release(print_key)
+
+     CALL cp_print_key_section_create(print_key_section=print_key,&
+          name="HOP_NACV",&
           description="Control the output of the NACV.",&
           common_iter_levels=1,&
           filename="",         &

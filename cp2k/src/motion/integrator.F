@@ -117,7 +117,8 @@ MODULE integrator
 !> CHANGE_AC
   USE md_ener_types,                   ONLY: md_ener_type,&
                                              zero_md_ener
-  USE aom_utils,                       ONLY: check_hop_attempt
+  USE aom_utils,                       ONLY: check_hop_attempt, &
+                                             total_momentum
 !> END CHANGE_AC
 
   IMPLICIT NONE
@@ -484,9 +485,6 @@ CONTAINS
     nparticle = particles%n_els
     particle_set => particles%els
     molecule_set => molecules%els
-!print*, "forces at the beginning in integrator.F"
-!print*, particle_set(1)%f(:)
-!print*, particle_set(2)%f(:)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          shell_present=shell_present,shell_adiabatic=shell_adiabatic,&
          shell_check_distance=shell_check_distance)
@@ -600,15 +598,13 @@ CONTAINS
                              core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
              !ENDIF
              IF (force_env%mixed_env%aom_env%attempt_hop) THEN
-print*, "Attempt hop in integrator.F"
                 CALL check_hop_attempt(tmp%vel, atomic_kind_set, nparticle_kind, local_particles, force_env)
                 IF (force_env%mixed_env%aom_env%successful_hop) THEN
-print*, "Successful hop in integrator.F"
                    CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
                                                     itimes = itimes)
-!stop
                 ENDIF
              ENDIF
+              CALL total_momentum(tmp%vel, atomic_kind_set, nparticle_kind, local_particles, force_env)
 
                 !CALL update_forces_newstate ( atomic_kind_set, local_particles, particle_set,&
                 !                              nparticle_kind, new_forces=force_env%mixed_env%aom_env%new_forces_adiab) 
@@ -643,6 +639,7 @@ print*, "Successful hop in integrator.F"
           ! Velocity Verlet (second part)
           CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
                          core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
+          CALL total_momentum(tmp%vel, atomic_kind_set, nparticle_kind, local_particles, force_env)
        ENDIF
 !> END CHANGE_AC
 

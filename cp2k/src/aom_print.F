@@ -76,57 +76,53 @@ IMPLICIT NONE
              adiab_print_hamiltonian,    &
              adiab_print_nace,           &
              adiab_print_nacv,           &
+             adiab_print_hop_nacv,       &
              adiab_print_stateno,        &
              adiab_print_exact_forces,   &
              adiab_print_active_state,   &
-             adiab_print_sh_info
+             adiab_print_sh_info,        &
+             adiab_print_pvecs
 
 CONTAINS
 
 !----PC------
-
-!   SUBROUTINE adiab_print_pvecs(adiab_section, coefficients, nadiab, norbitals,itimes, deltatMD, times)
-!    TYPE(section_vals_type), POINTER           :: adiab_section
-!    COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN) :: pvecs
-!    INTEGER, INTENT(IN)                        :: nadiab, norbitals, itimes
-!    REAL(KIND=dp), INTENT(IN)                  :: times, deltatMD
-!
-!    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_coeff', &
-!      routineP = moduleN//':'//routineN
-!
-!    INTEGER                                  :: unit_nr
-!    REAL(KIND=dp)                            :: unit_conv_fs, time
-!    INTEGER                                  :: iadiab, iorbitals
-!    CHARACTER(LEN=default_string_length)     :: my_format
-!    TYPE(cp_logger_type), POINTER            :: logger
-!
-!    NULLIFY(logger)
-!    logger => cp_get_default_logger()
-!
-!    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%PVECS",&
-!               extension=".xyz", middle_name="pvecs", log_filename=.FALSE.)
-!    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
 
- !   IF (unit_nr>0) THEN
+   SUBROUTINE adiab_print_pvecs(adiab_section, allrvecs, itimes, deltatMD, times, atoms, nadiab)
+    TYPE(section_vals_type), POINTER           :: adiab_section
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: allrvecs
+    INTEGER, INTENT(IN)                        :: itimes, atoms, nadiab
+    REAL(KIND=dp), INTENT(IN)                  :: times, deltatMD
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_pvecs', &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: unit_nr
+    REAL(KIND=dp)                            :: unit_conv_fs, time
+    INTEGER                                  :: iatoms, imol
+    CHARACTER(LEN=default_string_length)     :: my_format
+    TYPE(cp_logger_type), POINTER            :: logger
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
 
- !      time = times*deltatMD*unit_conv_fs
- !      WRITE ( unit_nr, "( A,A,I8,A,I8)" ) "Psi", "; nadiab =", nadiab, "; norbitals =",&
- !                                  norbitals
- !      WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",itimes,", time =",time, " (fs)"
-!
-!       DO i=1, size(prexyzb,2)
-!          IF (prexyzb(1,i) .eq. '6.0000000') THEN
-!                my_format="(I4,1X,I4,"
-!                WRITE(unit_nr,TRIM(my_format)//"1X,2F20.10)") molB_index, i, &
-!                        prervecsb(:i),   &
-!                        AIMAG(coefficients((iadiab-1)*norbitals + iorbitals))
-!         ENDDO
-!       ENDDO
-!
-!    END IF
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%PVECS",&
+               extension=".xyz", middle_name="pvecs", log_filename=.FALSE.)
+    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
 
- !   CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%PVECS")
- !  END SUBROUTINE adiab_print_pvecs
+    IF (unit_nr>0) THEN
+       time = times*deltatMD*unit_conv_fs
+       WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",itimes,", time =",time, " (fs)"
+       
+       DO imol=1, nadiab
+        DO iatoms=1, atoms
+                print *, allrvecs(:,((imol-1)*atoms)+iatoms)
+                my_format="(I4,1X,I4,"
+                WRITE(unit_nr,TRIM(my_format)//"1X,3F20.10)") int(allrvecs(1,((imol-1)*atoms)+iatoms)),&
+                        int(allrvecs(2,((imol-1)*atoms)+iatoms)), allrvecs(3:5,((imol-1)*atoms)+iatoms)
+        END DO
+       end do
+       
+    END IF
+
+   CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%PVECS")
+  END SUBROUTINE adiab_print_pvecs
 
 
    SUBROUTINE adiab_print_coeff(adiab_section, coefficients, nadiab, norbitals,itimes, deltatMD, times)
@@ -364,7 +360,7 @@ CONTAINS
    SUBROUTINE adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab, &
               norbitals, itimes, deltatMD)
     TYPE(section_vals_type), POINTER         :: adiab_section
-    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
+    REAL(KIND=dp), DIMENSION(:,:)            :: hamiltonian
     INTEGER, INTENT(IN)                      :: nadiab, norbitals
     INTEGER, POINTER                         :: itimes
     REAL(KIND=dp),INTENT(IN)                 :: deltatMD
@@ -417,7 +413,7 @@ CONTAINS
    SUBROUTINE adiab_print_nace(adiab_section, nace, nadiab, &
               norbitals, itimes, deltatMD)
     TYPE(section_vals_type), POINTER         :: adiab_section
-    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: nace
+    REAL(KIND=dp), DIMENSION(:,:)            :: nace
     INTEGER, INTENT(IN)                      :: nadiab, norbitals
     INTEGER, POINTER                         :: itimes
     REAL(KIND=dp),INTENT(IN)                 :: deltatMD
@@ -526,7 +522,7 @@ CONTAINS
        ENDDO
 
     END IF
-    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HAMILTONIAN")
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%DENSITY_MATRIX")
    END SUBROUTINE adiab_print_matrix_density
 
 
@@ -535,7 +531,7 @@ CONTAINS
    SUBROUTINE adiab_print_nacv(adiab_section, nacv, nadiab, &
               norbitals,ext_atoms, itimes, deltatMD)
     TYPE(section_vals_type), POINTER          :: adiab_section
-    REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
+    REAL(KIND=dp), DIMENSION(:,:,:,:)         :: nacv
     INTEGER, INTENT(IN)                       :: nadiab, norbitals, ext_atoms
     INTEGER, POINTER                          :: itimes
     REAL(KIND=dp), INTENT(IN)                 :: deltatMD
@@ -585,6 +581,84 @@ CONTAINS
 
 
 
+   SUBROUTINE adiab_print_hop_nacv(sh_print_env,  &
+                                   nacv1, nacv2, nacv3, nacv4, nacv5)
+    TYPE(sh_print_env_type), INTENT(IN)      :: sh_print_env
+    REAL(KIND=dp), DIMENSION(:,:)            :: nacv1
+    REAL(KIND=dp), DIMENSION(:,:),  OPTIONAL :: nacv2, nacv3, nacv4, nacv5
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_hop_nacv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: itimes
+    REAL(KIND=dp)                            :: deltatMD
+    TYPE(section_vals_type), POINTER         :: adiab_section
+    INTEGER                                  :: unit_nr
+    TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL                                  :: new_file
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: unit_conv, time, unit_conv_fs, times
+    CHARACTER(LEN=default_string_length)     :: unit_str
+    LOGICAL                                  :: test4
+    CHARACTER(LEN=default_string_length)     :: my_format, my_title
+
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
+
+    adiab_section => sh_print_env%adiab_section
+    times         = sh_print_env%times
+    deltatMD       = sh_print_env%deltatMD
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%HOP_NACV",&
+               extension=".xyz",middle_name="hop-nacv", log_filename=.FALSE.,&
+               is_new_file=new_file)
+    itimes = INT(times)
+
+    IF (unit_nr>0) THEN
+
+       CALL section_vals_val_get(adiab_section,"PRINT%HOP_NACV%UNIT",&
+            c_val=unit_str)
+       unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
+       unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
+       time = unit_conv_fs*itimes*deltatMD
+
+       test4 = PRESENT(nacv2).AND.PRESENT(nacv3).AND.PRESENT(nacv4)
+       IF (test4) THEN
+          IF (PRESENT(nacv5)) THEN
+             my_title=", NACV, F_11, F_1, F_2, F_3"
+          ELSE
+             my_title=", NACV_OLDOLD, NACV_NEWNEW, NACV_NEWOLD, NACV_OLDNEW "
+          ENDIF
+       ELSE
+             my_title=" "
+       ENDIF
+
+        WRITE ( unit_nr, "(A)" ) "NACV ("//TRIM(unit_str)//")"
+        WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",itimes,", time = ",time, " (fs)"//TRIM(my_title)
+        DO i=1, SIZE(nacv1, 2)
+           IF (test4) THEN
+              IF (PRESENT(nacv5)) THEN
+                 my_format="(I4,1X,15F20.10)"
+                 WRITE(unit_nr,TRIM(my_format)) i, &
+                           nacv1(:,i), nacv2(:,i), nacv3(:,i), nacv4(:,i), nacv5(:,i)
+              ELSE
+                 my_format="(I4,1X,12F20.10)"
+                 WRITE(unit_nr,TRIM(my_format)) i, &
+                           nacv1(:,i), nacv2(:,i), nacv3(:,i), nacv4(:,i)
+              ENDIF
+           ELSE
+              my_format="(I4,1X,3F20.10)"
+              WRITE(unit_nr,TRIM(my_format)) i, &
+                           nacv1(:,i) 
+           ENDIF
+        ENDDO
+
+    END IF
+    CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%HOP_NACV")
+   END SUBROUTINE adiab_print_hop_nacv
+
+
+
+
 
    SUBROUTINE adiab_print_stateno(adiab_section, state, ext_atoms,itimes, deltatMD)
     TYPE(section_vals_type), POINTER         :: adiab_section
@@ -622,19 +696,20 @@ CONTAINS
    END SUBROUTINE adiab_print_stateno
 
 
-   SUBROUTINE adiab_print_sh_info(adiab_section, sh_print_env, nadiab, norbitals, deltatMD, times)
-    TYPE(section_vals_type), POINTER         :: adiab_section
-    TYPE(sh_print_env_type), INTENT(IN)   :: sh_print_env
-    INTEGER, INTENT(IN)                      :: nadiab, norbitals
-    REAL(KIND=dp), INTENT(IN)                :: times
-    REAL(KIND=dp), INTENT(IN)                :: deltatMD
+   SUBROUTINE adiab_print_sh_info(sh_print_env, keyword)
+    TYPE(sh_print_env_type), INTENT(IN)      :: sh_print_env
+    CHARACTER(LEN=*)     :: keyword
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_pop', &
       routineP = moduleN//':'//routineN
 
+    TYPE(section_vals_type), POINTER         :: adiab_section
     INTEGER                                  :: unit_nr
     !REAL(KIND=dp)                            :: unit_conv_fs, unit_conv, time
     REAL(KIND=dp)                            :: unit_conv_fs, time
+    REAL(KIND=dp)                            :: times
+    REAL(KIND=dp)                            :: deltatMD
+    INTEGER                                  :: nadiab, norbitals
     INTEGER                                  :: iadiab
     CHARACTER(LEN=default_string_length)     :: my_format
     TYPE(cp_logger_type), POINTER            :: logger
@@ -642,107 +717,155 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:), POINTER      :: proba, pop_init
     REAL(KIND = dp)                             :: hop
     LOGICAL                                     :: renorm
-    REAL(KIND = dp)                             :: sumg
+    REAL(KIND = dp)                             :: sumg, rescale_factor
     INTEGER                                     :: old_state
     INTEGER                                     :: new_state, first_adiabat
-    REAL(KIND = dp)                             :: delta_energy, initrandom, kinetic_energy
+    REAL(KIND = dp)                             :: delta_energy, initrandom, kinetic_energy, A, B
     LOGICAL                                     :: attempt_hop, successful_hop
-    LOGICAL                                     :: decohere, is_first
     REAL(KIND = dp), ALLOCATABLE, DIMENSION(:)  :: adiab_energies_t
-   
+    REAL(KIND = dp), DIMENSION(3)               :: momentum_shift
+    
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
-print*, "print 3", sh_print_env%adiab_energies_t
-    ALLOCATE(proba(nadiab))
-    ALLOCATE(pop_init(nadiab))
-    ALLOCATE(adiab_energies_t(nadiab))
-
+    adiab_section => sh_print_env%adiab_section
+    nadiab        = sh_print_env%nadiab
+    norbitals     = sh_print_env%norbitals
+    times         = sh_print_env%times
+    deltatMD       = sh_print_env%deltatMD
     unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%SH_INFO",&
                extension=".log", middle_name="sh",log_filename=.FALSE.)
-    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
 
     IF (unit_nr>0) THEN
-       !CALL section_vals_val_get(adiab_section,"PRINT%SH_INFO%UNIT",&
-       !     c_val=unit_str)
-       !unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
-       unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
-       time = times*deltatMD*unit_conv_fs
+       SELECT CASE(keyword)
+       CASE("START")
+           ALLOCATE(pop_init(nadiab))
+           ALLOCATE(pop_init(nadiab))
+           pop_init     = sh_print_env%pop_init
+           first_adiabat= sh_print_env%first_adiabat    
+           initrandom   = sh_print_env%initrandom
 
-       sumg         = sh_print_env%sumprob
-       renorm       = sh_print_env%renorm
-       proba        = sh_print_env%proba
-       hop          = sh_print_env%hop
-       attempt_hop  = sh_print_env%attempt_hop
-       old_state    = sh_print_env%old_state
-       new_state    = sh_print_env%new_state
-       decohere     = sh_print_env%decohere
-       is_first     = sh_print_env%is_first
-       initrandom   = sh_print_env%initrandom
-       pop_init     = sh_print_env%pop_init
-       first_adiabat= sh_print_env%first_adiabat    
-       adiab_energies_t = sh_print_env%adiab_energies_t
-       delta_energy     = sh_print_env%delta_energy
-       successful_hop   = sh_print_env%successful_hop
-       kinetic_energy   = sh_print_env%kinetic_energy
-print*, "print 4", adiab_energies_t
-       IF (is_first) THEN
-          WRITE( unit_nr, "(A)")   "LET'S START. "
-          WRITE( unit_nr, "(A)")   "Adiabatic Initial Population = "
-          DO iadiab=1, nadiab
-             my_format="(I4,"
-             WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, pop_init(iadiab)
-          ENDDO
-          WRITE( unit_nr, "(A,F20.10)" ) "Initial Random Number = ", initrandom
-          WRITE( unit_nr, "(A,I8)" ) "First Adiabatic State = ", first_adiabat
-          WRITE( unit_nr, "(A)") "  "
-       ELSE        
-          IF (successful_hop) THEN
-             WRITE( unit_nr, "(A,F20.10)" ) "Energy old state = ", adiab_energies_t(old_state)
-             WRITE( unit_nr, "(A,F20.10)" ) "Energy new state = ", adiab_energies_t(new_state)
-             WRITE( unit_nr, "(A,F20.10)" ) "Energy difference   = ", delta_energy
-             WRITE( unit_nr, "(A,F20.10)" ) "Kinetic energy   = ", kinetic_energy
-             WRITE( unit_nr, "(A)") "SUCCESSFUL HOP!"
-             WRITE( unit_nr, "(A,I8)" ) "Final state   = ", new_state
-          ELSE
-             WRITE ( unit_nr, "( A,I8,A,I8)" ) "Surface Hopping Info,  nadiab =", nadiab, &
-                                                " , norbitals = ", norbitals
-             WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",INT(times),", time = ",time, " (fs)"
-             WRITE( unit_nr, "(A,F20.10)" ) "Sum of probability = ", sumg
+           WRITE( unit_nr, "(A)")   "LET'S START. "
+           WRITE( unit_nr, "(A)")   "Adiabatic Initial Population = "
+           DO iadiab=1, nadiab
+              my_format="(I4,"
+              WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, pop_init(iadiab)
+           ENDDO
+           WRITE( unit_nr, "(A,F20.10)" ) "Initial Random Number = ", initrandom
+           WRITE( unit_nr, "(A,I8)" ) "First Adiabatic State = ", first_adiabat
+           WRITE( unit_nr, "(A)") "  "
+       CASE("TULLY_TEST")
+           ALLOCATE(proba(nadiab))
+           sumg         = sh_print_env%sumprob
+           renorm       = sh_print_env%renorm
+           proba        = sh_print_env%proba
+           hop          = sh_print_env%hop
+           attempt_hop  = sh_print_env%attempt_hop
+           old_state    = sh_print_env%old_state
+           new_state    = sh_print_env%new_state
 
-             IF (renorm)  WRITE( unit_nr, "(A)" ) "RE-NORMALIZATION!"
+           unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
+           time = times*deltatMD*unit_conv_fs
 
-             WRITE( unit_nr, "(A)" ) "Probability = "
-             DO iadiab=1, nadiab
-                my_format="(I4,"
-                WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, proba(iadiab)
-             ENDDO
-             WRITE( unit_nr, "(A,F20.10)" ) "Random number = ", hop
-!stop
-          IF (attempt_hop) THEN
-             WRITE( unit_nr, "(A,I8,A,I8)" ) "ATTEMPT between old_state = ", old_state, " and new_state = ", new_state
-          ELSE
+           WRITE ( unit_nr, "( A,I8,A,I8)" ) "Surface Hopping Info,  nadiab =", nadiab, &
+                                              " , norbitals = ", norbitals
+           WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   "   i = ",INT(times),", time = ",time, " (fs)"
+           WRITE( unit_nr, "(A,F20.10)" ) "   Sum of probability = ", sumg
+           IF (renorm)  WRITE( unit_nr, "(A)" ) "   RE-NORMALIZATION!"
+           WRITE( unit_nr, "(A)" ) "   Probability = "
+            DO iadiab=1, nadiab
+               my_format="(I4,"
+               WRITE(unit_nr,TRIM(my_format)//"1X,F20.10)") iadiab, proba(iadiab)
+           ENDDO
+           WRITE( unit_nr, "(A,F20.10)" ) "   Random number = ", hop
+           IF (attempt_hop) THEN
+             WRITE( unit_nr, "(A,I8,A,I8)" ) "   ATTEMPT between old_state = ", old_state, " and new_state = ", new_state
+           ELSE
              WRITE( unit_nr, "(A)" ) "NO HOP!"
              WRITE( unit_nr, "(A,I8)" ) "Final state   = ", old_state
-          ENDIF
-          ENDIF
-          !ELSE
-          !   ELSE
-          !      WRITE( unit_nr, "(A)") "FRUSTRATED HOP: NO HOP!"
-          !   ENDIF
-          !   WRITE( unit_nr, "(A,F20.10)" ) "Final state   = ", new_state
-          !ELSE 
-          !   WRITE( unit_nr, "(A)") "NO HOP!"
-          !ENDIF   
-          IF (decohere) WRITE( unit_nr, "(A)") "DECOHERENCE"       
-          WRITE( unit_nr, "(A)")     "  "
-          WRITE ( unit_nr, '(A)' )   "  "
-       ENDIF   
-    END IF
+             WRITE( unit_nr, "(A)") "  "
+           ENDIF
+           DEALLOCATE(proba)
+       CASE("SIMPLE_RESCALING")
+           ALLOCATE(adiab_energies_t(nadiab))
+           adiab_energies_t = sh_print_env%adiab_energies_t
+           delta_energy     = sh_print_env%delta_energy
+           successful_hop   = sh_print_env%successful_hop
+           kinetic_energy   = sh_print_env%kinetic_energy
+           rescale_factor   = sh_print_env%rescale_factor
+           old_state        = sh_print_env%old_state
+           new_state        = sh_print_env%new_state
+
+           WRITE( unit_nr, "(A)") "TRY ENERGY CONSERVATION WITH ISOTROPIC RESCALING:"
+           WRITE( unit_nr, "(A,F20.10)" ) "   Energy old state = ", adiab_energies_t(old_state)
+           WRITE( unit_nr, "(A,F20.10)" ) "   Energy new state = ", adiab_energies_t(new_state)
+           WRITE( unit_nr, "(A,F20.10)" ) "   Kinetic energy   = ", kinetic_energy
+           WRITE( unit_nr, "(A,F20.10)" ) "   Energy difference   = ", delta_energy
+           IF (successful_hop) THEN
+               WRITE( unit_nr, "(A)") "SUCCESSFUL HOP!"
+               WRITE( unit_nr, "(A, F20.10)") "   Isotropic rescale factor  = ", rescale_factor
+               WRITE( unit_nr, "(A,I8)" ) "Final state   = ", new_state
+               WRITE( unit_nr, "(A)") "  "
+           ELSE
+               WRITE( unit_nr, "(A)") "REJECTED HOP!"
+               WRITE( unit_nr, "(A,I8)" ) "Final state   = ", old_state
+               WRITE( unit_nr, "(A)") "  "
+           ENDIF
+           DEALLOCATE(adiab_energies_t)
+       CASE("NACV_RESCALING")
+           ALLOCATE(adiab_energies_t(nadiab))
+           adiab_energies_t = sh_print_env%adiab_energies_t
+           delta_energy     = sh_print_env%delta_energy
+           A                = sh_print_env%A
+           B                = sh_print_env%B
+           momentum_shift   = sh_print_env%momentum_shift
+           successful_hop   = sh_print_env%successful_hop
+           rescale_factor   = sh_print_env%rescale_factor
+           old_state        = sh_print_env%old_state
+           new_state        = sh_print_env%new_state
+           kinetic_energy   = sh_print_env%kinetic_energy
+
+           WRITE( unit_nr, "(A)") "TRY ENERGY CONSERVATION WITH ISOTROPIC RESCALING: PASSED!"
+           WRITE( unit_nr, "(A,F20.10)" ) "   Kinetic energy   = ", kinetic_energy
+           WRITE( unit_nr, "(A)") "TRY ENERGY CONSERVATION WITH NACV-ORIENTED RESCALING:"
+           WRITE( unit_nr, "(A,F20.10)" ) "   Energy old state = ", adiab_energies_t(old_state)
+           WRITE( unit_nr, "(A,F20.10)" ) "   Energy new state = ", adiab_energies_t(new_state)
+           WRITE( unit_nr, "(A,F20.10)" ) "   A-term   = ", A
+           WRITE( unit_nr, "(A,F20.10)" ) "   B-term   = ", B
+           WRITE( unit_nr, "(A,F20.10)" ) "   Discriminant   = ", delta_energy
+           IF (successful_hop) THEN
+               WRITE( unit_nr, "(A)") "SUCCESSFUL HOP!"
+               WRITE( unit_nr, "(A,F20.10)") "   Directional rescale factor  = ", rescale_factor
+               WRITE( unit_nr, "(A,3F20.10)") "   Momentum change  = ",  momentum_shift             
+               WRITE( unit_nr, "(A,I8)" ) "Final state   = ", new_state
+               WRITE( unit_nr, "(A)") "  "
+           ELSE
+               WRITE( unit_nr, "(A)") "REJECTED HOP!"
+               WRITE( unit_nr, "(A,A)") "METHOD OF REVERSING: ", sh_print_env%reversal_keyword
+               WRITE( unit_nr, "(A,F20.10)" ) "   Product NACV*Momentum = ", sh_print_env%product_pd
+               WRITE( unit_nr, "(A,F20.10)" ) "   Product NACV*Old forces = ", sh_print_env%product_dfo
+               WRITE( unit_nr, "(A,F20.10)" ) "   Product NACV*New forces = ", sh_print_env%product_dfn
+               IF (sh_print_env%reverse) THEN
+                  WRITE( unit_nr, "(A)" ) "REVERSAL OF VELOCITIES!"
+               ELSE
+                  WRITE( unit_nr, "(A)" ) "NO REVERSAL!"
+               ENDIF
+               WRITE( unit_nr, "(A,I8)" ) "Final state   = ", old_state
+               WRITE( unit_nr, "(A)") "  "
+           ENDIF
+           DEALLOCATE(adiab_energies_t)
+       CASE("DECOHERENCE")
+          ! IF (sh_print_env%collapse) THEN
+              IF (sh_print_env%decohere) THEN
+                 WRITE( unit_nr, "(A)" ) "DECOHERENCE!"
+                ! WRITE( unit_nr, "(A)") " "
+              ENDIF
+          ! ENDIF
+       CASE DEFAULT
+       END SELECT 
+    ENDIF
 
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%SH_INFO")
-    DEALLOCATE(proba)
-    DEALLOCATE(adiab_energies_t)
    END SUBROUTINE adiab_print_sh_info
 
 

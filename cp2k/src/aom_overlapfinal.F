@@ -207,7 +207,7 @@ contains
       integer :: i, k
       REAL(KIND=dp) :: neighbourlist(3,3)
       REAL(KIND=dp) :: veca(3), vecb(3), DNRM2
-      
+     
       rvecs=0
 
       do i=1,size(connectlist,2)
@@ -228,9 +228,10 @@ contains
          rvecs(:,connectlist(1,i)) = rvecs(:,connectlist(1,i))/&
          DNRM2(3 , rvecs(:,connectlist(1,i)) , 1)
 !     PC added a print here to get all the vectors and connectlist each time-step
-!         print *, "rvecs at connectlist (1,", i, ")  is", rvecs
-!         print *, "connectlist is", connectlist
-!         print *, "neighboutlist is", neighbourlist
+         !print *, 'rvecs has size', size(rvecs,1),size(rvecs,2)
+         !print *, "rvecs at connectlist (1,", i, ")  is", rvecs
+         !print *, "connectlist is", connectlist
+         !print *, "neighboutlist is", neighbourlist
       end do
 
   end subroutine 
@@ -613,6 +614,17 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+! new subroutine added by PC but not used
+!  subroutine calc_rvecs_toprint(prexyz, prervecs, connlist)
+
+!  real(kind=dp), dimension(:,:), intent(in) :: prexyz
+!  real(kind=dp), dimension(:,:), intent(out) :: prervecs
+!  real(kind=dp), dimension(:,:), intent(in) :: connlist
+
+!  call calc_rvecs(prexyza(2:4,:), prervecsa, connlist)
+
+!  end subroutine calc_rvecs_toprint
+
   subroutine calc_sab(prexyza, connlista, precoeffap, &
                          sab, prexyzb, connlistb, precoeffbp, print_rvecs, molA_index, molB_index)
 
@@ -639,7 +651,7 @@ contains
       REAL(KIND=dp), dimension(:), allocatable :: stc
       REAL(KIND=dp), dimension(:), allocatable :: dist
       REAL(KIND=dp), dimension(:,:), allocatable :: rvecsa, rvecsb
-      REAL(KIND=dp), dimension(:,:), allocatable :: prervecsa, prervecsb 
+      REAL(KIND=dp), dimension(:,:), allocatable :: prervecsa, prervecsb
       REAL(KIND=dp), dimension(:), allocatable :: coeffap, coeffbp
       REAL(KIND=dp), dimension(:,:), allocatable :: sarrayp 
       REAL(KIND=dp), dimension(:,:), allocatable :: expcoeffa, expcoeffb
@@ -652,84 +664,90 @@ contains
       integer :: i,j
       REAL(KIND=dp) :: c
       REAL(KIND=dp) :: DDOT
-      REAL(KIND=dp), dimension(:,:), allocatable :: arraytoprint
+!      REAL(KIND=dp), dimension(:,:), allocatable :: arraytoprint
       slaters(:,1)=(/0.0D0, 0.0D0, 3.0D0, 0.9560D0, 1.2881D0, 1.100D0, 1.9237D0, 2.2458D0/)
       slaters(:,2)=(/0.0D0, 0.0D0, 0.0D0, 0.0000D0, 1.2107D0, 1.000D0, 1.6000D0, 2.2266D0/)
 
-      allocate(prervecsa(3,size(prexyza,2)),stat=stat_err)
-      allocate(xyza(4,size(connlista,2)),stat=stat_err)
-      allocate(coeffap(size(connlista,2)),stat=stat_err)
-      allocate(rvecsa(3,size(connlista,2)),stat=stat_err)
-      allocate(stc(size(xyza,2)),stat=stat_err)
+        allocate(prervecsa(3,size(prexyza,2)),stat=stat_err)
+        allocate(xyza(4,size(connlista,2)),stat=stat_err)
+        allocate(coeffap(size(connlista,2)),stat=stat_err)
+        allocate(rvecsa(3,size(connlista,2)),stat=stat_err)
+        allocate(stc(size(xyza,2)),stat=stat_err)
+!allocate(prervecs(3,12))
 
-      call calc_rvecs(prexyza(2:4,:), prervecsa, connlista)
+call calc_rvecs(prexyza(2:4,:), prervecsa, connlista)
 
-      do i=1,size(connlista,2)
-           xyza(:,i)=prexyza(:,connlista(1,i))
-           coeffap(i)=precoeffap(connlista(1,i))
-           rvecsa(:,i)=prervecsa(:,connlista(1,i))      
-      end do
+        do i=1,size(connlista,2)
+        xyza(:,i)=prexyza(:,connlista(1,i))
+        coeffap(i)=precoeffap(connlista(1,i))
+rvecsa(:,i)=prervecsa(:,connlista(1,i))      
+        end do
 
-!      
-!     PC added print statement for rvecsa
-!     
+        !      
+        !     PC added print statement for rvecsa
+        !     
 
-      if (present(print_rvecs)) then
-          do i=1,size(prexyza,2)
+        !if (present(print_rvecs)) then
+        !!do i=1,size(prexyza,2)
 ! PC removed and replaced with below line without xyz          print *, molA_index, i, prexyza(:,i), prervecsa(:,i)
-          print *, "_PC_", molA_index, i, prexyza(1,i), prervecsa(:,i)
-!          if (prexyza(1,i).eq. 6.0000000000000000) THEN
-!                arraytoprint(1,1) = molA_index
-!                arraytoprint(1,2) = i
+        !!print *, "_PC_", molA_index, i, prexyza(1,i), prervecsa(:,i)
+        !          if (prexyza(1,i).eq. 6.0000000000000000) THEN
+        !                arraytoprint(1,1) = molA_index
+        !                arraytoprint(1,2) = i
 !                arraytoprint(1,3:5) = prerevcsa(:,i)
-          end if
-          end do
-          !print *, "rvecsa is", rvecsa
-          !print *, "prexyza is", prexyza
-          !print *, "connlista is", connlista
-!          print *, "carbon atom number (i) is ", i
-          !print *, "prervecsa is", prervecsa
-          !print *, "molA_index is", molA_index
-          !print *, "molB_index is", molB_index
-      end if
+        !          end if
+        !!end do
+        !print *, "rvecsa is", rvecsa
+        !print *, "prexyza is", prexyza
+        !print *, "connlista is", connlista
+        !          print *, "carbon atom number (i) is ", i
+        !print *, "prervecsa is", prervecsa
+        !print *, "molA_index is", molA_index
+        !print *, "molB_index is", molB_index
+        !!end if
 
-      deallocate(prervecsa)
- 
-      ! These variables are recaculated for each atom in A
-      ! Inherent for B atom
+        !do i=1, size(prervecsa,2)
+        !prervecs(:,i) = prervecsa(:,i)
+        !end do
+        !end if
+deallocate(prervecsa)
 
-if (present(prexyzb) .and. present(precoeffbp) .and. &
-         present(sab) .and. present(connlistb)) then
+        ! These variables are recaculated for each atom in A
+        ! Inherent for B atom
 
-         allocate(unitvecs(3,size(connlistb,2),3),stat=stat_err)
-         allocate(dist(size(connlistb,2)),stat=stat_err)
-         allocate(prervecsb(3,size(prexyzb,2)),stat=stat_err)
-         allocate(xyzb(4, size(connlistb,2)),stat=stat_err)
-         allocate(expcoeffa(3,size(xyzb,2)),stat=stat_err)
-         allocate(coeffbp(size(xyzb,2)),stat=stat_err)
-         allocate(expcoeffb(3,size(xyzb,2)),stat=stat_err)
-         allocate(rvecsb(3,size(connlistb,2)),stat=stat_err)
-         call calc_rvecs(prexyzb(2:4,:), prervecsb, connlistb)
+        if (present(prexyzb) .and. present(precoeffbp) .and. &
+                        present(sab) .and. present(connlistb)) then
 
-         do i=1,size(connlistb,2)
-             xyzb(:,i)=prexyzb(:,connlistb(1,i))
-             coeffbp(i)=precoeffbp(connlistb(1,i))
-             rvecsb(:,i)=prervecsb(:,connlistb(1,i))        
+        allocate(unitvecs(3,size(connlistb,2),3),stat=stat_err)
+        allocate(dist(size(connlistb,2)),stat=stat_err)
+        allocate(prervecsb(3,size(prexyzb,2)),stat=stat_err)
+        allocate(xyzb(4, size(connlistb,2)),stat=stat_err)
+        allocate(expcoeffa(3,size(xyzb,2)),stat=stat_err)
+        allocate(coeffbp(size(xyzb,2)),stat=stat_err)
+        allocate(expcoeffb(3,size(xyzb,2)),stat=stat_err)
+        allocate(rvecsb(3,size(connlistb,2)),stat=stat_err)
+        !allocate(prervecs(3,size(rvecsa,2)+size(rvecsb,2)))
+        call calc_rvecs(prexyzb(2:4,:), prervecsb, connlistb)
+
+        do i=1,size(connlistb,2)
+        xyzb(:,i)=prexyzb(:,connlistb(1,i))
+        coeffbp(i)=precoeffbp(connlistb(1,i))
+        rvecsb(:,i)=prervecsb(:,connlistb(1,i))        
         end do  
-  
+
         !PC added print statement for rvecsb if print_rvecs is present     
 
-        if (present(print_rvecs)) then
-          do i=1,size(prexyzb,2)
+        !if (present(print_rvecs)) then
+          !do i=1,size(prexyzb,2)
 ! PC removed and replaced wit bottom line without xyz          print *, molB_index, i, prexyzb(:,i), prervecsb(:,i)
-          print *, "_PC_", molB_index, i, prexyzb(1,i), prervecsb(:,i)
+          !print *, "_PC_", molB_index, i, prexyzb(1,i), prervecsb(:,i)
 !          if (prexyzb(1,i).eq. 6.0000000000000000) THEN
 !                arraytoprint(2,1) = molB_index
 !                arraytoprint(2,2) = i
 !                arraytoprint(2,3:5) = prerevcsb(:,i)
 !          call adiab_print_pvecs(adiab_section, arraytoprint)
-          end if          
-          end do
+!          end if          
+          !end do
           !print *, "rvecsb is", rvecsb
           !print *, "prexyzb is", 
           !print *, "connlistb is", connlistb
@@ -737,9 +755,14 @@ if (present(prexyzb) .and. present(precoeffbp) .and. &
           !print *, "prervecsb is", prervecsb
           !print *, "molA_index is", molA_index
           !print *, "molB_index is", molB_index
-        end if
-
-        deallocate(prervecsb)
+        
+        !do i=1, size(prervecsb,2)
+        !prervecs(:,i+6) = prervecsb(:,i)
+        !end do
+        !end if
+        !print *, prervecs
+        !deallocate(prervecs)
+       deallocate(prervecsb)
        
         allocate(musbp(size(xyzb,2)),stat=stat_err)
         allocate(sarrayp(size(xyzb,2),size(xyza,2)), stat=stat_err)
@@ -836,12 +859,14 @@ if (present(prexyzb) .and. present(precoeffbp) .and. &
       else
 !         print*, 'Wrong argument passing to calc_sab' 
       end if
-
+     !do i=1, size(prervecs,2)
+     !print *, '_PC_', prervecs(:,i)
+     !end do
+     !print *, '_PC_ end'
      deallocate(rvecsa, xyza, coeffap, stc)
-
       return
   end subroutine calc_sab
-
+!-------------------------------------------------------------------------------------------------------------------
 
   subroutine calc_sab_turbo(prexyza, atomlista, connlistal, precoeffap, prervecsa, sarray, linecol,&
                          sab, prexyzb, atomlistb, connlistbl, precoeffbp, prervecsb)
@@ -910,6 +935,7 @@ if (present(prexyzb) .and. present(precoeffbp) .and. &
       do i=1,size(linecol)
            prervecsa(:,linecol(i))=minipre(:,linecol(i))
       end do
+
 
       deallocate(minipre)
       deallocate(minicon)
@@ -1786,5 +1812,193 @@ if (present(prexyzb) .and. present(precoeffbp) .and. &
 
       return
   end subroutine calc_sab_with_s
+  
+
+  subroutine calc_sab_pete(prexyza, connlista, prervecsa)
+                                          
+
+!     Original S_ab calculation program can calculate an pi_conjugated molecule
+!
+!     - Slater coefficients for carbon can be read in from external data file
+!       by enabling lines 779-786
+!     - Inclusion of s orbitals can be achieved by enabling lines 876-883,916- 920, 
+!       930-944, 949, 974-981, 1011-1017 and 1036-1049
+!
+!       PC added top 3 lines for optional print_rvecs, molA_index and molBindex variables
+!
+!      REAL(KIND=dp), dimension(:), optional, intent(in) ::    print_rvecs
+!      character(len=3), optional, intent(in) ::    print_rvecs
+!      integer, optional, intent(in) ::  molA_index
+!      integer, optional, intent(in) ::  molB_index
+      REAL(KIND=dp), dimension(:,:),           intent(in) ::    prexyza
+ !     REAL(KIND=dp), dimension(:),             intent(inout) :: precoeffap
+      integer, dimension(:,:),           intent(in) ::    connlista
+ !     REAL(KIND=dp), dimension(:,:), optional, intent(in) ::    prexyzb
+ !     REAL(KIND=dp), dimension(:),   optional, intent(in) ::    precoeffbp
+ !     integer, dimension(:,:), optional, intent(in) ::    connlistb
+ !     REAL(KIND=dp),                 optional, intent(out) ::   sab
+ !     REAL(KIND=dp), dimension(:), allocatable :: stc
+ !     REAL(KIND=dp), dimension(:), allocatable :: dist
+ !     REAL(KIND=dp), dimension(:,:), allocatable :: rvecsa, rvecsb
+      REAL(KIND=dp), dimension(:,:), allocatable, intent(out):: prervecsa
+ !     REAL(KIND=dp), dimension(:), allocatable :: coeffap, coeffbp
+ !     REAL(KIND=dp), dimension(:,:), allocatable :: sarrayp 
+ !     REAL(KIND=dp), dimension(:,:), allocatable :: expcoeffa, expcoeffb
+ !     REAL(KIND=dp), dimension(:,:), allocatable :: xyza
+      !REAL(KIND=dp), dimension(:), allocatable ::  musbp
+!      REAL(KIND=dp) :: muap 
+      !REAL(KIND=dp), dimension(:,:,:), allocatable :: unitvecs
+      !REAL(KIND=dp), dimension(8,2) :: slaters
+      integer :: stat_err !, ioerr, ioread
+!      integer :: i,j
+!      REAL(KIND=dp) :: c
+!      REAL(KIND=dp) :: DDOT
+!      REAL(KIND=dp), dimension(:,:), allocatable :: arraytoprint
+!      slaters(:,1)=(/0.0D0, 0.0D0, 3.0D0, 0.9560D0, 1.2881D0, 1.100D0, 1.9237D0, 2.2458D0/)
+!      slaters(:,2)=(/0.0D0, 0.0D0, 0.0D0, 0.0000D0, 1.2107D0, 1.000D0, 1.6000D0, 2.2266D0/)
+
+        allocate(prervecsa(3,size(prexyza,2)),stat=stat_err)
+        !allocate(xyza(4,size(connlista,2)),stat=stat_err)
+!        allocate(coeffap(size(connlista,2)),stat=stat_err)
+        !allocate(rvecsa(3,size(connlista,2)),stat=stat_err)
+!        allocate(stc(size(xyza,2)),stat=stat_err)
+!allocate(prervecs(3,12))
+        
+         !print *, connlista
+         call calc_rvecs(prexyza(2:4,:), prervecsa, connlista)
+
+!        do i=1,size(connlista,2)
+!        xyza(:,i)=prexyza(:,connlista(1,i))1
+!        coeffap(i)=precoeffap(connlista(1,i))
+!rvecsa(:,i)=prervecsa(:,connlista(1,i))      
+!        end do
+
+!deallocate(prervecsa)
+
+        ! These variables are recaculated for each atom in A
+        ! Inherent for B atom
+
+!        if (present(prexyzb) .and. present(precoeffbp) .and. &
+!                       present(sab) .and. present(connlistb)) then
+
+!        allocate(unitvecs(3,size(connlistb,2),3),stat=stat_err)
+!        allocate(dist(size(connlistb,2)),stat=stat_err)
+!        allocate(prervecsb(3,size(prexyzb,2)),stat=stat_err)
+!        allocate(xyzb(4, size(connlistb,2)),stat=stat_err)
+!        allocate(expcoeffa(3,size(xyzb,2)),stat=stat_err)
+!        allocate(coeffbp(size(xyzb,2)),stat=stat_err)
+!        allocate(expcoeffb(3,size(xyzb,2)),stat=stat_err)
+!        allocate(rvecsb(3,size(connlistb,2)),stat=stat_err)
+
+!        call calc_rvecs(prexyzb(2:4,:), prervecsb, connlistb)
+
+!        do i=1,size(connlistb,2)
+!        xyzb(:,i)=prexyzb(:,connlistb(1,i))
+!        coeffbp(i)=precoeffbp(connlistb(1,i))
+!        rvecsb(:,i)=prervecsb(:,connlistb(1,i))        
+!        end do  
+
+      ! deallocate(prervecsb)
+       
+!        allocate(musbp(size(xyzb,2)),stat=stat_err)
+!        allocate(sarrayp(size(xyzb,2),size(xyza,2)), stat=stat_err)
+
+ !       do i=1,size(xyzb,2)
+ !        musbp(i)=slaters(int(xyzb(1,i)),2)
+ !       end do
+
+!        do i=1,size(xyza,2)
+!          muap=slaters(int(xyza(1,i)),2)
+         
+          !calculate unitvectors for each atom in monomer A
+          !and distance array
+!          call calc_unit_vecs(xyza(2:4,i), xyzb(2:4,:), dist, unitvecs)
+
+          !Do the expansion for monomer A
+!          call project_onto_unitvectors(unitvecs, rvecsa(:,i), expcoeffa)
+
+          !Do the expansion for monomer B
+!          call project_onto_unitvectors(unitvecs, rvecsb, expcoeffb)
+
+          !Calculate the overlaps
+          ! _PC_ added print
+          !print *, "calling calc_overlap_p from calc_sab routine"
+ !         call calc_overlap_p(expcoeffa, expcoeffb, muap, musbp, dist, sarrayp(:,i))
+!        end do
+
+ !       call DGEMV('t', size(sarrayp,1), size(sarrayp,2), 1.0d0, sarrayp,&
+  !                 & size(sarrayp,1), coeffbp, 1, 0.d0, stc, 1)
+  !      sab = DDOT(size(coeffap,1),coeffap,1,stc,1)
+
+!        deallocate(rvecsb,  expcoeffa, expcoeffb, sarrayp, dist, unitvecs, coeffbp, musbp)
+
+!      elseif ((present(prexyzb) .and. present(precoeffbp) .and. &
+!          present(sab) .and. present(connlistb)) .eqv. .false.) then
+
+        !Normalize
+!        allocate(unitvecs(3,size(xyza,2),3),stat=stat_err)
+!        allocate(dist(size(xyza,2)),stat=stat_err)
+!        allocate(musbp(size(xyza,2)),stat=stat_err)
+!        allocate(sarrayp(size(xyza,2),size(xyza,2)), stat=stat_err)
+!        allocate(expcoeffa(3,size(xyza,2)),stat=stat_err)
+!        allocate(expcoeffb(3,size(xyza,2)),stat=stat_err)
+
+ !       sarrayp=0.0D0
+
+ !       do i=1,size(xyza,2)
+ !        musbp(i)=slaters(int(xyza(1,i)),2)
+         ! pc added print statement
+         ! print *, "musbp is", musbp
+!        end do
+
+ !         do i=2,size(xyza,2)
+ !            muap=slaters(int(xyza(1,i)),2)
+             ! PC added print statement
+             ! print *, "muap is", muap
+
+!            Only calculates lower triangle of the overlap matrix in the normalisation step
+!            then mirrors it (all real) over the diagonal 
+  !           j=i-1        
+  !           dist=0.0D0
+  !           unitvecs=0.0D0
+  !           expcoeffa=0.0D0
+   !          expcoeffb=0.0D0
+
+   !          call calc_unit_vecs(xyza(2:4,i), xyza(2:4,1:j), dist(1:j), unitvecs(:,1:j,:))    
+   !          call project_onto_unitvectors(unitvecs(:,1:j,:), rvecsa(:,i), expcoeffa(:,1:j))
+    !         call project_onto_unitvectors(unitvecs(:,1:j,:), rvecsa(:,1:j), expcoeffb(:,1:j))
+              !_PC_
+             !print *, "calling calc_overlap_p from calc_sab routine"
+     !        call calc_overlap_p(expcoeffa(:,1:j), expcoeffb(:,1:j), muap, musbp(1:j), dist(1:j), sarrayp(1:j,i))
+     !     end do
+
+  !        sarrayp=sarrayp+transpose(sarrayp)         
+
+   !       do i=1,size(xyza,2)
+   !           sarrayp(i,i)=1.0D0
+   !       end do
+
+    !      call DGEMV('t', size(xyza,2), size(xyza,2), 1.0d0, sarrayp,&
+    !                 & size(xyza,2), coeffap, 1, 0.d0, stc, 1)
+
+   !       c = DDOT(size(xyza,2),coeffap,1,stc,1)
+   !       coeffap = coeffap / sqrt(c) 
+
+   !       do i=1,size(connlista,2)
+   !           precoeffap(connlista(1,i)) = coeffap(i)
+   !       end do
+         
+!         deallocate(sarrayp, expcoeffa, expcoeffb, dist, unitvecs, musbp) 
+
+ !    else
+ !        print*, 'Wrong argument passing to calc_sab' 
+ !     end if
+     !do i=1, size(prervecs,2)
+     !print *, '_PC_', prervecs(:,i)
+     !end do
+     !print *, '_PC_ end'
+  !   deallocate(rvecsa, xyza, coeffap, stc)
+      return
+  end subroutine calc_sab_pete
 
 end module aom_overlapfinal
