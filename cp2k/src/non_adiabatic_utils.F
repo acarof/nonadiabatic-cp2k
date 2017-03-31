@@ -332,20 +332,21 @@ print *, 'K_tot =', K_tot
  
 
   SUBROUTINE propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,     &
-                          ctin, ctout, ctotal, aom_env, nadiab,  norbitals, ELsteps, &
+                          ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,      &
                             mat)
 
      COMPLEX(KIND=dp), dimension(:,:), INTENT(IN)    :: H_t, H_tp
-     REAL(KIND=dp), dimension(:,:), INTENT(INOUT)       :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
-     COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)      :: ctin, ctout, ctotal
+     REAL(KIND=dp), dimension(:,:), INTENT(INOUT)    :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
+     COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)   :: ctin
      INTEGER, INTENT(IN)                             :: nadiab,  norbitals 
 
 
      CHARACTER(len=*), PARAMETER                     :: routineN ='propagate_wf', &
      routineP = moduleN//':'//routineN
 
-     REAL(KIND=dp), dimension(:,:), allocatable    :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
+     COMPLEX(KIND=dp), dimension(:), allocatable     :: ctout, ctotal
+     REAL(KIND=dp), dimension(:,:), allocatable      :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
      REAL(KIND=dp), dimension(:,:), allocatable      :: NACE
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
@@ -382,6 +383,8 @@ print *, 'K_tot =', K_tot
      allocate(Sttmdiff(mat,mat))
      allocate(Stmtmdiff(mat,mat))
 
+     allocate(ctout(mat))
+     allocate(ctotal(mat))
 
      !then the complex ones i.e. H matrices; combinations of H and S
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
@@ -418,6 +421,7 @@ print *, 'K_tot =', K_tot
              Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
              H_0  = H_t
              H_2 = H_tp
+
 
              do t2=1,int(deltatMD/deltatE)
                     call makeX(mat, H_t, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
@@ -505,9 +509,10 @@ print *, 'K_tot =', K_tot
                     H_0 = H_2
 
                     ctin = ctout
+
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
-                    times = DBLE(itimes) + t2*1/DBLE(ELsteps)
+                    times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
                     CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
                                            times)
                     CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes, deltatMD, &
