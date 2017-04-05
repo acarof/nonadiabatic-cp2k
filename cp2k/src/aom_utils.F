@@ -679,6 +679,8 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
         DS = (0.5D0/deltat)*(Sttp - Sttm)
         DC = (1.0D0/deltat)*(C2 - C1)
         
+        print *, "NACE_FINTE_DIFF", DS
+
         !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
         !by transforming from the diabatic overlaps
         do i=1,mol
