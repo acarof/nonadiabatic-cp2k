@@ -768,10 +768,10 @@ CONTAINS
            new_state        = sh_print_env%new_state
 
            WRITE( unit_nr, "(A)") "TRY ENERGY CONSERVATION WITH ISOTROPIC RESCALING:"
-           WRITE( unit_nr, "(A,F20.10)" ) "   Energy old state = ", adiab_energies_t(old_state)
-           WRITE( unit_nr, "(A,F20.10)" ) "   Energy new state = ", adiab_energies_t(new_state)
-           WRITE( unit_nr, "(A,F20.10)" ) "   Kinetic energy   = ", kinetic_energy
-           WRITE( unit_nr, "(A,F20.10)" ) "   Energy difference   = ", delta_energy
+           WRITE( unit_nr, "(A,F20.10)" ) "   Energy old state  (Ha)  = ", adiab_energies_t(old_state)
+           WRITE( unit_nr, "(A,F20.10)" ) "   Energy new state  (Ha)  = ", adiab_energies_t(new_state)
+           WRITE( unit_nr, "(A,F20.10)" ) "   Kinetic energy    (Ha)  = ", kinetic_energy
+           WRITE( unit_nr, "(A,F20.10)" ) "   Energy difference (Ha)  = ", delta_energy
            IF (successful_hop) THEN
                WRITE( unit_nr, "(A)") "SUCCESSFUL HOP!"
                WRITE( unit_nr, "(A, F20.10)") "   Isotropic rescale factor  = ", rescale_factor
@@ -797,10 +797,10 @@ CONTAINS
            kinetic_energy   = sh_print_env%kinetic_energy
 
            WRITE( unit_nr, "(A)") "TRY ENERGY CONSERVATION WITH ISOTROPIC RESCALING: PASSED!"
-           WRITE( unit_nr, "(A,F20.10)" ) "   Kinetic energy   = ", kinetic_energy
+           WRITE( unit_nr, "(A,F20.10)" ) "   Kinetic energy   (Ha) = ", kinetic_energy
            WRITE( unit_nr, "(A)") "TRY ENERGY CONSERVATION WITH NACV-ORIENTED RESCALING:"
-           WRITE( unit_nr, "(A,F20.10)" ) "   Energy old state = ", adiab_energies_t(old_state)
-           WRITE( unit_nr, "(A,F20.10)" ) "   Energy new state = ", adiab_energies_t(new_state)
+           WRITE( unit_nr, "(A,F20.10)" ) "   Energy old state (Ha) = ", adiab_energies_t(old_state)
+           WRITE( unit_nr, "(A,F20.10)" ) "   Energy new state (Ha) = ", adiab_energies_t(new_state)
            WRITE( unit_nr, "(A,F20.10)" ) "   A-term   = ", A
            WRITE( unit_nr, "(A,F20.10)" ) "   B-term   = ", B
            WRITE( unit_nr, "(A,F20.10)" ) "   Discriminant   = ", delta_energy
@@ -828,10 +828,22 @@ CONTAINS
        CASE("DECOHERENCE")
           ! IF (sh_print_env%collapse) THEN
               IF (sh_print_env%decohere) THEN
-                 WRITE( unit_nr, "(A)" ) "DECOHERENCE!"
+                 WRITE( unit_nr, "(A)" ) "METHOD FOR DECOHERENCE: INSTANT COLLAPSE."
+                 WRITE( unit_nr, "(A)" ) "      DECOHERENCE!"
                 ! WRITE( unit_nr, "(A)") " "
               ENDIF
           ! ENDIF
+       CASE("DAMPING")
+           WRITE( unit_nr, "(A)") "  "
+           WRITE( unit_nr, "(A)" ) "METHOD FOR DECOHERENCE: EDC."
+           WRITE( unit_nr, "(A)" ) "    Damping time (fs) = "
+           unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
+           DO iadiab=1, nadiab
+               my_format="(I4,"
+               WRITE(unit_nr,TRIM(my_format)//"1X,F20.10,A)") iadiab, &
+                       unit_conv_fs * sh_print_env%tau_deco(iadiab) 
+           ENDDO
+           WRITE( unit_nr, "(A)") "  "
        CASE DEFAULT
             CPABORT("There is nothing to print in the SH_INFO file!")
        END SELECT 

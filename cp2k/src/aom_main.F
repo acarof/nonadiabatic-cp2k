@@ -939,20 +939,24 @@ print *, "ctin", ctin
       !ENDIF
 !END CALCULATE THE FORCES
 
-!> initialize derived type variables for sh_env
+!APPLY DECOHERENCE CORRECTION
+               if (.NOT.successful_hop) THEN
+                   !> initialize derived type variables
+                   ALLOCATE(sh_env%ctin(mat))
 
-ALLOCATE(sh_env%ctin(mat))
-sh_env%ctin=ctin
-sh_env%active_state=active_state
-
-!COLLAPSE IF REQUIRED WITH THE WAVEFUNCTION COLLAPSE METHOD
-
-CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
-deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, atomic_kind_set, K_tot, ext_pres)
+                   sh_env%E_tp=E_tp
+                   sh_env%ctin=ctin
+                   sh_env%active_state=active_state
 
 
-ctin=sh_env%ctin
-active_state=sh_env%active_state
+                   CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
+                   deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, atomic_kind_set, K_tot, ext_pres)
+
+
+                  ctin=sh_env%ctin
+                  active_state=sh_env%active_state
+               endif
+!END APPLY DECOHERENCE CORRECTION
 
 !STORE THE COORDINATES IF NOT SUCCESSFUL RUN
         if (itimes.ge.1) then
