@@ -225,6 +225,11 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
 
        CALL section_vals_val_get(adiab_section,"SURF_HOP_CHOICE", c_val=surfhop_keyword)
 
+       sh_print_env%additional_prints = .FALSE.
+       if (surfhop_keyword == "TRIVIAL_HOP_CORRECT") then 
+                       sh_print_env%additional_prints = .TRUE.
+       end if
+
        SELECT CASE(surfhop_keyword)
        CASE("TRIVIAL_HOP_CORRECT")
 
@@ -343,6 +348,7 @@ print *, "old_state", old_state
                 end if
         end do
 
+        sh_print_env%enermin = min
 print *, "MIN_ENER_DIFF", min
 print *,"state_min", sh_env%state_min
 
@@ -418,6 +424,8 @@ print *, "akttm(i)", akttm(i)
 
 !calc exact total surface hopping probability (also termed g_tot) according to Prezhdo and Wang 2014
         ex_prob = (abs(akttm(old_state))- abs(ak(old_state)))/abs(akttm(old_state))
+        sh_print_env%exprob = ex_prob 
+
 
 !this probability can be negative when there is flux toward the current state
 !meaning more probability to stay on the current state
@@ -451,7 +459,8 @@ print *, "ex_prob =", ex_prob
                         sumg = sumg + g(i)
                 end if
         end do
-
+  
+        sh_print_env%sumflux   = sumg
 print*, "sumg_tot", sumg
 print *, "DIFF_SUMG_EXACT", ex_prob - sumg
 print *, "Proba_gi_before_corrections: ", g

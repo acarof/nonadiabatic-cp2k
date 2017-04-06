@@ -70,7 +70,9 @@ IMPLICIT NONE
 !> Variable for Tully's test
      LOGICAL                                     :: attempt_hop
      REAL(KIND = dp)                             :: sumprob
+     REAL(KIND = dp)                             :: enermin, exprob, sumflux 
      LOGICAL                                     :: successful_hop
+     LOGICAL                                     :: additional_prints
      INTEGER                                     :: old_state
      INTEGER                                     :: new_state
      LOGICAL                                     :: renorm
