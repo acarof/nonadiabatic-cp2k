@@ -75,6 +75,7 @@ IMPLICIT NONE
      INTEGER                                     :: new_state
      LOGICAL                                     :: renorm
      REAL(KIND = dp), DIMENSION(:), POINTER      :: proba
+     REAL(KIND = dp), DIMENSION(:), POINTER      :: tau_deco
      REAL(KIND = dp)                             :: hop
 !Variable for the rescaling
      REAL(KIND = dp)                             :: delta_energy
