@@ -911,6 +911,8 @@ end do
 
                   ctin=sh_env%ctin
                   active_state=sh_env%active_state
+               else
+                  aom_env%futur_decohere = .TRUE.
                endif
 !END APPLY DECOHERENCE CORRECTION
 
