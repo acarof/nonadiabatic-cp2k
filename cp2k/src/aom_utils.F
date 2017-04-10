@@ -470,7 +470,8 @@ print *, "Proba_gi_before_corrections: ", g
         trivial_correction = .FALSE.
         
         err = abs(sumg - ex_prob)
-        if (err >= triv_threshold) then 
+        if (err >= 0.0D0) then      !WITHOUT THRESHOLD
+        !if (err >= triv_threshold) then !WITH THRESHOLD
                 trivial_correction = .TRUE.
                         if (trivial_correction) then  
                                 g_exa = ex_prob - sumg + g(sh_env%state_min)
