@@ -141,7 +141,7 @@ CONTAINS
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
          !Finally, collapse the wavefunction if called for                 
-         if (successful_hop) aom_env%futur_decohere = .TRUE.               
+         !if (successful_hop) aom_env%futur_decohere = .TRUE.               
          if (aom_env%futur_decohere .and. sh_env%decohere) then                                  
 !> Check if the surface_hop subroutine asks us to do the decoherence       
                   sh_print_env%decohere = .TRUE.
