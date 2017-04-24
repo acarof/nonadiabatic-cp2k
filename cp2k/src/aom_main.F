@@ -677,8 +677,8 @@ CONTAINS
      sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
      sh_env%cttm(:) = ctin(:)
          
-print *, "coefficients at t minus deltat", sh_env%cttm
-print *, "active state", sh_env%cttm(active_state)
+!print *, "coefficients at t minus deltat", sh_env%cttm
+!print *, "active state", sh_env%cttm(active_state)
 
             CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,    &
                           ctin, aom_env, nadiab,  norbitals, ELsteps, &
@@ -689,10 +689,10 @@ print *, "active state", sh_env%cttm(active_state)
       ALLOCATE(sh_env%ctt(mat))
       sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
       sh_env%ctt(:) = ctin(:)
-print *, "coefficients at t present", sh_env%ctt
+!print *, "coefficients at t present", sh_env%ctt
 
          ENDIF !ONLY IF NOT POST-HOP RUN
-print *, "ctin", ctin
+!print *, "ctin", ctin
       ELSE IF (itimes.eq.0) THEN
           !for each molecule
           do i=1,mol
@@ -919,7 +919,7 @@ print *, "ctin", ctin
                      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
                   ENDDO
                ENDDO
-               print*, "ACTIVE STATE = ", active_state
+               !print*, "ACTIVE STATE = ", active_state
                call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
@@ -985,7 +985,6 @@ print *, "ctin", ctin
 !PREPARE THE PRINT
        IF (.NOT.successful_hop) THEN 
           aom_env%ctin        = ctin
-print *, "ctin end", ctin
           aom_env%attempt_hop  = attempt_hop
           aom_env%hamiltonian = -AIMAG(H_tp)
           aom_env%nacv        = nacv

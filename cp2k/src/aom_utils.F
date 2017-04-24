@@ -220,7 +220,7 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
                                routineP = moduleN//':'//routineN
 
        CHARACTER(LEN=default_string_length)           :: surfhop_keyword
-       REAL(KIND=dp) :: triv_threshold
+       !REAL(KIND=dp) :: triv_threshold
 
 
        CALL section_vals_val_get(adiab_section,"SURF_HOP_CHOICE", c_val=surfhop_keyword)
@@ -233,21 +233,16 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
        SELECT CASE(surfhop_keyword)
        CASE("TRIVIAL_HOP_CORRECT")
 
-       CALL section_vals_val_get(adiab_section,"THRESHOLD_TRIVIAL_CROSS", r_val=triv_threshold)
+       !CALL section_vals_val_get(adiab_section,"THRESHOLD_TRIVIAL_CROSS", r_val=triv_threshold)
        CALL modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
                         sh_env, new_state, attempt_hop, decohere_criterion, &
-                       sh_print_env, triv_threshold)
-
-PRINT *, 'TO BE CONTINUED'
-       
+                       sh_print_env) !triv_threshold)
 
        CASE("UNMODIFIED_SURF_HOP")
         
        CALL surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
                         sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
        
-print *, "OKKKKKKKKKKK????????"
-
        CASE DEFAULT
          CPABORT("There is no method to add trivial crossing correction")
        
@@ -257,7 +252,7 @@ END SUBROUTINE surf_hop_type
 
 subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
-              sh_print_env, triv_threshold)
+              sh_print_env) !triv_threshold)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -276,7 +271,7 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         LOGICAL        :: trivial_correction, correct_for_negative
         integer :: i, j, mol, k, l
         REAL(KIND=dp) :: hop, sumg, ex_prob, min, g_exa, err
-        REAL(KIND=dp) :: triv_threshold
+        !REAL(KIND=dp) :: triv_threshold
         REAL(KIND=dp), dimension(:,:), allocatable :: dphi
         REAL(KIND=dp), dimension(:), allocatable :: b, g
         REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
@@ -307,12 +302,6 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         
         ALLOCATE(sh_print_env%proba(mol))
 
-print *, "OKAAYYYYY"
-
-!print *, "ADIAB ENERGY t-dt", sh_env%E_t
-!print *, "A_EN t-dt OLD_STATE", sh_env%E_t(old_state)
-print *, "ADIAB ENERGY t", sh_env%E_tp
-
         do i=1,mol
                 if (i .ne. old_state) then 
                         sh_env%enerdiff(i) = abs(sh_env%E_tp(i) - sh_env%E_tp(old_state)) 
@@ -320,8 +309,6 @@ print *, "ADIAB ENERGY t", sh_env%E_tp
                         sh_env%enerdiff(old_state) = 0.0D0
                 end if
         end do
-print *, "sh_env%enerdiff = ", sh_env%enerdiff
-print *, "old_state", old_state
        
         if (sh_env%enerdiff(1) == sh_env%enerdiff(old_state)) then
                 min = sh_env%enerdiff(2)
@@ -349,8 +336,6 @@ print *, "old_state", old_state
         end do
 
         sh_print_env%enermin = min
-print *, "MIN_ENER_DIFF", min
-print *,"state_min", sh_env%state_min
 
 
         !use the matinvsqrt subroutine to find T = S^(-1/2)
@@ -398,8 +383,6 @@ print *,"state_min", sh_env%state_min
                 cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
                 cstate_tm = cstate_tm + cmplx(C1(i,old_state),0.0D0,dp)*sh_env%cttm(i)
         end do
-print *, "cstate", cstate
-print *, "cstate_tm", cstate_tm
         do i=1,mol
                 !calculate a and b
                 ct(i) = cmplx(0.0D0, 0.0D0,dp)
@@ -408,47 +391,30 @@ print *, "cstate_tm", cstate_tm
                         ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
                         cttm_ad(i) = cttm_ad(i) + cmplx(C1(j,i),0.0D0,dp)*sh_env%cttm(j)
                 end do
-!construct state density for t present and t-deltat from the active state to
-!other state
-print *, "ct(i)", ct(i)
-print *, "cttm_ad(i)", cttm_ad(i)
+               !construct state density for t present and t-deltat from the active state to
+               !other state
                 ak(i) = ct(i)*conjg(cstate)
                 akttm(i) = cttm_ad(i)*conjg(cstate_tm)
-print *, "ak(i)", ak(i)
-print *, "akttm(i)", akttm(i)
-
                 b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,old_state))
 !print*, "i b dphi", i, b(i), dphi(i, old_state)
         end do
 
 
-!calc exact total surface hopping probability (also termed g_tot) according to Prezhdo and Wang 2014
+    !calc exact total surface hopping probability (also termed g_tot) 
+    !according to Prezhdo and Wang 2014
         ex_prob = (abs(akttm(old_state))- abs(ak(old_state)))/abs(akttm(old_state))
         sh_print_env%exprob = ex_prob 
 
 
-!this probability can be negative when there is flux toward the current state
-!meaning more probability to stay on the current state
-
-        !if (ex_prob < 0.0D0) then
-         !   ex_prob = 0.0D0
-        !end if
-
-print *, "ak(old_state)", (ak(old_state))
-print *, "abs(akttm(old_state))", (akttm(old_state))
-print *, "ABS(ak(old_state))", abs(ak(old_state))
-print *, "ABS(akttm(old_state))", abs(akttm(old_state))
-print *, "ex_prob =", ex_prob
-
-! calculate sumg that can also be negative because each individual probability
-! could be negative 
+    ! calculate sumg that can also be negative because each individual probability
+    ! (flux) could be negative 
 
         sumg = 0.0D0
         !calculate g and sum(g)
         do i=1,mol
 !print*, "deltat b ak", i, deltat, b(i), abs(ak(old_state))
-!g(i) is the probability to hop from the current state (old_state) to any other
-!state (i) 
+              !g(i) is the probability to hop from the current state (old_state) to any other
+              !state (i) 
                 g(i) = (deltat*b(i))/abs(ak(old_state))
                 
                ! if (g(i) < 0.0D0) then
@@ -461,9 +427,6 @@ print *, "ex_prob =", ex_prob
         end do
   
         sh_print_env%sumflux   = sumg
-print*, "sumg_tot", sumg
-print *, "DIFF_SUMG_EXACT", ex_prob - sumg
-print *, "Proba_gi_before_corrections: ", g
 
 !EFFECTIVE TRIVIAL CROSSINGS CORRECTION
 
@@ -486,8 +449,6 @@ print *, "Proba_gi_before_corrections: ", g
 !!                end do 
                         end if
         end if
-print *, "trivial_correction", trivial_correction
-print *, "Prob_gi_CORRECT_for_trivial: ", g
 
 !! CORRECTION FOR NEGATIVE NUMBER
        correct_for_negative = .FALSE.
@@ -497,10 +458,10 @@ print *, "Prob_gi_CORRECT_for_trivial: ", g
                         correct_for_negative = .TRUE.
                 end if
        end do
-print *, "correct_for_negative", correct_for_negative
-print *, "Prob_gi_CORRECT_for_NEGA: ", g
 
-!! G RENORMALIZATION; BUILT A SUBROUTINE THAT DOES THIS
+!! G RENORMALIZATION
+!        !due to finite timestep, sometimes the probabilities may sum to greater than 1
+!        !if this happens, rescale them down to sum = 1
        sumg = 0.0D0
        do i=1,mol
                if (i .ne. old_state) then
@@ -522,39 +483,8 @@ print *, "Prob_gi_CORRECT_for_NEGA: ", g
                g(old_state) = 1.0D0 - sumg
        end if
 
-
-
-
-
-!        !due to finite timestep, sometimes the probabilities may sum to greater than 1
-!        !if this happens, rescale them down to sum = 1
-!        if (sumg > 1.0D0) then
-!                do i=1,mol
-!                        g(i) = g(i)/sumg
-!                        g(old_state) = 0.0D0
-!                end do
-!!> CHANGE_AC
-!                sh_print_env%renorm = .TRUE.
-!                sh_print_env%sumprob   = sumg        
-!        else
-!!> CHANGE_AC
-!                sh_print_env%renorm = .FALSE.
-!                sh_print_env%sumprob   = sumg        
-!                g(old_state) = 1.0D0 - sumg
-!        end if
-
-!print *, "sh_print_env%renorm", sh_print_env%renorm
-!print *, "Prob_gi_RESCALING1: ", g  !this case assigns also g_old_state=
-!1-g_i
-
-!print*, "sum proba", sumg
-
-
 !> CHANGE_AC
         sh_print_env%proba     = g
-
-print *, "sh_print_env%renorm", sh_print_env%renorm
-print *, "Prob_gi_after_RINORMALIZATION: ", g
 
 !to move on in the trivial hopping correction we use rescaled g to avoid
 !unphysical number larger than 1. 
@@ -563,30 +493,24 @@ print *, "Prob_gi_after_RINORMALIZATION: ", g
         call init_random_seed()
         call random_number(hop)
         sh_print_env%hop       = hop
-print *, "RANDOM_NUMB", hop
         sh_print_env%old_state = old_state
         !and see if this random number causes a surface hop
         sumg = 0.0D0
         do i=1,mol
-print *, "Prob_gi: ", g(i)
                 sumg = sumg + g(i)
                 if (hop <= sumg) then
                         if (i .ne. old_state) then
                                 new_state = i
-print *, "new_state", new_state
 !                                write(24,*) i                        
                                ! decohere = .FALSE.
                                 sh_env%decohere = .FALSE.
                                 attempt_hop = .TRUE.
-print *, "attempt_hop", attempt_hop
                                 sh_print_env%attempt_hop    = attempt_hop
                                 sh_print_env%new_state = new_state
                                 EXIT
                         elseif (i == old_state) then
                                 new_state = old_state
                                 attempt_hop = .FALSE.
-print *, "new_state", new_state
-print *, "attempt_hop", attempt_hop
                                 sh_print_env%attempt_hop    = attempt_hop
                                 sh_print_env%new_state = new_state
 !                                write(24,*) state
