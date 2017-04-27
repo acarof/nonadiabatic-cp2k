@@ -119,7 +119,7 @@ CONTAINS
           CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &                                               
                       atomic_kind_set, K_tot, ext_pres)
 
-          CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot)
+          CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)
  
         CASE DEFAULT                                           
           CPABORT("There is no method to add the decoherence.") 
@@ -128,7 +128,6 @@ CONTAINS
   END SUBROUTINE decohere_wf
 
   SUBROUTINE wf_collapse(aom_env,sh_print_env, sh_env, itimes, successful_hop)
-    
     TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(aom_env_type)                             :: aom_env
     TYPE(sh_env_type)                              :: sh_env
@@ -142,7 +141,7 @@ CONTAINS
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
          !Finally, collapse the wavefunction if called for                 
-         if (successful_hop) aom_env%futur_decohere = .TRUE.               
+         !if (successful_hop) aom_env%futur_decohere = .TRUE.               
          if (aom_env%futur_decohere .and. sh_env%decohere) then                                  
 !> Check if the surface_hop subroutine asks us to do the decoherence       
                   sh_print_env%decohere = .TRUE.
@@ -152,13 +151,11 @@ CONTAINS
          end if                                                            
          CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
       ENDIF
-
   END SUBROUTINE wf_collapse                                                               
                                                  
 
  ! SUBROUTINE wf_ever_collaps(sh_print_env, sh_env, itimes, successful_hop)
   SUBROUTINE wf_tresh_collaps(sh_print_env, sh_env, itimes)
-    
     TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(sh_env_type)                              :: sh_env
 
@@ -179,20 +176,22 @@ CONTAINS
          end if                                                            
          CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
       ENDIF
-
   END SUBROUTINE wf_tresh_collaps
 
-  SUBROUTINE  wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot)                    
 
+
+  SUBROUTINE  wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)                    
+    REAL(KIND=dp), INTENT(IN)                  :: C_param, E_0_param
+    TYPE(sh_env_type)                          :: sh_env
+    INTEGER, INTENT(IN)                        :: mol
+    REAL(KIND=dp), INTENT(IN)                  :: deltatMD
     REAL(kind=dp)                              :: K_tot
-    REAL(KIND=dp), INTENT(IN)                      :: deltatMD
-    TYPE(sh_env_type)                              :: sh_env
+    TYPE(sh_print_env_type)                    :: sh_print_env
 
     CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
     routineP = moduleN//':'//routineN   
                                                         
-    INTEGER  :: j,mol,i
-    REAL(KIND=dp)   :: C_param, E_0_param
+    INTEGER  :: j,i
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau
     REAL(KIND=dp)      :: sum!, sum1 
     COMPLEX(KIND=dp), dimension(:), allocatable :: ct
@@ -202,7 +201,7 @@ CONTAINS
 
     allocate(ct(mol))  ! adiabatic states
     allocate(tau(mol)) ! decoherence time (EDC method)
-
+    allocate(sh_print_env%tau_deco(mol))
 
     sum = 0.0D0
 !TEST WITHOUT KINETIC: useful if statment when E_0=0 and FROZEN HAMILTONIAN are
@@ -217,6 +216,7 @@ CONTAINS
                ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
                tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param +(E_0_param/K_tot))
+                print*, tau(i)
                 do j=1,mol
                         ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
                 end do
@@ -230,9 +230,12 @@ CONTAINS
                 pop(i) = ct(i)*conjg(ct(i))
     
                 sum = sum + abs(ct(i))*abs(ct(i))
+           else
+                tau(i) = 0.0D0
            end if
     end do
 
+    sh_print_env%tau_deco = tau
 !transfor the active diabatic state into the active diabatic state
     pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
     ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
@@ -264,12 +267,12 @@ CONTAINS
          pop(j)=sh_env%ctin(j)*conjg(sh_env%ctin(j))
     end do
     
+   CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
     
     deallocate(ct) 
     deallocate(tau)
+    deallocate(sh_print_env%tau_deco)
     deallocate(pop)
-    
-
   END SUBROUTINE wf_damping 
  
 
