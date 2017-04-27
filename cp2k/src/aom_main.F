@@ -365,8 +365,6 @@ CONTAINS
                 pcoeffs(i,j) = pcoefftot( i + (j-1)*orb)
           end do
           scoeffs(i) = scoefftot(i)
-          ! PC added print
-          print *, "pcoeffs are", pcoeffs
       end do
  !print the AOM coefficients
 
@@ -464,8 +462,6 @@ CONTAINS
 
 !CHECK IF WE ARE IN A POST-HOP RUN
      successful_hop = aom_env%successful_hop
-     !pc print succesful hop
-     print *, "_PC_ succesful hop", successful_hop
      !used to give correct commands to ZGEMX subroutines later
 !     zgemm_type = 'N'
 
@@ -484,15 +480,6 @@ CONTAINS
                          At(d,j)  = crds(d-1,(i-1)*atoms+j,2)
                          Atp(d,j) = crds(d-1,(i-1)*atoms+j,3)
                     end do
-!-----PC call calc rvecs to store rvecs in array here -- added below so each row is a new atom
-               !call calc_rvecs(Atp(2:4,:), PC_rvecs, connlist1)
-               !call calc_sab_pete(prexyza=Atp, connlista=connlist1)
-                !print *, '__PC__ rvecs at Atp is', rvecs
-               !PC_allrvecs(1,i*j) = i
-               !PC_allrvecs(2,i*j) = j
-                !do z=1,3
-                !PC_allrvecs(z+2,i*j) = PC_rvecs(z,j)
-                !end do
                end do
                
                !then for each other molecule
@@ -508,11 +495,6 @@ CONTAINS
                               Bt(d,l)  = crds(d-1,(k-1)*atoms+l,2)
                               Btp(d,l) = crds(d-1,(k-1)*atoms+l,3)
                          end do
-                        !call calc_rvecs(Btp, rvecs, connlist2)
-                        !print *, '__PC__ rvecs at Btp is', rvecs
-                         !allrvecs(1,(i+6)*j) = i
-                         !allrvecs(2,(i+6)*j) = j
-                         !allrvecs(3:5,(i+6)*j) = rvecs
                     end do
                     if (i == 1) then
                          do d=1,orb
@@ -591,10 +573,6 @@ CONTAINS
                                              & print_rvecs='yes', molA_index=i, molB_index=k)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
-                                            !----- PC
-                                            !call calc_sab_pete(Atp, connlist2, PC_rvecs)
-                                            !print *, "PC_rvecs is", PC_rvecs
-                                            ! -----
                                              !Calcul of the NACV
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
@@ -668,12 +646,6 @@ CONTAINS
               PC_allrvecs(1,((i-1)*atoms)+o) = i
               PC_allrvecs(2,((i-1)*atoms)+o) = o
               PC_allrvecs (3:5,((i-1)*atoms)+o) = PC_rvecs(:,o)
-             end do
-              do k=1, atoms
-              !print *, "P.C_rvecs", o, k,
-              print *, "P.C_rvecs", itimes
-              print *, "P.C_rvecs atoms, nadiab is", atoms, nadiab
-              print *, "P.C_rvecs", PC_allrvecs(:,((i-1)*atoms)+k)
              end do
            !end PC ------------- 
           end do !loop over i
@@ -800,15 +772,7 @@ CONTAINS
                               end do
                          end do
                     end if !(NN(i,k) == 1
-               end do !loop over k
-                        !PC ------------
-                !call calc_sab_pete(Atp, connlist2, PC_rvecs)
-                 !do o=1, size(PC_rvecs,2)
-                  !  PC_allrvecs(1,((i-1)*atoms)+o) = i
-                  !  PC_allrvecs(2,((i-1)*atoms)+o) = o
-                  !  PC_allrvecs (3:5,((i-1)*atoms)+o) = PC_rvecs(:,o)
-                  !end do
-               !PC end------------   
+               end do !loop over k 
          enddo !loop-over i
          nacv = cbar*nacv
       endif !END OF THE BIG IF-LOOP itimes.ge.1
