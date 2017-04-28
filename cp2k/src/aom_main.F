@@ -46,7 +46,9 @@ MODULE aom_main
      USE aom_overlapfinal,             ONLY:  connect_list2, &
                                               calc_sab, &
                                               sab_screen_new, &
-                                              calc_dRSab
+                                              calc_dRSab, &
+                                              calc_rvecs, &
+                                              calc_sab_pete
 
      USE aom_utils,                    ONLY: makeX,    &
                                              adiabaticity,   &
@@ -83,7 +85,8 @@ MODULE aom_main
                                              adiab_print_sh_info,            &
                                              adiab_print_hamiltonian, &
                                         !     adiab_print_nace,        &
-                                             adiab_print_nacv        
+                                             adiab_print_nacv, &
+                                             adiab_print_pvecs
 
 
 
@@ -153,7 +156,7 @@ CONTAINS
      integer :: coord, t2
      integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, active_state, mat, orb
      integer, dimension(:), allocatable :: atomlist, elements
-     integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour
+     integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour  !, connlist
      integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
@@ -191,6 +194,12 @@ CONTAINS
      CHARACTER(LEN=default_string_length)           :: deco_keyword, keyword_init 
        ! COMPLEX(KIND=dp), dimension(:), allocatable :: pop
        ! COMPLEX(KIND=dp), dimension(:), allocatable :: adiab
+    !REAL(kind=dp), DIMENSION(:,:), allocatable :: prervecs
+! PC    
+      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
+      real(kind=dp), allocatable :: PC_rvecs(:,:)
+      integer :: o
+!end PC
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -273,6 +282,7 @@ CONTAINS
        sh_print_env%norbitals = orb
        sh_print_env%deltatMD = deltatMD
        ALLOCATE(sh_print_env%adiab_energies_t(mat))
+
      else
        sh_print_env = aom_env%sh_print_env
      endif
@@ -289,6 +299,10 @@ CONTAINS
      ALLOCATE(velocities_t(3,natom))
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
+! PC -----------
+       ALLOCATE(PC_allrvecs(5,mol*atoms))
+       ALLOCATE(PC_rvecs(3,atoms))
+! -------------
      IF (.NOT.ALLOCATED(ctin)) CPABORT("CTIN NOT ALLOCATED CORRECTLY.")
 
      !need to allocate these square matrices
@@ -356,7 +370,9 @@ CONTAINS
                 pcoeffs(i,j) = pcoefftot( i + (j-1)*orb)
           end do
           scoeffs(i) = scoefftot(i)
-     end do
+      end do
+ !print the AOM coefficients
+
 !END READ THE AOM COEFFICIENT
 
      !these arrays are data for the non-adiabatic coupling calculation
@@ -454,7 +470,6 @@ CONTAINS
 
 !CHECK IF WE ARE IN A POST-HOP RUN
      successful_hop = aom_env%successful_hop
-     
      !used to give correct commands to ZGEMX subroutines later
 !     zgemm_type = 'N'
 
@@ -474,7 +489,7 @@ CONTAINS
                          Atp(d,j) = crds(d-1,(i-1)*atoms+j,3)
                     end do
                end do
-
+               
                !then for each other molecule
                do k=1,mol
                     !create the array of its atomic coordinates at both t and t+dt
@@ -560,11 +575,12 @@ CONTAINS
                               else
                                    do d=1,orb
                                         do m=1,orb
+                                        !PC added print_rvecs =yes so p vectors and coords would be printed 
                                              call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
-                                             & S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
+                                             & S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3),& 
+                                             & print_rvecs='yes', molA_index=i, molB_index=k)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
-
                                              !Calcul of the NACV
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
@@ -632,7 +648,16 @@ CONTAINS
                          end do
                     end if !(NN(i,k) == 1
                end do !loop over k
+          !PC ------------
+            call calc_sab_pete(Atp, connlist2, PC_rvecs)
+             do o=1, size(PC_rvecs,2)
+              PC_allrvecs(1,((i-1)*atoms)+o) = i
+              PC_allrvecs(2,((i-1)*atoms)+o) = o
+              PC_allrvecs (3:5,((i-1)*atoms)+o) = PC_rvecs(:,o)
+             end do
+           !end PC ------------- 
           end do !loop over i
+          !call adiab_print_pvecs(adiab_section, prervecs, itimes, deltatMD, times)
           !during a simulation, you can read in a lot of these overlaps from a previous timestep
           !if (inrun) then
 !GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
@@ -667,7 +692,6 @@ CONTAINS
 
 
 !PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
-
          IF (.NOT.successful_hop) THEN
             ctin(:) = aom_env%ctin(:)
 !store diabatic coefficients at tdeltat, this will be useful to find the adiabatic
@@ -773,11 +797,14 @@ CONTAINS
                               end do
                          end do
                     end if !(NN(i,k) == 1
-               end do !loop over k
+               end do !loop over k 
          enddo !loop-over i
          nacv = cbar*nacv
       endif !END OF THE BIG IF-LOOP itimes.ge.1
 
+!PC
+ call adiab_print_pvecs(adiab_section, PC_allrvecs, itimes, deltatMD, times, atoms, nadiab)
+       sh_print_env%times = times
 
        sh_print_env%times = DBLE(itimes)
 !DO THE HOPPING TEST
@@ -1011,6 +1038,7 @@ CONTAINS
 
 !DEALLOCATE
 !       DEALLOCATE(NACE)
+       !DEALLOCATE(rvecs)
        DEALLOCATE(velocities_t_prime)
        DEALLOCATE(velocities_t) 
        deallocate(ext_pres, ext_elements)

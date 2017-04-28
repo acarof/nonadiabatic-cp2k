@@ -80,9 +80,49 @@ IMPLICIT NONE
              adiab_print_stateno,        &
              adiab_print_exact_forces,   &
              adiab_print_active_state,   &
-             adiab_print_sh_info
+             adiab_print_sh_info,        &
+             adiab_print_pvecs
 
 CONTAINS
+
+!----PC------
+
+   SUBROUTINE adiab_print_pvecs(adiab_section, allrvecs, itimes, deltatMD, times, atoms, nadiab)
+    TYPE(section_vals_type), POINTER           :: adiab_section
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: allrvecs
+    INTEGER, INTENT(IN)                        :: itimes, atoms, nadiab
+    REAL(KIND=dp), INTENT(IN)                  :: times, deltatMD
+    CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_pvecs', &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: unit_nr
+    REAL(KIND=dp)                            :: unit_conv_fs, time
+    INTEGER                                  :: iatoms, imol
+    CHARACTER(LEN=default_string_length)     :: my_format
+    TYPE(cp_logger_type), POINTER            :: logger
+    NULLIFY(logger)
+    logger => cp_get_default_logger()
+
+    unit_nr=cp_print_key_unit_nr(logger,adiab_section,"PRINT%PVECS",&
+               extension=".xyz", middle_name="pvecs", log_filename=.FALSE.)
+    unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
+
+    IF (unit_nr>0) THEN
+       time = times*deltatMD*unit_conv_fs
+       WRITE ( unit_nr, '(A,I0,A,F20.3,A,F0.10)' )   " i = ",itimes,", time =",time, " (fs)"
+       
+       DO imol=1, nadiab
+        DO iatoms=1, atoms
+                print *, allrvecs(:,((imol-1)*atoms)+iatoms)
+                my_format="(I4,1X,I4,"
+                WRITE(unit_nr,TRIM(my_format)//"1X,3F20.10)") int(allrvecs(1,((imol-1)*atoms)+iatoms)),&
+                        int(allrvecs(2,((imol-1)*atoms)+iatoms)), allrvecs(3:5,((imol-1)*atoms)+iatoms)
+        END DO
+       end do
+       
+    END IF
+
+   CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%PVECS")
+  END SUBROUTINE adiab_print_pvecs
 
 
    SUBROUTINE adiab_print_coeff(adiab_section, coefficients, nadiab, norbitals,itimes, deltatMD, times)
@@ -845,7 +885,6 @@ CONTAINS
            ENDDO
            WRITE( unit_nr, "(A)") "  "
        CASE DEFAULT
-            CPABORT("There is nothing to print in the SH_INFO file!")
        END SELECT 
     ENDIF
 

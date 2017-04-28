@@ -233,7 +233,7 @@ CONTAINS
       jparticle = map_index(iparticle)
       SELECT CASE(method_keyword)
       CASE("CLASSICAL_PATH")
-          CALL section_vals_val_get(coupling_section,"FIRST_DIABAT",&
+          CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
                i_val=init)
           particles_mix%els(jparticle)%f(:)= global_forces(init)%forces(:,iparticle)
           final_energy = energies_tp(init)

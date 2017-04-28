@@ -142,10 +142,11 @@ CONTAINS
       IF (itimes.ge.1) THEN                                                
          !Finally, collapse the wavefunction if called for                 
          !if (successful_hop) aom_env%futur_decohere = .TRUE.               
+!         print*, "future", aom_env%futur_decohere, sh_env%decohere
          if (aom_env%futur_decohere .and. sh_env%decohere) then                                  
 !> Check if the surface_hop subroutine asks us to do the decoherence       
                   sh_print_env%decohere = .TRUE.
-                  print*, sh_env%c_tp(:,:)
+!                  print*, "deco!", sh_env%c_tp(:,:)
                      sh_env%ctin(:) = sh_env%C_tp(:, sh_env%active_state)
                   aom_env%futur_decohere = .FALSE.                         
          end if                                                            

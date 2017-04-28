@@ -199,6 +199,7 @@ contains
   subroutine calc_rvecs(xyz, rvecs, connectlist)
 !     Calculates the p_pi direction in the general case for conjugated atoms
 !     using the plane of the 3 connecting atoms
+!     PC connlista is fed in as connectlist
 
       REAL(KIND=dp), intent(in) :: xyz(:,:)
       integer, intent(in) :: connectlist(:,:)
@@ -206,17 +207,20 @@ contains
       integer :: i, k
       REAL(KIND=dp) :: neighbourlist(3,3)
       REAL(KIND=dp) :: veca(3), vecb(3), DNRM2
-      
+     
       rvecs=0
 
       do i=1,size(connectlist,2)
+!
          do k = 2,size(connectlist,1)
               neighbourlist(:,k-1) = xyz(:,connectlist(k,i))
          end do
-
+!     
+!     PC find vectors between neighbours to define plane
          veca=neighbourlist(:,1)-neighbourlist(:,3)
          vecb=neighbourlist(:,2)-neighbourlist(:,3)
 
+!     PC cross product of vectors to find P vector
          rvecs(1,connectlist(1,i)) = veca(2)*vecb(3)-veca(3)*vecb(2)
          rvecs(2,connectlist(1,i)) = veca(3)*vecb(1)-veca(1)*vecb(3)
          rvecs(3,connectlist(1,i)) = veca(1)*vecb(2)-veca(2)*vecb(1)
@@ -385,12 +389,12 @@ contains
       integer :: i
       allocate(c(3,size(expcoeffa,2)), stat=stat_err)
       if (stat_err .ne. 0) CPABORT(" ")
-      c = expcoeffa * expcoeffb
+      c = expcoeffa * expcoeffb ! 
       do i=1,size(expcoeffa,2)
         if (dist(i) .gt. abs(epsilon(0.d0))) then
-          p = (mua + musb(i))/2.0D0*dist(i)
+          p = (mua + musb(i))/2.0D0*dist(i) !mua and musb are slater decay coefficients see eqn 5.12 F thesis
           t = (mua - musb(i))/(mua + musb(i)) !abs???
-          sarray(i) = (c(1,i) + c(2,i)) * S_ppi(p,t) + c(3,i) * S_psigma(p,t)
+          sarray(i) = (c(1,i) + c(2,i)) * S_ppi(p,t) + c(3,i) * S_psigma(p,t) !eqn 5.12 fruzina thesis
         else
          sarray(i) = 1.d0
         end if
@@ -593,8 +597,19 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+! new subroutine added by PC but not used
+!  subroutine calc_rvecs_toprint(prexyz, prervecs, connlist)
+
+!  real(kind=dp), dimension(:,:), intent(in) :: prexyz
+!  real(kind=dp), dimension(:,:), intent(out) :: prervecs
+!  real(kind=dp), dimension(:,:), intent(in) :: connlist
+
+!  call calc_rvecs(prexyza(2:4,:), prervecsa, connlist)
+
+!  end subroutine calc_rvecs_toprint
+
   subroutine calc_sab(prexyza, connlista, precoeffap, &
-                         sab, prexyzb, connlistb, precoeffbp)
+                         sab, prexyzb, connlistb, precoeffbp, print_rvecs, molA_index, molB_index)
 
 !     Original S_ab calculation program can calculate an pi_conjugated molecule
 !
@@ -602,8 +617,13 @@ contains
 !       by enabling lines 779-786
 !     - Inclusion of s orbitals can be achieved by enabling lines 876-883,916- 920, 
 !       930-944, 949, 974-981, 1011-1017 and 1036-1049
-
-
+!
+!       PC added top 3 lines for optional print_rvecs, molA_index and molBindex variables
+!
+!      REAL(KIND=dp), dimension(:), optional, intent(in) ::    print_rvecs
+      character(len=3), optional, intent(in) ::    print_rvecs
+      integer, optional, intent(in) ::  molA_index
+      integer, optional, intent(in) ::  molB_index
       REAL(KIND=dp), dimension(:,:),           intent(in) ::    prexyza
       REAL(KIND=dp), dimension(:),             intent(inout) :: precoeffap
       integer, dimension(:,:),           intent(in) ::    connlista
@@ -614,7 +634,7 @@ contains
       REAL(KIND=dp), dimension(:), allocatable :: stc
       REAL(KIND=dp), dimension(:), allocatable :: dist
       REAL(KIND=dp), dimension(:,:), allocatable :: rvecsa, rvecsb
-      REAL(KIND=dp), dimension(:,:), allocatable :: prervecsa, prervecsb 
+      REAL(KIND=dp), dimension(:,:), allocatable :: prervecsa, prervecsb
       REAL(KIND=dp), dimension(:), allocatable :: coeffap, coeffbp
       REAL(KIND=dp), dimension(:,:), allocatable :: sarrayp 
       REAL(KIND=dp), dimension(:,:), allocatable :: expcoeffa, expcoeffb
@@ -627,48 +647,49 @@ contains
       integer :: i,j
       REAL(KIND=dp) :: c
       REAL(KIND=dp) :: DDOT
-
+!      REAL(KIND=dp), dimension(:,:), allocatable :: arraytoprint
       slaters(:,1)=(/0.0D0, 0.0D0, 3.0D0, 0.9560D0, 1.2881D0, 1.100D0, 1.9237D0, 2.2458D0/)
       slaters(:,2)=(/0.0D0, 0.0D0, 0.0D0, 0.0000D0, 1.2107D0, 1.000D0, 1.6000D0, 2.2266D0/)
 
-      allocate(prervecsa(3,size(prexyza,2)),stat=stat_err)
-      allocate(xyza(4,size(connlista,2)),stat=stat_err)
-      allocate(coeffap(size(connlista,2)),stat=stat_err)
-      allocate(rvecsa(3,size(connlista,2)),stat=stat_err)
-      allocate(stc(size(xyza,2)),stat=stat_err)
+        allocate(prervecsa(3,size(prexyza,2)),stat=stat_err)
+        allocate(xyza(4,size(connlista,2)),stat=stat_err)
+        allocate(coeffap(size(connlista,2)),stat=stat_err)
+        allocate(rvecsa(3,size(connlista,2)),stat=stat_err)
+        allocate(stc(size(xyza,2)),stat=stat_err)
+!allocate(prervecs(3,12))
 
-      call calc_rvecs(prexyza(2:4,:), prervecsa, connlista)
+call calc_rvecs(prexyza(2:4,:), prervecsa, connlista)
 
-      do i=1,size(connlista,2)
-           xyza(:,i)=prexyza(:,connlista(1,i))
-           coeffap(i)=precoeffap(connlista(1,i))
-           rvecsa(:,i)=prervecsa(:,connlista(1,i))
-      end do
-      deallocate(prervecsa)
- 
-      ! These variables are recaculated for each atom in A
-      ! Inherent for B atom
+        do i=1,size(connlista,2)
+        xyza(:,i)=prexyza(:,connlista(1,i))
+        coeffap(i)=precoeffap(connlista(1,i))
+rvecsa(:,i)=prervecsa(:,connlista(1,i))      
+        end do
+deallocate(prervecsa)
 
-      if (present(prexyzb) .and. present(precoeffbp) .and. &
-         present(sab) .and. present(connlistb)) then
+        ! These variables are recaculated for each atom in A
+        ! Inherent for B atom
 
-         allocate(unitvecs(3,size(connlistb,2),3),stat=stat_err)
-         allocate(dist(size(connlistb,2)),stat=stat_err)
-         allocate(prervecsb(3,size(prexyzb,2)),stat=stat_err)
-         allocate(xyzb(4, size(connlistb,2)),stat=stat_err)
-         allocate(expcoeffa(3,size(xyzb,2)),stat=stat_err)
-         allocate(coeffbp(size(xyzb,2)),stat=stat_err)
-         allocate(expcoeffb(3,size(xyzb,2)),stat=stat_err)
-         allocate(rvecsb(3,size(connlistb,2)),stat=stat_err)
-         call calc_rvecs(prexyzb(2:4,:), prervecsb, connlistb)
+        if (present(prexyzb) .and. present(precoeffbp) .and. &
+                        present(sab) .and. present(connlistb)) then
 
-         do i=1,size(connlistb,2)
-             xyzb(:,i)=prexyzb(:,connlistb(1,i))
-             coeffbp(i)=precoeffbp(connlistb(1,i))
-             rvecsb(:,i)=prervecsb(:,connlistb(1,i))
+        allocate(unitvecs(3,size(connlistb,2),3),stat=stat_err)
+        allocate(dist(size(connlistb,2)),stat=stat_err)
+        allocate(prervecsb(3,size(prexyzb,2)),stat=stat_err)
+        allocate(xyzb(4, size(connlistb,2)),stat=stat_err)
+        allocate(expcoeffa(3,size(xyzb,2)),stat=stat_err)
+        allocate(coeffbp(size(xyzb,2)),stat=stat_err)
+        allocate(expcoeffb(3,size(xyzb,2)),stat=stat_err)
+        allocate(rvecsb(3,size(connlistb,2)),stat=stat_err)
+        !allocate(prervecs(3,size(rvecsa,2)+size(rvecsb,2)))
+        call calc_rvecs(prexyzb(2:4,:), prervecsb, connlistb)
+
+        do i=1,size(connlistb,2)
+        xyzb(:,i)=prexyzb(:,connlistb(1,i))
+        coeffbp(i)=precoeffbp(connlistb(1,i))
+        rvecsb(:,i)=prervecsb(:,connlistb(1,i))        
         end do  
-  
-        deallocate(prervecsb)
+       deallocate(prervecsb)
        
         allocate(musbp(size(xyzb,2)),stat=stat_err)
         allocate(sarrayp(size(xyzb,2),size(xyza,2)), stat=stat_err)
@@ -755,12 +776,10 @@ contains
       else
 !         print*, 'Wrong argument passing to calc_sab' 
       end if
-
      deallocate(rvecsa, xyza, coeffap, stc)
-
       return
   end subroutine calc_sab
-
+!-------------------------------------------------------------------------------------------------------------------
 
   subroutine calc_sab_turbo(prexyza, atomlista, connlistal, precoeffap, prervecsa, sarray, linecol,&
                          sab, prexyzb, atomlistb, connlistbl, precoeffbp, prervecsb)
@@ -1706,5 +1725,33 @@ contains
 
       return
   end subroutine calc_sab_with_s
+  
+
+  subroutine calc_sab_pete(prexyza, connlista, prervecsa)
+                                          
+! just calc the rvecs so we can write them to file cleaner this way than editing
+! original calc_sab
+
+!     Original S_ab calculation program can calculate an pi_conjugated molecule
+!
+!     - Slater coefficients for carbon can be read in from external data file
+!       by enabling lines 779-786
+!     - Inclusion of s orbitals can be achieved by enabling lines 876-883,916- 920, 
+!       930-944, 949, 974-981, 1011-1017 and 1036-1049
+!
+!       PC added top 3 lines for optional print_rvecs, molA_index and molBindex variables
+!
+!      REAL(KIND=dp), dimension(:), optional, intent(in) ::    print_rvecs
+!      character(len=3), optional, intent(in) ::    print_rvecs
+!      integer, optional, intent(in) ::  molA_index
+!      integer, optional, intent(in) ::  molB_index
+      REAL(KIND=dp), dimension(:,:),           intent(in) ::    prexyza
+      integer, dimension(:,:),           intent(in) ::    connlista
+      REAL(KIND=dp), dimension(:,:), allocatable, intent(out):: prervecsa
+      integer :: stat_err !, ioerr, ioread
+        allocate(prervecsa(3,size(prexyza,2)),stat=stat_err)
+         call calc_rvecs(prexyza(2:4,:), prervecsa, connlista)
+      return
+  end subroutine calc_sab_pete
 
 end module aom_overlapfinal

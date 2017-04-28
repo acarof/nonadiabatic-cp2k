@@ -37,7 +37,8 @@ export ALL_EXE_FILES := $(sort $(shell $(TOOLSRC)/build_utils/discover_programs.
 endif
 EXE_NAMES := $(basename $(notdir $(ALL_EXE_FILES)))
 
-# Once we are down to a single version ======================================
+# Oncr we are down to a single version ======================================
+#r: Code for reallocating the allocatable array at (1) will be added
 # this only happens on stage 3 and 4
 ifneq ($(ONEVERSION),)
 MODDEPS = "lower"
