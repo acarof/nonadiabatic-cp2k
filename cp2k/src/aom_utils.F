@@ -361,15 +361,19 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, c, C1, C2, deltat, old_stat
                                 !if there has not been any surfacehop, we need to consider the possibility of the decoherence correction
                                 !if the non-adiabatic coupling dphi to all other states is below a certain threshold
                                 !then a wavefunction collapse will be enforced
+                                sh_env%decohere = .TRUE.
                                 do j=1,mol
+!print*, j, old_state, abs(dphi(old_state,j)), decohere_criterion
                                         if (abs(dphi(old_state,j)) > decohere_criterion .and. old_state .ne. j) then
+!print*, j, abs(dphi(old_state,j)), decohere_criterion
                                                ! decohere = .FALSE.
                                                 sh_env%decohere = .FALSE.
                                                 EXIT
                                         end if
                                 end do
                                ! decohere = .TRUE.
-                                sh_env%decohere = .TRUE.
+                               ! sh_env%decohere = .TRUE.
+!print*, "decohere", sh_env%decohere
                                 EXIT
                         end if
                 end if
