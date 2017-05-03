@@ -1490,7 +1490,7 @@ ENDIF
                                               force_env%mixed_env%aom_env%forces_adiab, &
                                               force_env%mixed_env%aom_env%forces_adiab_new, &
                                               hop_nacv, atomic_kind_set, local_particles, reversal_keyword, &
-                                              sh_print_env)
+                                              sh_print_env,A,B)
               ELSE 
                   force_env%mixed_env%aom_env%successful_hop = .TRUE.
                   force_env%mixed_env%aom_env%old_state      = force_env%mixed_env%aom_env%active_state
@@ -1524,7 +1524,7 @@ ENDIF
    END SUBROUTINE check_hop_attempt
 
    SUBROUTINE hop_nacv_vel_reversing(nparticle_kind, velocities, forces_old, forces_new, hop_nacv, atomic_kind_set, &
-                                     local_particles, reversal_keyword, sh_print_env)
+                                     local_particles, reversal_keyword, sh_print_env, A, B)
         INTEGER, INTENT(IN)                      :: nparticle_kind
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
         REAL(kind=dp), DIMENSION(:,:), INTENT(IN)   :: forces_old, forces_new
@@ -1534,6 +1534,7 @@ ENDIF
              POINTER                             :: atomic_kind_set
         CHARACTER(LEN=default_string_length)     :: reversal_keyword
         TYPE(sh_print_env_type)                  :: sh_print_env
+        REAL(kind=dp), INTENT(IN)                :: A, B
 
         CHARACTER(len=*), PARAMETER :: routineN = 'hop_nacv_vel_rescaling', &
         routineP = moduleN//':'//routineN
@@ -1546,6 +1547,7 @@ ENDIF
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
         LOGICAL                                  :: reverse
+        REAL(KIND=dp)                            :: reversal_factor
 
 !> TO EXPLAIN  
 
@@ -1590,6 +1592,8 @@ ENDIF
         END SELECT
 
         IF (reverse) THEN
+print*, "REVERSE"
+           reversal_factor = -B/A
            DO iparticle_kind=1,nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -1598,11 +1602,11 @@ ENDIF
                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                  IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
                       velocities(3, iparticle)**2 ).NE.0.0d0) THEN
-                      scalar = SUM(velocities(:, iparticle) * hop_nacv(:, iparticle) )
-                      norm = SUM( hop_nacv(:, iparticle)**2)
-                      IF (norm.NE.0.0D0) THEN
-                         velocities(:, iparticle) = velocities(:, iparticle) - 2 * (scalar/norm) * hop_nacv(:, iparticle)
-                      ENDIF
+print*, velocities(:, iparticle)
+print*, reversal_factor, mass
+                    velocities(:, iparticle ) = velocities(:, iparticle) + (reversal_factor/mass) * hop_nacv(:, iparticle)
+print*, velocities(:, iparticle)
+
                  ENDIF
               ENDDO
            END DO
