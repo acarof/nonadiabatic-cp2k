@@ -1904,7 +1904,7 @@ ENDIF
         routineP = moduleN//':'//routineN
 
         REAL(kind=dp)                            :: product_pd, product_dfo, product_dfn
-        REAL(kind=dp)                            :: scalar, norm
+        !REAL(kind=dp)                            :: scalar, norm
         REAL(kind=dp)                            :: mass
         INTEGER                                  :: iparticle_kind
         INTEGER                                  :: nparticle_local
