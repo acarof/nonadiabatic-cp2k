@@ -805,7 +805,8 @@ do i= 1,mol
 
 end do
 
-      IF ( (itimes.EQ.0) .AND. (.NOT. my_bo_keyword) .AND. (.NOT. my_test_keyword)) THEN 
+      !IF ( (itimes.EQ.0) .AND. (.NOT. my_bo_keyword) .AND. (.NOT. my_test_keyword)) THEN 
+      IF ( (itimes.EQ.0)  .AND. (.NOT. my_test_keyword)) THEN 
          CALL section_vals_val_get(adiab_section, "INITIALIZATION", c_val=keyword_init)
          SELECT CASE(keyword_init)
          CASE("DIABATIC")
@@ -840,30 +841,31 @@ end do
                     CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes, &
                                                     deltatMD, times)
          ENDDO
-      ELSE IF ( (itimes.EQ.0) .AND. (my_bo_keyword) ) THEN
-             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
-                                       i_val=first_diabat)
-             active_state = first_diabat
-             decohere = .FALSE.
-             sh_env%decohere = .FALSE.
-             attempt_hop = .FALSE.
-             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
-                                       i_val=first_diabat)
-             !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e.
-             !electron localised on molecule 'init')
-             do i=1,mat
-                ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
-             end do
-             ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-             aom_env%population(1:mat) = abs(ctin(1:mat))
+!      ELSE IF ( (itimes.EQ.0) .AND. (my_bo_keyword) ) THEN
+!             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
+!                                       i_val=first_diabat)
+!             active_state = first_diabat
+!             decohere = .FALSE.
+!             sh_env%decohere = .FALSE.
+!             attempt_hop = .FALSE.
+!             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
+!                                       i_val=first_diabat)
+!             !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e.
+!             !electron localised on molecule 'init')
+!             do i=1,mat
+!                ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
+!             end do
+!             ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+!             aom_env%population(1:mat) = abs(ctin(1:mat))
       ELSE 
          !The eigenvectors are needed to calculate the surface hopping probabilities
          !The surfacehop subroutine calculates these probabilites and decides on the
          !new (possibly unchanged) surface for simulation
          IF (my_bo_keyword) THEN
-             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
-                                       i_val=first_diabat)
-             active_state = first_diabat
+             !active_state = 
+             !CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
+             !                          i_val=first_diabat)
+             !active_state = first_diabat
              decohere = .FALSE.
              sh_env%decohere = .FALSE.
              attempt_hop = .FALSE.
