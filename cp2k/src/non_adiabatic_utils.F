@@ -26,7 +26,7 @@ MODULE non_adiabatic_utils
                                              adiab_print_active_state,       &
                                              adiab_print_sh_info,            &
                                              adiab_print_hamiltonian, &
-                      !                       adiab_print_nace,        &
+                                             adiab_print_nace,        &
                                              adiab_print_nacv        
      USE aom_types,                    ONLY: aom_env_type, &      
                                                 sh_print_env_type 
@@ -517,6 +517,7 @@ print *, 'K_tot =', K_tot
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
                     times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
+                    CALL adiab_print_nace(adiab_section, NACE, nadiab, norbitals, itimes, deltatMD, times)
                     CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
                                            times)
                     CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes, deltatMD, &
