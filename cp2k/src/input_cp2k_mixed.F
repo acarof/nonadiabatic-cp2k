@@ -235,6 +235,16 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
 
+
+
+    CALL keyword_create(keyword, name="REPRESENTATION",&
+         description="Decide which representation is used: Diab  or Adiab",&
+         usage="DIABATIC_BASIS or ADIABATIC_BASIS", & 
+         type_of_var=char_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+
     CALL keyword_create(keyword, name="FIRST_DIABAT",&
          description="starting molecule number",&
          usage="1", type_of_var=integer_t)

@@ -183,7 +183,7 @@ CONTAINS
      integer, dimension(:), ALLOCATABLE           :: ext_elements
      LOGICAL, dimension(:), ALLOCATABLE           :: ext_pres
      TYPE(cp_sll_val_type), POINTER               :: listcoeff
-     INTEGER                                      :: first_adiabat
+     !INTEGER                                      :: first_adiabat
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
@@ -191,7 +191,7 @@ CONTAINS
 
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
-     CHARACTER(LEN=default_string_length)           :: deco_keyword, keyword_init 
+     CHARACTER(LEN=default_string_length)           :: deco_keyword, keyword_init, keyword_basis_repr 
        ! COMPLEX(KIND=dp), dimension(:), allocatable :: pop
        ! COMPLEX(KIND=dp), dimension(:), allocatable :: adiab
     !REAL(kind=dp), DIMENSION(:,:), allocatable :: prervecs
@@ -814,6 +814,7 @@ CONTAINS
                !It gives us back the eigenvalues and eigenvectors
       IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
       call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
+print *, "EACH_TIME_C_tp", C_tp
       CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
 
 !initialize Adiabatic energies that will be used for trivial hopping and
@@ -837,31 +838,73 @@ CONTAINS
 !end do
 
       !IF ( (itimes.EQ.0) .AND. (.NOT. my_bo_keyword) .AND. (.NOT. my_test_keyword)) THEN 
-      IF ( (itimes.EQ.0)  .AND. (.NOT. my_test_keyword)) THEN 
+
+
+
+
+
+      IF ( (itimes.EQ.0)  .AND. (.NOT. my_test_keyword)) THEN
+ 
+         decohere = .FALSE.
+         sh_env%decohere = .FALSE.
+         attempt_hop = .FALSE.
          CALL section_vals_val_get(adiab_section, "INITIALIZATION", c_val=keyword_init)
+         CALL section_vals_val_get(adiab_section, "REPRESENTATION", c_val=keyword_basis_repr)
+
          SELECT CASE(keyword_init)
          CASE("DIABATIC")
-             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
+             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT", &
                                        i_val=first_diabat)
-             !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
-             do i=1,mat
-                ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
-             end do
-             ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-             aom_env%population(1:mat) = abs(ctin(1:mat)) 
-             CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
-             active_state = first_adiabat
-             decohere = .FALSE.
-             sh_env%decohere = .FALSE.
-             attempt_hop = .FALSE.
+print *, "FIRST_DIABAT", first_diabat 
+             CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state)
+print *, "ACTIVE_RANDOM_STATE", active_state
+print *, "C_tp", C_tp
+
+
+             SELECT CASE(keyword_basis_repr)
+             CASE("DIABATIC_BASIS")
+                 !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
+                 !do i=1,mat
+                    !ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
+                 !end do
+                 ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
+                 ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)       
+                 !aom_env%population(1:mat) = abs(ctin(1:mat)) 
+print *, "ctin(first_diabat)_DIAB", ctin
+
+             CASE("ADIABATIC_BASIS")
+                 ctin(:) = C_tp(first_diabat,:)
+print *, "ctin_ADIAB", ctin
+             !decohere = .FALSE.
+             !sh_env%decohere = .FALSE.
+            ! attempt_hop = .FALSE.
+             CASE DEFAULT
+                 CPABORT("Choose one representation: DIABATIC, ADIABATIC")
+             END SELECT
+
          CASE("ADIABATIC")
              CALL section_vals_val_get(adiab_section,"FIRST_ADIABAT",&
-                                       i_val=first_adiabat)
-             active_state = first_adiabat
-             decohere = .FALSE.
-             sh_env%decohere = .FALSE.
-             attempt_hop = .FALSE.
-             ctin(:) = C_tp(:, first_adiabat)
+                                       i_val=active_state)
+print *, "FIRST_ADIABAT_ACTIVESTATE", active_state 
+print *, "C_tp", C_tp
+             !active_state = first_adiabat
+             !decohere = .FALSE.
+             !sh_env%decohere = .FALSE.
+             !attempt_hop = .FALSE.
+             !ctin(:) = C_tp(:, first_adiabat)
+             
+             SELECT CASE(keyword_basis_repr)
+             CASE("DIABATIC_BASIS")
+                 ctin(:) = C_tp(:, active_state)
+print *, "ctin(:) = C_tp(:, active_state)", ctin
+             CASE("ADIABATIC_BASIS")
+                 ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
+                 ctin(active_state*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+print *, "ctin(AADIAB)", ctin 
+             CASE DEFAULT
+                 CPABORT("Choose one representation: DIABATIC, ADIABATIC")
+             END SELECT
+
          CASE DEFAULT
              CPABORT("INITIALIZATION implemented: DIABATIC, ADIABATIC")
          END SELECT
@@ -872,22 +915,6 @@ CONTAINS
                     CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes, &
                                                     deltatMD, times)
          ENDDO
-!      ELSE IF ( (itimes.EQ.0) .AND. (my_bo_keyword) ) THEN
-!             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
-!                                       i_val=first_diabat)
-!             active_state = first_diabat
-!             decohere = .FALSE.
-!             sh_env%decohere = .FALSE.
-!             attempt_hop = .FALSE.
-!             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
-!                                       i_val=first_diabat)
-!             !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e.
-!             !electron localised on molecule 'init')
-!             do i=1,mat
-!                ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
-!             end do
-!             ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-!             aom_env%population(1:mat) = abs(ctin(1:mat))
       ELSE 
          !The eigenvectors are needed to calculate the surface hopping probabilities
          !The surfacehop subroutine calculates these probabilites and decides on the
@@ -916,22 +943,6 @@ CONTAINS
                                    sh_print_env)
             ELSE
                 attempt_hop = .FALSE.
-
-!                  call surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp,   &
-!                                 deltatMD, active_state, sh_env,  &
-!                                !new_state, is_hop)
-!                                  new_state, &
-!                                  attempt_hop, &
-!                                  decohere_criterion, &
-!                                  sh_print_env)
-!
-!                   call surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, ctin, C_t, C_tp, deltatMD, active_state, sh_env,  &
-                                 !new_state, is_hop)
-!                                   new_state, &
-!                                   attempt_hop, &
-!                                   decohere_criterion, &
-!                                   sh_print_env)
-
                 decohere = .FALSE.
                 sh_env%decohere = .FALSE.    
             ENDIF
@@ -951,14 +962,12 @@ CONTAINS
                !print*, "ACTIVE STATE = ", active_state
                call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
-                           ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
-                           ctin=ctin)
+                           ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces)
                aom_env%forces_adiab=my_forces_adiab
                IF (attempt_hop) THEN
                   call calcforces(state=new_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                               scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
-                              ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
-                              ctin=ctin)
+                              ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces)
                   aom_env%forces_adiab_new=my_forces_adiab
                ENDIF
                IF (analytics) THEN
@@ -982,8 +991,8 @@ CONTAINS
                    deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, atomic_kind_set, K_tot, ext_pres)
 
 
-                  ctin=sh_env%ctin
-                  active_state=sh_env%active_state
+                   ctin=sh_env%ctin
+                   active_state=sh_env%active_state
                else
                   aom_env%futur_decohere = .TRUE.
                endif
