@@ -868,7 +868,9 @@ print *, "C_tp", C_tp
                     !ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
                  !end do
                  ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
-                 ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)       
+          !!!! THIS LINE HAS TO BE MODIFIED TO INCLUDE MORE ORBITAL PER MOLECULE
+                 ctin(first_diabat) = CMPLX(1.0D0, 0.0D0,dp)  
+                 !ctin(first_diabat*((orb-1)+1)) = CMPLX(1.0D0, 0.0D0,dp)  
                  !aom_env%population(1:mat) = abs(ctin(1:mat)) 
 print *, "ctin(first_diabat)_DIAB", ctin
 
@@ -899,7 +901,8 @@ print *, "C_tp", C_tp
 print *, "ctin(:) = C_tp(:, active_state)", ctin
              CASE("ADIABATIC_BASIS")
                  ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
-                 ctin(active_state*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+          !!!! THIS LINE HAS TO BE MODIFIED TO INCLUDE MORE ORBITAL PER MOLECULE
+                 ctin(active_state) = CMPLX(1.0D0, 0.0D0,dp)
 print *, "ctin(AADIAB)", ctin 
              CASE DEFAULT
                  CPABORT("Choose one representation: DIABATIC, ADIABATIC")

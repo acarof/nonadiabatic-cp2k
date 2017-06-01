@@ -348,7 +348,9 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         DT = (0.5D0/deltat)*(T2 - T1)
         DS = (0.5D0/deltat)*(Sttp - Sttm)
         DC = (1.0D0/deltat)*(C2 - C1)
-        
+       
+
+print *, "NACE_DIABATIC_FINITE_DIFFERENCE", DS 
         !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
         !by transforming from the diabatic overlaps
         do i=1,mol
@@ -370,6 +372,8 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
                                 dphi(i,j) = dphi(i,j) + C2(k,i)*DC(k,j)
                                 do l=1,mol
                                         dphi(i,j) = dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
+print *, "i,j coefficients", i, j
+print *, "NACE_ADIABATIC", dphi(i,j) 
                                 end do
                         end do
                 end do
