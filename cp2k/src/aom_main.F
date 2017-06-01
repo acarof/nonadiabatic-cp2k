@@ -58,7 +58,8 @@ MODULE aom_main
                                              read_listcoeff, &
                                              choose_firstadiabat, &
                                              simple_vel_rescaling, &
-                                             translate_com
+                                             translate_com, &
+                                             calc_adiab_nace
 
      USE aom_types,                    ONLY: aom_env_type, &
                                                 sh_print_env_type
@@ -173,6 +174,9 @@ CONTAINS
      LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
+
+     !REAL(KIND=dp), dimension(:,:), allocatable :: dphi
+     !REAL(KIND=dp) :: deltat
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
     ! LOGICAL                                      :: decohere, collapse, analytics
      LOGICAL                                      :: decohere, analytics
@@ -660,8 +664,10 @@ CONTAINS
           !call adiab_print_pvecs(adiab_section, prervecs, itimes, deltatMD, times)
           !during a simulation, you can read in a lot of these overlaps from a previous timestep
           !if (inrun) then
+
 !GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
-          if (itimes.gt.1) then
+
+          if (itimes.gt.1) then   !!itimes strictly grater than 1
                do i=1,mat
                     do j=1,mat
                          Stt(j,i) = aom_env%Stt(j,i)
@@ -673,7 +679,8 @@ CONTAINS
                          Stmtm(j,i) = aom_env%Stmtm(j,i)
                     end do
                end do
-           endif
+          endif
+
 !          else if (itimes.eq.1) then !CHANGE_AC
                do i=1,mat
                   do j=1,mat
@@ -681,8 +688,16 @@ CONTAINS
                                 aom_env%Sttm(j,i)  = Stpt(j,i)
                                 aom_env%Stmt(j,i)  = Sttp(j,i)
                                 aom_env%Stmtm(j,i) = Stt(j,i)
+print *, "aom_env%Stmtm(j,i)", aom_env%Stt(j,i)
+print *, "PRINT INITIAL Stt", Stt(j,i)
+print *, "PRINT INITIAL Sttp", Sttp(j,i)
+print *, "PRINT INITIAL Stpt", Stpt(j,i)
+print *, "PRINT INITIAL Stptp", Stptp(j,i)
                   end do
                end do
+!print *, "DELTA_T_BEFORE", deltat
+print *, "DELTAMD_BEFORE", deltatMD
+
 !          endif !CHANGE_AC
 !END GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
 
@@ -690,16 +705,35 @@ CONTAINS
           nacv = cbar*nacv
 !END CONVERT THE NACV WITH THE GOOD UNITS
 
+!DIAGONALIZE the Hamiltonian to find the eigenvectors used in the adiab
+!propagation
+
+
+!The adiabaticity subroutine diagonalises the diabatic Hamiltonian
+!It gives us back the eigenvalues and eigenvectors
+          CALL adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
+!initialize Adiabatic energies that will be used for trivial hopping and
+!decoherence corrections
+          sh_env%E_t = E_t
+print *, "ONLY GRATER EQUAL C_t", C_t
+          CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
+          sh_env%E_tp = E_tp
+print *, "ONLY GRATER EQUAL C_tp", C_tp
+
+          CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
+
+
 
 !PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
          IF (.NOT.successful_hop) THEN
             ctin(:) = aom_env%ctin(:)
 !store diabatic coefficients at tdeltat, this will be useful to find the adiabatic
 !coefficients at tdeltat and to use them to solve the trivial crossing problem
+            CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, sh_env)
 
-     ALLOCATE(sh_env%cttm(mat))
-     sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
-     sh_env%cttm(:) = ctin(:)
+            ALLOCATE(sh_env%cttm(mat))
+            sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
+            sh_env%cttm(:) = ctin(:)
          
 !print *, "coefficients at t minus deltat", sh_env%cttm
 !print *, "active state", sh_env%cttm(active_state)
@@ -710,14 +744,14 @@ CONTAINS
                             mat)
 !CHECK T PRESENT
 
-      ALLOCATE(sh_env%ctt(mat))
-      sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
-      sh_env%ctt(:) = ctin(:)
+            ALLOCATE(sh_env%ctt(mat))
+            sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
+            sh_env%ctt(:) = ctin(:)
 !print *, "coefficients at t present", sh_env%ctt
 
          ENDIF !ONLY IF NOT POST-HOP RUN
 !print *, "ctin", ctin
-      ELSE IF (itimes.eq.0) THEN
+     ELSE IF (itimes.eq.0) THEN
           !for each molecule
           do i=1,mol
                !create the array of all its atomic coordinates at t
@@ -800,7 +834,12 @@ CONTAINS
                end do !loop over k 
          enddo !loop-over i
          nacv = cbar*nacv
-      endif !END OF THE BIG IF-LOOP itimes.ge.1
+         CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
+         sh_env%E_tp = E_tp
+print *, "ONLY EQUAL zero C_tp", C_tp
+
+         CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
+     endif !END OF THE BIG IF-LOOP itimes.ge.1
 
 !PC
  call adiab_print_pvecs(adiab_section, PC_allrvecs, itimes, deltatMD, times, atoms, nadiab)
@@ -810,18 +849,20 @@ CONTAINS
 !DO THE HOPPING TEST
 
  
-               !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
-               !It gives us back the eigenvalues and eigenvectors
-      IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
-      call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
-print *, "EACH_TIME_C_tp", C_tp
-      CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
+!               !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
+!               !It gives us back the eigenvalues and eigenvectors
+!      IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
+!      !call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
+!print *, "C-T firts", C_t
+!      call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
+!print *, "EACH_TIME_C_tp", C_tp
+!      CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
 
 !initialize Adiabatic energies that will be used for trivial hopping and
 !decoherence corrections
-      sh_env%E_t = E_t
-      sh_env%E_tp = E_tp
-      
+!      sh_env%E_t = E_t
+!      sh_env%E_tp = E_tp
+!print *, "ALSO A ITIMES=0"      
 
 
 !allocate(pop(mol))
@@ -838,8 +879,6 @@ print *, "EACH_TIME_C_tp", C_tp
 !end do
 
       !IF ( (itimes.EQ.0) .AND. (.NOT. my_bo_keyword) .AND. (.NOT. my_test_keyword)) THEN 
-
-
 
 
 

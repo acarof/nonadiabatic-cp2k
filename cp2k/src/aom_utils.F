@@ -126,7 +126,8 @@ IMPLICIT NONE
              total_momentum,       &
 !             translate_com
              translate_com,       &
-             surf_hop_type
+             surf_hop_type,    &
+             calc_adiab_nace
 
 CONTAINS
   
@@ -209,6 +210,7 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
        integer, intent(in) :: old_state
        REAL(KIND=dp), intent(in) :: deltat
+       !REAL(KIND=dp), dimension(:,:), allocatable :: dphi
        REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
        INTEGER, INTENT(OUT)        :: new_state
        LOGICAL, INTENT(OUT)        :: attempt_hop
@@ -240,8 +242,10 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
 
        CASE("UNMODIFIED_SURF_HOP")
         
-       CALL surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-                        sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+       !CALL surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
+       !                 sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+       CALL  surfacehop(deltat, old_state, Stt, C2, &
+              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
        
        CASE DEFAULT
          CPABORT("There is no method to add trivial crossing correction")
@@ -560,41 +564,24 @@ print *, "NACE_ADIABATIC", dphi(i,j)
 end subroutine modified_surfacehop
 
 
-subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, sh_env)
 
-        !using the method outlined in John Tully's Electronic Transitions paper
-        !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
-
+        !this subroutine calculates the adiabatic nace used in the calculation
+        !of the hopping probability and also in the RK adiabatic propagation 
         implicit none
 
-        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
-        integer, intent(in) :: old_state
         REAL(KIND=dp), intent(in) :: deltat
         REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
-        INTEGER, INTENT(OUT)        :: new_state
-        LOGICAL, INTENT(OUT)        :: attempt_hop
-        TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
+        !REAL(KIND=dp), dimension(:,:), allocatable, intent(out) :: dphi
         TYPE(sh_env_type), INTENT(OUT) :: sh_env
 
         integer :: i, j, mol, k, l
-        REAL(KIND=dp) :: hop, sumg
-        REAL(KIND=dp), dimension(:,:), allocatable :: dphi
-        REAL(KIND=dp), dimension(:), allocatable :: b, g
         REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
-        !COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
-        COMPLEX(KIND=dp), dimension(:), allocatable :: ct
-        COMPLEX(KIND=dp), dimension(:), allocatable :: ak
-        COMPLEX(KIND=dp) :: cstate
 
         mol = size(Stt,1)
 
         !many allocations
-        allocate(ak(mol))
-        allocate(b(mol))
-        allocate(g(mol))
-        allocate(ct(mol))
-        allocate(dphi(mol,mol))
+        allocate(sh_env%dphi(mol,mol))
         allocate(T1(mol,mol))
         allocate(T2(mol,mol))
         allocate(DT(mol,mol))
@@ -603,7 +590,6 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
         allocate(DS(mol,mol))
         allocate(DC(mol,mol))
 
-        ALLOCATE(sh_print_env%proba(mol))
 
 
         !use the matinvsqrt subroutine to find T = S^(-1/2)
@@ -616,8 +602,15 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
         DT = (0.5D0/deltat)*(T2 - T1)
         DS = (0.5D0/deltat)*(Sttp - Sttm)
         DC = (1.0D0/deltat)*(C2 - C1)
+
+print *, "C2", C2
+print *, "C1", C1
+print *, "Stt", Stt
+print *, "deltat", deltat
+
+!stop
         
-        print *, "NACE_FINTE_DIFF", DS
+print *, "NACE_DIABATIC_FINITE_DIFFERENCE", DS 
 
         !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
         !by transforming from the diabatic overlaps
@@ -635,15 +628,119 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
         end do
         do i=1,mol
                 do j=1,mol
-                        dphi(i,j) = 0.0D0
+                        sh_env%dphi(i,j) = 0.0D0
                         do k=1,mol
-                                dphi(i,j) = dphi(i,j) + C2(k,i)*DC(k,j)
+                                sh_env%dphi(i,j) = sh_env%dphi(i,j) + C2(k,i)*DC(k,j)
                                 do l=1,mol
-                                        dphi(i,j) = dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
+                                        sh_env%dphi(i,j) = sh_env%dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
+print *, "i,j coefficients", i, j
+print *, "NACE_ADIABATIC", sh_env%dphi(i,j) 
                                 end do
                         end do
                 end do
         end do
+
+!        deallocate(sh_env%dphi)
+        deallocate(T1)
+        deallocate(T2)
+        deallocate(DT)
+        deallocate(TST)
+        deallocate(TDT)
+        deallocate(DS)
+        deallocate(DC)
+
+end subroutine calc_adiab_nace
+
+subroutine surfacehop(deltat, old_state, Stt, C2, &
+              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+
+        !using the method outlined in John Tully's Electronic Transitions paper
+        !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
+
+        implicit none
+
+        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
+        integer, intent(in) :: old_state
+        REAL(KIND=dp), intent(in) :: deltat
+        !REAL(KIND=dp), dimension(:,:),  allocatable, intent(in) :: dphi
+        !REAL(KIND=dp), dimension(:,:) :: dphi
+        INTEGER, INTENT(OUT)        :: new_state
+        LOGICAL, INTENT(OUT)        :: attempt_hop
+        TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
+        TYPE(sh_env_type), INTENT(OUT) :: sh_env
+
+        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C2
+        integer :: i, j, mol !, k, l
+        REAL(KIND=dp) :: hop, sumg
+        REAL(KIND=dp), dimension(:), allocatable :: b, g
+        !REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
+        !COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
+        COMPLEX(KIND=dp), dimension(:), allocatable :: ct
+        COMPLEX(KIND=dp), dimension(:), allocatable :: ak
+        COMPLEX(KIND=dp) :: cstate
+
+        mol = size(Stt,1)
+
+        !many allocations
+        allocate(ak(mol))
+        allocate(b(mol))
+        allocate(g(mol))
+        allocate(ct(mol))
+       ! allocate(dphi(mol,mol))
+       ! allocate(T1(mol,mol))
+       ! allocate(T2(mol,mol))
+       ! allocate(DT(mol,mol))
+        !allocate(TST(mol,mol))
+       ! allocate(TDT(mol,mol))
+        !allocate(DS(mol,mol))
+        !allocate(DC(mol,mol))
+
+        ALLOCATE(sh_print_env%proba(mol))
+
+
+!       !use the matinvsqrt subroutine to find T = S^(-1/2)
+!       T1 = Stmtm
+!       T2 = Stptp
+!       call matinvsqrt(mol, .TRUE., T1)
+!       call matinvsqrt(mol, .TRUE., T2)
+!
+!       !and do some straightforward first-order numerical derivatives
+!       DT = (0.5D0/deltat)*(T2 - T1)
+!       DS = (0.5D0/deltat)*(Sttp - Sttm)
+!       DC = (1.0D0/deltat)*(C2 - C1)
+!       
+!       print *, "NACE_FINTE_DIFF", DS
+!
+!       !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
+!       !by transforming from the diabatic overlaps
+!       do i=1,mol
+!               do j=1,mol
+!                       TST(i,j) = 0.0D0
+!                       TDT(i,j) = 0.0D0
+!                       do k=1,mol
+!                               do l=1,mol
+!                                       TST(i,j) = TST(i,j) + T1(k,i)*Stt(k,l)*DT(l,j)
+!                                       TDT(i,j) = TDT(i,j) + T1(k,i)*DS(k,l)*T1(l,j)
+!                               end do
+!                       end do
+!               end do
+!       end do
+!       do i=1,mol
+!               do j=1,mol
+!                       dphi(i,j) = 0.0D0
+!                       do k=1,mol
+!                               dphi(i,j) = dphi(i,j) + C2(k,i)*DC(k,j)
+!                               do l=1,mol
+!                                       dphi(i,j) = dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
+!rint *, "i,j coefficients", i, j
+!rint *, "NACE_ADIABATIC", dphi(i,j) 
+!                               end do
+!                       end do
+!               end do
+!       end do
+
+
+
 
         !now also calculate the adiabatic electronic coefficients by transforming from the diabatic
         !and fill out electronic density matrix elements a(i,j) for i = current adiabatic state
@@ -658,7 +755,10 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
                         ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
                 end do
                 ak(i) = ct(i)*conjg(cstate)
-                b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,old_state))
+print *, "NOTE_SH_env%dphi", sh_env%dphi
+
+!stop
+                b(i) = -2.0D0*REAL(conjg(ak(i))*sh_env%dphi(i,old_state))
 !print*, "i b dphi", i, b(i), dphi(i, old_state)
         end do
 
@@ -732,7 +832,7 @@ print *, "Probability_RENORM: ", g
                                 sh_env%decohere = .TRUE.
                                 do j=1,mol
 !print*, j, old_state, abs(dphi(old_state,j)), decohere_criterion
-                                        if (abs(dphi(old_state,j)) > decohere_criterion .and. old_state .ne. j) then
+                                        if (abs(sh_env%dphi(old_state,j)) > decohere_criterion .and. old_state .ne. j) then
 !print*, j, abs(dphi(old_state,j)), decohere_criterion
                                                ! decohere = .FALSE.
                                                 sh_env%decohere = .FALSE.
@@ -756,14 +856,14 @@ print *, "Probability_RENORM: ", g
         deallocate(b)
         deallocate(G)
         deallocate(ct)
-        deallocate(dphi)
-        deallocate(T1)
-        deallocate(T2)
-        deallocate(DT)
-        deallocate(TST)
-        deallocate(TDT)
-        deallocate(DS)
-        deallocate(DC)
+!        deallocate(dphi)
+!        deallocate(T1)
+!        deallocate(T2)
+!        deallocate(DT)
+!        deallocate(TST)
+!        deallocate(TDT)
+!        deallocate(DS)
+!        deallocate(DC)
 end subroutine surfacehop
 
 subroutine init_random_seed()

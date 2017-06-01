@@ -33,7 +33,8 @@ IMPLICIT NONE
      COMPLEX(KIND=dp), dimension(:), POINTER     :: ctin, cttm, ctt       
      REAL(KIND=dp), DIMENSION(:,:), POINTER      :: C_tp          
      INTEGER                                     :: active_state, state_min  
-     REAL(KIND=dp), dimension(:), POINTER        :: E_tp, E_t, enerdiff                                                                           
+     REAL(KIND=dp), dimension(:), POINTER        :: E_tp, E_t, enerdiff
+     REAL(KIND=dp), dimension(:,:), POINTER      :: dphi                                                                           
 
 
                     
