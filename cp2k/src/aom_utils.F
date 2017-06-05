@@ -323,7 +323,7 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         TYPE(sh_print_env_type) :: sh_print_env
         TYPE(sh_env_type) :: sh_env
 
-        LOGICAL        :: trivial_correction, correct_for_negative
+        LOGICAL        :: trivial_correction, correct_for_negative, adiabatic_prop
         integer :: i, j, mol!, k, l
         REAL(KIND=dp) :: hop, sumg, ex_prob, min, g_exa, err
         !REAL(KIND=dp) :: triv_threshold
@@ -459,9 +459,17 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
 
 !if the propagation occurs in the diabatic basis, transfor diabatic coefficients
 !into adiabatic coefficients
-
-        CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, &
+        adiabatic_prop = .TRUE.
+        if (adiabatic_prop) then 
+               CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, &
                                                    C1, cttm_ad, cstate_tm) 
+        else
+!NOT YET READY FOR ADIAB PRPAGATION
+               ct(:) = sh_env%ctt(:)
+               cttm_ad(:) = sh_env%cttm(:)
+               cstate = sh_env%ctt(old_state)
+               cstate_tm = sh_env%cttm(old_state)
+        end if 
 
         do i=1,mol
                !construct state density for t present and t-deltat from the active state to
@@ -743,6 +751,7 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
         TYPE(sh_env_type), INTENT(OUT) :: sh_env
 
+        logical :: adiabatic_prop
         REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C2
         integer :: i, j, mol !, k, l
         REAL(KIND=dp) :: hop, sumg
@@ -829,8 +838,16 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
 !                       ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
 !               end do
 !       end do
-
-        CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct) 
+        adiabatic_prop = .TRUE.
+        if (adiabatic_prop) then 
+               CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct) 
+               !CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, &
+                !                                   C1, cttm_ad, cstate_tm) 
+        else
+!NOT YET READY FOR ADIAB PRPAGATION
+               ct(:) = sh_env%ctt(:)
+               cstate = sh_env%ctt(old_state)
+        end if 
 
         do i=1,mol
                 ak(i) = ct(i)*conjg(cstate)

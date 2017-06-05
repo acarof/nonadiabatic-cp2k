@@ -179,6 +179,101 @@ CONTAINS
       ENDIF
   END SUBROUTINE wf_tresh_collaps
 
+  SUBROUTINE  wf_damping_adiab_prop(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)                    
+    REAL(KIND=dp), INTENT(IN)                  :: C_param, E_0_param
+    TYPE(sh_env_type)                          :: sh_env
+    INTEGER, INTENT(IN)                        :: mol
+    REAL(KIND=dp), INTENT(IN)                  :: deltatMD
+    REAL(kind=dp)                              :: K_tot
+    TYPE(sh_print_env_type)                    :: sh_print_env
+
+    CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
+    routineP = moduleN//':'//routineN   
+                                                        
+    !INTEGER  :: j,i
+    INTEGER  :: i
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau
+    REAL(KIND=dp)      :: sum!, sum1 
+    !COMPLEX(KIND=dp), dimension(:), allocatable :: ct
+    COMPLEX(KIND=dp), dimension(:), allocatable :: pop
+
+    allocate(pop(mol)) !TEST
+
+    !allocate(ct(mol))  ! adiabatic states
+    allocate(tau(mol)) ! decoherence time (EDC method)
+    allocate(sh_print_env%tau_deco(mol))
+
+    sum = 0.0D0
+!TEST WITHOUT KINETIC: useful if statment when E_0=0 and FROZEN HAMILTONIAN are
+!used
+    if (E_0_param == 0.0D0) then  
+          K_tot = 1.0D0
+    end if
+!transfor the diabatic into the adiabatic coefficients and calculate tau
+    do i=1,mol 
+           if (i .ne. sh_env%active_state) then
+              ! pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
+              ! ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
+               tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
+                                        (C_param +(E_0_param/K_tot))
+                print*, tau(i)
+                !do j=1,mol
+                !        ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
+                !end do
+
+!Damp the coefficients of the states different from the active state    
+               pop(i) = sh_env%ctin(i)*conjg(sh_env%ctin(i))
+    
+                !ct(i) = ct(i)
+                sh_env%ctin(i) = sh_env%ctin(i)*exp(-(deltatMD/tau(i)))
+    
+                pop(i) = sh_env%ctin(i)*conjg(sh_env%ctin(i))
+    
+                sum = sum + abs(sh_env%ctin(i))*abs(sh_env%ctin(i))
+           else
+                tau(i) = 0.0D0
+           end if
+    end do
+
+    sh_print_env%tau_deco = tau
+!transfor the active diabatic state into the active adiabatic state
+    pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
+   ! ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
+    !do i=1,mol                                                       
+     !      ct(sh_env%active_state) = ct(sh_env%active_state) + &
+      !       cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
+    !end do  
+    
+    pop(sh_env%active_state) = sh_env%ctin(sh_env%active_state)*conjg(sh_env%ctin(sh_env%active_state))
+    
+!transfer population to the active state for keeping the detailed balance   
+    if (sh_env%ctin(sh_env%active_state)== 0) then
+           sh_env%ctin(sh_env%active_state) = sqrt(1-sum)
+    else 
+           sh_env%ctin(sh_env%active_state)= sh_env%ctin(sh_env%active_state)* &
+              sqrt((1-sum)/(abs(sh_env%ctin(sh_env%active_state))*abs(sh_env%ctin(sh_env%active_state))))
+    end if
+    
+    pop(sh_env%active_state) = sh_env%ctin(sh_env%active_state)*conjg(sh_env%ctin(sh_env%active_state))
+
+!transfor back the adiabatic into the diabatic which, then, follow the
+!electronic prpagation    
+!   do j=1,mol
+!         sh_env%ctin(j) = cmplx(0.0D0, 0.0D0,dp)                           
+!         pop(j) = cmplx(0.0D0, 0.0D0,dp) !TEST
+!         do i=1,mol 
+!             sh_env%ctin(j) = sh_env%ctin(j) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*ct(i)
+!         end do
+!        pop(j)=sh_env%ctin(j)*conjg(sh_env%ctin(j))
+!   end do
+    
+   CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
+    
+   ! deallocate(ct) 
+    deallocate(tau)
+    deallocate(sh_print_env%tau_deco)
+    deallocate(pop)
+  END SUBROUTINE wf_damping_adiab_prop 
 
 
   SUBROUTINE  wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)                    
