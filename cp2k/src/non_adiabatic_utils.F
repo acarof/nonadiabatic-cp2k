@@ -127,6 +127,38 @@ CONTAINS
 
   END SUBROUTINE decohere_wf
 
+
+  SUBROUTINE wf_collapse_adiab_prop(aom_env,sh_print_env, sh_env, itimes, successful_hop)
+    TYPE(sh_print_env_type)                        :: sh_print_env
+    TYPE(aom_env_type)                             :: aom_env
+    TYPE(sh_env_type)                              :: sh_env
+
+    CHARACTER(len=*), PARAMETER :: routineN ='wf_collapse', &         
+    routineP = moduleN//':'//routineN                                                                 
+    
+    INTEGER, POINTER                               :: itimes
+    LOGICAL                                        ::  successful_hop
+
+ sh_print_env%decohere = .FALSE.                                      
+      IF (itimes.ge.1) THEN                                                
+         !Finally, collapse the wavefunction if called for                 
+         !if (successful_hop) aom_env%futur_decohere = .TRUE.               
+!         print*, "future", aom_env%futur_decohere, sh_env%decohere
+         if (aom_env%futur_decohere .and. sh_env%decohere) then                                  
+!> Check if the surface_hop subroutine asks us to do the decoherence       
+                  sh_print_env%decohere = .TRUE.
+!                  print*, "deco!", sh_env%c_tp(:,:)
+!The wafunction is collapsed in a pure state
+                     sh_env%ctin(:) =  CMPLX(0.0D0, 0.0D0,dp)
+                     sh_env%ctin(sh_env%active_state) = CMPLX(1.0D0, 0.0D0,dp)
+                     !sh_env%ctin(:) = sh_env%C_tp(:, sh_env%active_state)
+                  aom_env%futur_decohere = .FALSE.                         
+         end if                                                            
+         CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
+      ENDIF
+  END SUBROUTINE wf_collapse_adiab_prop
+
+
   SUBROUTINE wf_collapse(aom_env,sh_print_env, sh_env, itimes, successful_hop)
     TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(aom_env_type)                             :: aom_env
@@ -152,8 +184,8 @@ CONTAINS
          end if                                                            
          CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
       ENDIF
-  END SUBROUTINE wf_collapse                                                               
-                                                 
+  END SUBROUTINE wf_collapse 
+
 
  ! SUBROUTINE wf_ever_collaps(sh_print_env, sh_env, itimes, successful_hop)
   SUBROUTINE wf_tresh_collaps(sh_print_env, sh_env, itimes)
