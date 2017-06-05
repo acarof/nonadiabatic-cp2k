@@ -199,9 +199,11 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
 end subroutine makeX
 
 
-subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-           sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+!subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
+ !          sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
 
+subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
+           sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
 !Choose whether doing surface hopping with trivial hopping correction or witgout
 !it following the old code 
         
@@ -211,7 +213,8 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
        integer, intent(in) :: old_state
        REAL(KIND=dp), intent(in) :: deltat
        !REAL(KIND=dp), dimension(:,:), allocatable :: dphi
-       REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
+       !REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
+       REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C1, C2
        INTEGER, INTENT(OUT)        :: new_state
        LOGICAL, INTENT(OUT)        :: attempt_hop
        TYPE(sh_print_env_type)     :: sh_print_env
@@ -236,10 +239,13 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
        CASE("TRIVIAL_HOP_CORRECT")
 
        !CALL section_vals_val_get(adiab_section,"THRESHOLD_TRIVIAL_CROSS", r_val=triv_threshold)
-       CALL modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-                        sh_env, new_state, attempt_hop, decohere_criterion, &
-                       sh_print_env) !triv_threshold)
+       !CALL modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
+       !                 sh_env, new_state, attempt_hop, decohere_criterion, &
+       !                sh_print_env) !triv_threshold)
 
+       CALL modified_surfacehop(Stt, C1, C2, deltat, old_state, &
+              sh_env, new_state, attempt_hop, decohere_criterion, &
+              sh_print_env) !triv_threshold)
        CASE("UNMODIFIED_SURF_HOP")
         
        !CALL surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
@@ -254,7 +260,7 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
 
 END SUBROUTINE surf_hop_type
 
-subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
+subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
               sh_print_env) !triv_threshold)
 
@@ -266,19 +272,20 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         REAL(KIND=dp), INTENT(IN) :: decohere_criterion
         integer, intent(in) :: old_state
         REAL(KIND=dp), intent(in) :: deltat
-        REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
+        !REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
+        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C1, C2
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
         TYPE(sh_env_type), INTENT(OUT) :: sh_env
 
         LOGICAL        :: trivial_correction, correct_for_negative
-        integer :: i, j, mol, k, l
+        integer :: i, j, mol!, k, l
         REAL(KIND=dp) :: hop, sumg, ex_prob, min, g_exa, err
         !REAL(KIND=dp) :: triv_threshold
-        REAL(KIND=dp), dimension(:,:), allocatable :: dphi
+       ! REAL(KIND=dp), dimension(:,:), allocatable :: dphi
         REAL(KIND=dp), dimension(:), allocatable :: b, g
-        REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
+        !REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
        ! COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
         COMPLEX(KIND=dp), dimension(:), allocatable :: ct, cttm_ad
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak, akttm
@@ -294,15 +301,15 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         allocate(cttm_ad(mol))
         allocate(akttm(mol))        
 
-        allocate(dphi(mol,mol))
-        allocate(T1(mol,mol))
-        allocate(T2(mol,mol))
-        allocate(DT(mol,mol))
-        allocate(TST(mol,mol))
-        allocate(TDT(mol,mol))
-        allocate(DS(mol,mol))
-        allocate(DC(mol,mol))
-        allocate(sh_env%enerdiff(mol)) 
+      ! allocate(dphi(mol,mol))
+      ! allocate(T1(mol,mol))
+      ! allocate(T2(mol,mol))
+      ! allocate(DT(mol,mol))
+      ! allocate(TST(mol,mol))
+      ! allocate(TDT(mol,mol))
+      ! allocate(DS(mol,mol))
+      ! allocate(DC(mol,mol))
+       allocate(sh_env%enerdiff(mol)) 
         
         ALLOCATE(sh_print_env%proba(mol))
 
@@ -342,46 +349,46 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         sh_print_env%enermin = min
 
 
-        !use the matinvsqrt subroutine to find T = S^(-1/2)
-        T1 = Stmtm
-        T2 = Stptp
-        call matinvsqrt(mol, .TRUE., T1)
-        call matinvsqrt(mol, .TRUE., T2)
-
-        !and do some straightforward first-order numerical derivatives
-        DT = (0.5D0/deltat)*(T2 - T1)
-        DS = (0.5D0/deltat)*(Sttp - Sttm)
-        DC = (1.0D0/deltat)*(C2 - C1)
-       
-
-print *, "NACE_DIABATIC_FINITE_DIFFERENCE", DS 
-        !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
-        !by transforming from the diabatic overlaps
-        do i=1,mol
-                do j=1,mol
-                        TST(i,j) = 0.0D0
-                        TDT(i,j) = 0.0D0
-                        do k=1,mol
-                                do l=1,mol
-                                        TST(i,j) = TST(i,j) + T1(k,i)*Stt(k,l)*DT(l,j)
-                                        TDT(i,j) = TDT(i,j) + T1(k,i)*DS(k,l)*T1(l,j)
-                                end do
-                        end do
-                end do
-        end do
-        do i=1,mol
-                do j=1,mol
-                        dphi(i,j) = 0.0D0
-                        do k=1,mol
-                                dphi(i,j) = dphi(i,j) + C2(k,i)*DC(k,j)
-                                do l=1,mol
-                                        dphi(i,j) = dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
-print *, "i,j coefficients", i, j
-print *, "NACE_ADIABATIC", dphi(i,j) 
-                                end do
-                        end do
-                end do
-        end do
+!       !use the matinvsqrt subroutine to find T = S^(-1/2)
+!       T1 = Stmtm
+!       T2 = Stptp
+!       call matinvsqrt(mol, .TRUE., T1)
+!       call matinvsqrt(mol, .TRUE., T2)
+!
+!       !and do some straightforward first-order numerical derivatives
+!       DT = (0.5D0/deltat)*(T2 - T1)
+!       DS = (0.5D0/deltat)*(Sttp - Sttm)
+!       DC = (1.0D0/deltat)*(C2 - C1)
+!      
+!
+!rint *, "NACE_DIABATIC_FINITE_DIFFERENCE", DS 
+!       !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
+!       !by transforming from the diabatic overlaps
+!       do i=1,mol
+!               do j=1,mol
+!                       TST(i,j) = 0.0D0
+!                       TDT(i,j) = 0.0D0
+!                       do k=1,mol
+!                               do l=1,mol
+!                                       TST(i,j) = TST(i,j) + T1(k,i)*Stt(k,l)*DT(l,j)
+!                                       TDT(i,j) = TDT(i,j) + T1(k,i)*DS(k,l)*T1(l,j)
+!                               end do
+!                       end do
+!               end do
+!       end do
+!       do i=1,mol
+!               do j=1,mol
+!                       dphi(i,j) = 0.0D0
+!                       do k=1,mol
+!                               dphi(i,j) = dphi(i,j) + C2(k,i)*DC(k,j)
+!                               do l=1,mol
+!                                       dphi(i,j) = dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
+!rint *, "i,j coefficients", i, j
+!rint *, "NACE_ADIABATIC", dphi(i,j) 
+!                               end do
+!                       end do
+!               end do
+!       end do
 
         !now also calculate the adiabatic electronic coefficients by transforming from the diabatic
         !and fill out electronic density matrix elements a(i,j) for i = current adiabatic state
@@ -403,7 +410,7 @@ print *, "NACE_ADIABATIC", dphi(i,j)
                !other state
                 ak(i) = ct(i)*conjg(cstate)
                 akttm(i) = cttm_ad(i)*conjg(cstate_tm)
-                b(i) = -2.0D0*REAL(conjg(ak(i))*dphi(i,old_state))
+                b(i) = -2.0D0*REAL(conjg(ak(i))*sh_env%dphi(i,old_state))
 !print*, "i b dphi", i, b(i), dphi(i, old_state)
         end do
 
@@ -527,7 +534,7 @@ print *, "NACE_ADIABATIC", dphi(i,j)
                                 !if the non-adiabatic coupling dphi to all other states is below a certain threshold
                                 !then a wavefunction collapse will be enforced
                                 do j=1,mol
-                                        if (abs(dphi(old_state,j)) > decohere_criterion .and. old_state .ne. j) then
+                                        if (abs(sh_env%dphi(old_state,j)) > decohere_criterion .and. old_state .ne. j) then
                                                ! decohere = .FALSE.
                                                 sh_env%decohere = .FALSE.
                                                 EXIT
@@ -552,14 +559,14 @@ print *, "NACE_ADIABATIC", dphi(i,j)
         deallocate(akttm)
         deallocate(cttm_ad)
 
-        deallocate(dphi)
-        deallocate(T1)
-        deallocate(T2)
-        deallocate(DT)
-        deallocate(TST)
-        deallocate(TDT)
-        deallocate(DS)
-        deallocate(DC)
+       !deallocate(dphi)
+       !deallocate(T1)
+       !deallocate(T2)
+       !deallocate(DT)
+       !deallocate(TST)
+       !deallocate(TDT)
+       !deallocate(DS)
+       !deallocate(DC)
 
 end subroutine modified_surfacehop
 

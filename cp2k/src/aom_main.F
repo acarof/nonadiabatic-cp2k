@@ -976,7 +976,14 @@ print *, "ctin(AADIAB)", ctin
              IF ((new_state).EQ.0) new_state = mat
          ELSE
             IF (.NOT.successful_hop) THEN
-                   call surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp,   &
+                   !call surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp,   &
+                    !              deltatMD, active_state, sh_env,  &
+                     !            !new_state, is_hop)
+                      !             new_state, &
+                       !            attempt_hop, &
+                        !           decohere_criterion, &
+                         !          sh_print_env)
+                   call surf_hop_type(adiab_section, Stt, C_t, C_tp,   &
                                   deltatMD, active_state, sh_env,  &
                                  !new_state, is_hop)
                                    new_state, &
