@@ -603,14 +603,19 @@ subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, sh_env
         DS = (0.5D0/deltat)*(Sttp - Sttm)
         DC = (1.0D0/deltat)*(C2 - C1)
 
-print *, "C2", C2
-print *, "C1", C1
+print *, "Sttp", Sttp
 print *, "Stt", Stt
-print *, "deltat", deltat
+print *, "Stptp", Stptp
+print *, "Sttm", Sttm
+print *, " Stmtm", Stmtm
+print *, "C1", C1
+print *, "C2", C2
+
 
 !stop
-        
-print *, "NACE_DIABATIC_FINITE_DIFFERENCE", DS 
+print *, "DT", DT
+print *, "DS", DS
+print *, "DC", DC
 
         !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
         !by transforming from the diabatic overlaps

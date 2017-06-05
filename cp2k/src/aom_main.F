@@ -688,14 +688,14 @@ CONTAINS
                                 aom_env%Sttm(j,i)  = Stpt(j,i)
                                 aom_env%Stmt(j,i)  = Sttp(j,i)
                                 aom_env%Stmtm(j,i) = Stt(j,i)
-print *, "aom_env%Stmtm(j,i)", aom_env%Stt(j,i)
-print *, "PRINT INITIAL Stt", Stt(j,i)
-print *, "PRINT INITIAL Sttp", Sttp(j,i)
-print *, "PRINT INITIAL Stpt", Stpt(j,i)
-print *, "PRINT INITIAL Stptp", Stptp(j,i)
                   end do
                end do
 !print *, "DELTA_T_BEFORE", deltat
+print *, "aom_env%Stmtm(j,i)", aom_env%Stt
+print *, "PRINT INITIAL Stt", Stt
+print *, "PRINT INITIAL Sttp", Sttp
+print *, "PRINT INITIAL Stpt", Stpt
+print *, "PRINT INITIAL Stptp", Stptp
 print *, "DELTAMD_BEFORE", deltatMD
 
 !          endif !CHANGE_AC
