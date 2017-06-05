@@ -237,7 +237,7 @@ CONTAINS
     end do
 
     sh_print_env%tau_deco = tau
-!transfor the active diabatic state into the active diabatic state
+!transfor the active diabatic state into the active adiabatic state
     pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
     ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
     do i=1,mol                                                       

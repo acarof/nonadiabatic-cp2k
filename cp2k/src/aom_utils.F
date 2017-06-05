@@ -260,6 +260,50 @@ subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
 
 END SUBROUTINE surf_hop_type
 
+
+subroutine diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, C1, cttm_ad, cstate_tm)
+
+        implicit none
+        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C2
+        REAL(KIND=dp), dimension(:,:), optional, intent(in) :: C1
+        integer, intent(in) :: old_state
+        TYPE(sh_env_type) :: sh_env
+        integer, intent(in) :: mol
+        COMPLEX(KIND=dp), dimension(:), allocatable , intent(out) :: ct
+        COMPLEX(KIND=dp), dimension(:), allocatable, optional, intent(out) ::  cttm_ad
+        COMPLEX(KIND=dp), intent(out) :: cstate
+        COMPLEX(KIND=dp), optional, intent(out) :: cstate_tm
+
+        integer :: i, j!, mol!, k, l
+
+        allocate(ct(mol))
+        IF (PRESENT(cttm_ad)) allocate(cttm_ad(mol))
+
+
+        cstate = cmplx(0.0D0, 0.0D0, dp)
+        IF (PRESENT(cstate_tm)) cstate_tm = cmplx(0.0D0, 0.0D0, dp)
+        do i=1,mol
+                cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
+                IF (PRESENT(C1)) THEN
+                     cstate_tm = cstate_tm + cmplx(C1(i,old_state),0.0D0,dp)*sh_env%cttm(i)
+                END IF
+        end do
+!print *,  "CSTATE", cstate
+        do i=1,mol
+                !calculate a and b
+                ct(i) = cmplx(0.0D0, 0.0D0,dp)
+                IF (PRESENT(cttm_ad)) cttm_ad(i) = cmplx(0.0D0, 0.0D0,dp)
+                do j=1,mol
+                        ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
+                        IF (PRESENT(C1)) THEN
+                              cttm_ad(i) = cttm_ad(i) + cmplx(C1(j,i),0.0D0,dp)*sh_env%cttm(j)
+                        END IF
+                end do
+        end do
+!print *, "Ctot", ct
+
+end subroutine diab_to_adiab
+
 subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
               sh_print_env) !triv_threshold)
@@ -276,8 +320,8 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C1, C2
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: attempt_hop
-        TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
-        TYPE(sh_env_type), INTENT(OUT) :: sh_env
+        TYPE(sh_print_env_type) :: sh_print_env
+        TYPE(sh_env_type) :: sh_env
 
         LOGICAL        :: trivial_correction, correct_for_negative
         integer :: i, j, mol!, k, l
@@ -288,7 +332,9 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         !REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
        ! COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
         COMPLEX(KIND=dp), dimension(:), allocatable :: ct, cttm_ad
+        !COMPLEX(KIND=dp), dimension(:) :: ct, cttm_ad
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak, akttm
+        !COMPLEX(KIND=dp) :: cstate, cstate_tm
         COMPLEX(KIND=dp) :: cstate, cstate_tm
 
         mol = size(Stt,1)
@@ -297,8 +343,8 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         allocate(ak(mol))
         allocate(b(mol))
         allocate(g(mol))
-        allocate(ct(mol))
-        allocate(cttm_ad(mol))
+       ! allocate(ct(mol))
+       ! allocate(cttm_ad(mol))
         allocate(akttm(mol))        
 
       ! allocate(dphi(mol,mol))
@@ -392,25 +438,41 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
 
         !now also calculate the adiabatic electronic coefficients by transforming from the diabatic
         !and fill out electronic density matrix elements a(i,j) for i = current adiabatic state
-        cstate = cmplx(0.0D0, 0.0D0, dp)
-        cstate_tm = cmplx(0.0D0, 0.0D0, dp)
+!       cstate = cmplx(0.0D0, 0.0D0, dp)
+!       cstate_tm = cmplx(0.0D0, 0.0D0, dp)
+!       do i=1,mol
+!               cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
+!               cstate_tm = cstate_tm + cmplx(C1(i,old_state),0.0D0,dp)*sh_env%cttm(i)
+!       end do
+!rint *,  "CSTATE", cstate
+!       do i=1,mol
+!               !calculate a and b
+!               ct(i) = cmplx(0.0D0, 0.0D0,dp)
+!               cttm_ad(i) = cmplx(0.0D0, 0.0D0,dp)
+!               do j=1,mol
+!                       ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
+!                       cttm_ad(i) = cttm_ad(i) + cmplx(C1(j,i),0.0D0,dp)*sh_env%cttm(j)
+!               end do
+!       end do
+!rint *, "Ctot", ct
+!
+
+!if the propagation occurs in the diabatic basis, transfor diabatic coefficients
+!into adiabatic coefficients
+
+        CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, &
+                                                   C1, cttm_ad, cstate_tm) 
+
         do i=1,mol
-                cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
-                cstate_tm = cstate_tm + cmplx(C1(i,old_state),0.0D0,dp)*sh_env%cttm(i)
-        end do
-        do i=1,mol
-                !calculate a and b
-                ct(i) = cmplx(0.0D0, 0.0D0,dp)
-                cttm_ad(i) = cmplx(0.0D0, 0.0D0,dp)
-                do j=1,mol
-                        ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
-                        cttm_ad(i) = cttm_ad(i) + cmplx(C1(j,i),0.0D0,dp)*sh_env%cttm(j)
-                end do
                !construct state density for t present and t-deltat from the active state to
                !other state
                 ak(i) = ct(i)*conjg(cstate)
                 akttm(i) = cttm_ad(i)*conjg(cstate_tm)
                 b(i) = -2.0D0*REAL(conjg(ak(i))*sh_env%dphi(i,old_state))
+print *, "SINGLE_CICLE ak(i)", ak(i)
+print *, "SINGLE_CICLE akttm(i)", akttm(i)
+print *, "SINGLE_CICLE b(i)", b(i)
+
 !print*, "i b dphi", i, b(i), dphi(i, old_state)
         end do
 
@@ -555,9 +617,9 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         deallocate(ak)
         deallocate(b)
         deallocate(G)
-        deallocate(ct)
+        !deallocate(ct)
         deallocate(akttm)
-        deallocate(cttm_ad)
+        !deallocate(cttm_ad)
 
        !deallocate(dphi)
        !deallocate(T1)
@@ -697,7 +759,7 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         allocate(ak(mol))
         allocate(b(mol))
         allocate(g(mol))
-        allocate(ct(mol))
+        !allocate(ct(mol))
        ! allocate(dphi(mol,mol))
        ! allocate(T1(mol,mol))
        ! allocate(T2(mol,mol))
@@ -756,22 +818,26 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
 
         !now also calculate the adiabatic electronic coefficients by transforming from the diabatic
         !and fill out electronic density matrix elements a(i,j) for i = current adiabatic state
-        cstate = cmplx(0.0D0, 0.0D0, dp)
-        do i=1,mol
-                cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
-        end do
-        do i=1,mol
-                !calculate a and b
-                ct(i) = cmplx(0.0D0, 0.0D0,dp)
-                do j=1,mol
-                        ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
-                end do
-                ak(i) = ct(i)*conjg(cstate)
-print *, "NOTE_SH_env%dphi", sh_env%dphi
+!       cstate = cmplx(0.0D0, 0.0D0, dp)
+!       do i=1,mol
+!               cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
+!       end do
+!       do i=1,mol
+!               !calculate a and b
+!               ct(i) = cmplx(0.0D0, 0.0D0,dp)
+!               do j=1,mol
+!                       ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
+!               end do
+!       end do
 
-!stop
+        CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct) 
+
+        do i=1,mol
+                ak(i) = ct(i)*conjg(cstate)
                 b(i) = -2.0D0*REAL(conjg(ak(i))*sh_env%dphi(i,old_state))
 !print*, "i b dphi", i, b(i), dphi(i, old_state)
+print *, "SINGLE_CICLE ak(i)", ak(i)
+print *, "SINGLE_CICLE b(i)", b(i)
         end do
 
         sumg = 0.0D0
@@ -867,7 +933,7 @@ print *, "Probability_RENORM: ", g
         deallocate(ak)
         deallocate(b)
         deallocate(G)
-        deallocate(ct)
+!        deallocate(ct)
 !        deallocate(dphi)
 !        deallocate(T1)
 !        deallocate(T2)

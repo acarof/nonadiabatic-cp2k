@@ -896,8 +896,12 @@ print *, "ONLY EQUAL zero C_tp", C_tp
                                        i_val=first_diabat)
 print *, "FIRST_DIABAT", first_diabat 
              CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state)
-print *, "ACTIVE_RANDOM_STATE", active_state
+
+!!!!!!!!!!!!! JUST TO TEST, TO BE REMOVED!!!!!!!!!!!
+active_state = 2
+          
 print *, "C_tp", C_tp
+print *, "ACTIVE_RANDOM_STATE", active_state
 
 
              SELECT CASE(keyword_basis_repr)
