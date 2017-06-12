@@ -411,12 +411,12 @@ CONTAINS
 
 
    SUBROUTINE adiab_print_nace(adiab_section, nace, nadiab, &
-              norbitals, itimes, deltatMD)
+              norbitals, itimes, deltatMD, times)
     TYPE(section_vals_type), POINTER         :: adiab_section
     REAL(KIND=dp), DIMENSION(:,:)            :: nace
     INTEGER, INTENT(IN)                      :: nadiab, norbitals
     INTEGER, POINTER                         :: itimes
-    REAL(KIND=dp),INTENT(IN)                 :: deltatMD
+    REAL(KIND=dp), INTENT(IN)                  :: deltatMD, times
 
     CHARACTER(len=*), PARAMETER :: routineN = 'adiab_print_nace', &
       routineP = moduleN//':'//routineN
@@ -442,7 +442,7 @@ CONTAINS
             c_val=unit_str)
        unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
        unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
-       time = unit_conv_fs*itimes*deltatMD
+       time = unit_conv_fs*times*deltatMD
 
        WRITE ( unit_nr, "( A,A,A,I8,A,I8)" ) "NACE (",TRIM(unit_str),");  nadiab =", nadiab, "; norbitals =",&
                                    norbitals

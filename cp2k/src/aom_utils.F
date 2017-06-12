@@ -1947,7 +1947,7 @@ ENDIF
            reverse = .FALSE.
         CASE("ALWAYS")
            reverse = .TRUE.
-        CASE("TRHULAR")
+        CASE("TRUHLAR")
            IF ((product_pd*product_dfn).lt.0) reverse = .TRUE.
         CASE("SUBOTNIK")
            IF (((product_pd*product_dfn).lt.0) .AND. ((product_dfn*product_dfo).lt.0)) reverse = .TRUE.
@@ -1956,7 +1956,6 @@ ENDIF
         END SELECT
 
         IF (reverse) THEN
-print*, "REVERSE"
            reversal_factor = -B/A
            DO iparticle_kind=1,nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
@@ -1966,11 +1965,7 @@ print*, "REVERSE"
                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                  IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
                       velocities(3, iparticle)**2 ).NE.0.0d0) THEN
-print*, velocities(:, iparticle)
-print*, reversal_factor, mass
                     velocities(:, iparticle ) = velocities(:, iparticle) + (reversal_factor/mass) * hop_nacv(:, iparticle)
-print*, velocities(:, iparticle)
-
                  ENDIF
               ENDDO
            END DO
