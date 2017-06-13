@@ -190,7 +190,7 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
 
         IF (PRESENT(NACE)) THEN
            NACE = my_NACE
-!           print *, 'LOOK NACE=', NACE 
+           !print *, 'LOOK NACE=', NACE 
         ENDIF
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)

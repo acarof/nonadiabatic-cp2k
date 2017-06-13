@@ -334,14 +334,13 @@ CONTAINS
 print *, 'K_tot =', K_tot
    END SUBROUTINE calc_kinetic_tot
  
-
   SUBROUTINE propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,     &
                           ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,      &
                             mat)
 
      COMPLEX(KIND=dp), dimension(:,:), INTENT(IN)    :: H_t, H_tp
-     REAL(KIND=dp), dimension(:,:), INTENT(INOUT)    :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
+     REAL(KIND=dp), dimension(:,:), INTENT(IN)       :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
      COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)   :: ctin
      INTEGER, INTENT(IN)                             :: nadiab,  norbitals 
 
@@ -355,6 +354,8 @@ print *, 'K_tot =', K_tot
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
      REAL(KIND=dp), dimension(:,:), allocatable      :: Imat 
+     REAL(KIND=dp), dimension(:,:), allocatable       :: Stt_int, Sttp_int, Stptp_int, &
+                                                          Sttm_int, Stmtm_int
 
 
      INTEGER                                         :: ELsteps   
@@ -386,6 +387,13 @@ print *, 'K_tot =', K_tot
      allocate(Sttdiff(mat,mat))
      allocate(Sttmdiff(mat,mat))
      allocate(Stmtmdiff(mat,mat))
+     allocate(Stt_int(mat,mat)) 
+     !allocate(Stpt(mat,mat))
+     allocate(Sttp_int(mat,mat))
+     allocate(Stptp_int(mat,mat))
+     !allocate(Stmt(mat,mat))
+     allocate(Sttm_int(mat,mat))
+     allocate(Stmtm_int(mat,mat))
 
      allocate(ctout(mat))
      allocate(ctotal(mat))
@@ -426,28 +434,40 @@ print *, 'K_tot =', K_tot
              H_0  = H_t
              H_2 = H_tp
 
+!Assignment internal variables used in the RK
+             
+             Stt_int = Stt 
+             Sttp_int = Sttp
+             Stptp_int = Stptp
+             !Stpt_int = Stpt!
+             !Stmt_int = Stmt!
+             Sttm_int = Sttm
+             Stmtm_int = Stmtm
 
              do t2=1,int(deltatMD/deltatE)
-                    call makeX(mat, H_t, Stt, Sttp, Sttm, Stptp, Stmtm, X1, deltatMD)
+                    call makeX(mat, H_t, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
+                                             Stmtm_int, X1, deltatMD)
+
 
 
                     !create timestepped equivalents
                     H_1 = H_0 + 0.5D0*Hdiff
-                    Stt = Stt + 0.5D0*Sttdiff
-                    Sttp = Sttp + 0.5D0*Sttpdiff
-                    Sttm = Sttm + 0.5D0*Sttmdiff
-                    Stptp = Stptp + 0.5D0*Stptpdiff
-                    Stmtm = Stmtm + 0.5D0*Stmtmdiff
-                    call makeX(mat, H_1, Stt, Sttp, Sttm, Stptp, Stmtm, X12, deltatMD)
+                    Stt_int = Stt_int + 0.5D0*Sttdiff
+                    Sttp_int = Sttp_int + 0.5D0*Sttpdiff
+                    Sttm_int = Sttm_int + 0.5D0*Sttmdiff
+                    Stptp_int = Stptp_int + 0.5D0*Stptpdiff
+                    Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
+                    call makeX(mat, H_1, Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
+                                                       Stmtm_int, X12, deltatMD)
      
                     H_2 = H_1 + 0.5D0*Hdiff
-                    Stt = Stt + 0.5D0*Sttdiff
-                    Sttp = Sttp + 0.5D0*Sttpdiff
-                    Sttm = Sttm + 0.5D0*Sttmdiff
-                    Stptp = Stptp + 0.5D0*Stptpdiff
-                    Stmtm = Stmtm + 0.5D0*Stmtmdiff
-!                    call makeX(mat, H_2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD)
-                    call makeX(mat, H_2, Stt, Sttp, Sttm, Stptp, Stmtm, X2, deltatMD, NACE)
+                    Stt_int = Stt_int + 0.5D0*Sttdiff
+                    Sttp_int = Sttp_int + 0.5D0*Sttpdiff
+                    Sttm_int = Sttm_int + 0.5D0*Sttmdiff
+                    Stptp_int = Stptp_int + 0.5D0*Stptpdiff
+                    Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
+                    call makeX(mat, H_2, Stt_int, Sttp_int, Sttm_int, Stptp_int, Stmtm_int, &
+                                                 X2, deltatMD, NACE)
      
                     K2 = cmplx(0.0D0, 0.0D0,dp)
                     K3 = cmplx(0.0D0, 0.0D0,dp)
@@ -533,6 +553,7 @@ print *, 'K_tot =', K_tot
        DEALLOCATE(NACE)
        deallocate(H_0, Hdiff, H_1, H_2, X1, X2, X12, Ktot, K2, K3, K4)
        deallocate(Sttdiff, Stptpdiff, Stmtmdiff, Sttpdiff, Sttmdiff)
+       deallocate(Stt_int, Sttp_int, Stptp_int, Sttm_int, Stmtm_int)
        deallocate(Imat)
 !END DEALLOCATE
 
