@@ -332,6 +332,15 @@ CONTAINS
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="RANDOM_DERIVATIVE",&
+         description="Decide if we use forward and backward derivative "//&
+                      "in a random way (True) or only forward (False).",&
+         usage="True", &
+         default_l_val=.TRUE., &
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="ANALYTICS",&
          description="Decide if we use the analytical equation rather than "//&
                       "the numerical expression. Only for 2x2 systems.",&

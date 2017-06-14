@@ -959,7 +959,7 @@ deallocate(prervecsa)
 
   subroutine calc_dRSab(xyza, atomlista, connlistal, coeffap, coeffas, &
                        nacva, nacvb, xyzb, atomlistb, connlistbl, coeffbp, coeffbs, &
-                       aneighbour, bneighbour, dR)
+                       aneighbour, bneighbour, dR, do_random)
 
 !     The aim of this subroutine is to calculate the non adiabatic coupling vector 
 !     using a 2 point scheme of numerical derivation (f(R+dR)-f(R))/dR. 3-point scheme
@@ -991,6 +991,7 @@ deallocate(prervecsa)
       integer :: i, j, k, z, f
       !CHANGE_AC 170504
       REAL(KIND=dp) :: random, signed
+      LOGICAL, INTENT(IN)          :: do_random
 
       natoma=size(xyza,2)
       natomb=size(xyzb,2)
@@ -1045,15 +1046,18 @@ deallocate(prervecsa)
               xyzadr=xyza
               !CHANGE_AC 170504
               !FIND A RANDOM SIGN
-              !call a random number
-              call init_random_seed()
-              call random_number(random)
-              if (random < 0.5) then
-                 signed = -1
+              if (do_random) then
+                 !call a random number
+                 call init_random_seed()
+                 call random_number(random)
+                 if (random < 0.5) then
+                    signed = -1
+                 else
+                    signed = +1
+                 endif
               else
-                 signed = +1
+                 signed = 1
               endif
-              !signed = 1
  
               xyzadr(j+1,i)=xyza(j+1,i)+ signed*dR 
               coeffapdr=coeffap        
@@ -1111,15 +1115,19 @@ deallocate(prervecsa)
               xyzbdr=xyzb
               !CHANGE_AC 170504
               !FIND A RANDOM SIGN
-              !call a random number
-              call init_random_seed()
-              call random_number(random)
-              if (random < 0.5) then
-                 signed = -1
+              if (do_random) then
+                 !call a random number
+                 call init_random_seed()
+                 call random_number(random)
+                 if (random < 0.5) then
+                    signed = -1
+                 else
+                    signed = +1
+                 endif
               else
-                 signed = +1
+                 signed = 1
               endif
-              !signed = 1
+              
               xyzbdr(j+1,i)=xyzb(j+1,i)+signed*dR
               coeffbpdr=coeffbp
               rvecsbdr=rvecsb

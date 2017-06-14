@@ -200,6 +200,7 @@ CONTAINS
       real(kind=dp), allocatable :: PC_rvecs(:,:)
       integer :: o
 !end PC
+      LOGICAL    :: do_random
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -225,6 +226,7 @@ CONTAINS
              r_val=dR)
 !     CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
      CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
+     CALL section_vals_val_get(coupling_section,"RANDOM_DERIVATIVE", l_val=do_random)
 !     CALL section_vals_val_get(coupling_section,"SELECT_FIRST_ADIABAT", l_val=select_first_adiabat)
      CALL section_vals_val_get(coupling_section,"CENTER_OF_MASS", l_val=keyword_translate)
 
@@ -587,7 +589,7 @@ CONTAINS
                                              &nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
                                              &nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
-                                             &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR)
+                                             &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, do_random)
                                         end do
                                    end do
 
@@ -783,7 +785,7 @@ CONTAINS
                                              nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
                                              nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
-                                             scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR)
+                                             scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, do_random)
                                         end do
                                    end do
                               endif 
