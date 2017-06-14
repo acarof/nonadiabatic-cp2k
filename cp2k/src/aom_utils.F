@@ -103,9 +103,17 @@ MODULE aom_utils
 
   USE non_adiabatic_types,             ONLY: sh_env_type
 
+  USE parallel_rng_types,              ONLY: UNIFORM,&
+                                             create_rng_stream,&
+                                             delete_rng_stream,&
+                                             rng_stream_type, &
+                                             next_random_number
+
+
 !  USE integrator_utils,                ONLY: tmp_variables_type 
 
 #include "./base/base_uses.f90"
+
 
 
 
@@ -279,6 +287,9 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         COMPLEX(KIND=dp), dimension(:), allocatable :: ct, cttm_ad
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak, akttm
         COMPLEX(KIND=dp) :: cstate, cstate_tm
+        TYPE(rng_stream_type), POINTER           :: rng_stream
+ 
+        NULLIFY(rng_stream)
 
         mol = size(Stt,1)
 
@@ -490,8 +501,12 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
 !unphysical number larger than 1. 
 
         !call a random number
-        call init_random_seed()
-        call random_number(hop)
+        !call init_random_seed()
+        !call random_number(hop)
+        CALL create_rng_stream(rng_stream, "fssh")
+        hop = next_random_number(rng_stream)
+        CALL delete_rng_stream(rng_stream)
+
         sh_print_env%hop       = hop
         sh_print_env%old_state = old_state
         !and see if this random number causes a surface hop
@@ -582,8 +597,10 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
         COMPLEX(KIND=dp), dimension(:), allocatable :: ct
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak
         COMPLEX(KIND=dp) :: cstate
+        TYPE(rng_stream_type), POINTER           :: rng_stream
 
-        mol = size(Stt,1)
+        NULLIFY(rng_stream)
+
 
         !many allocations
         allocate(ak(mol))
@@ -697,8 +714,12 @@ print *, "Probability_RENORM: ", g
         sh_print_env%proba     = g
 
         !call a random number
-        call init_random_seed()
-        call random_number(hop)
+        !call init_random_seed()
+        !call random_number(hop)
+        CALL create_rng_stream(rng_stream, "fssh")
+        hop = next_random_number(rng_stream)
+        CALL delete_rng_stream(rng_stream)
+
         sh_print_env%hop       = hop
         sh_print_env%old_state = old_state
         !and see if this random number causes a surface hop
@@ -1572,11 +1593,17 @@ end subroutine calcTDT
         
         INTEGER                                   :: i
         REAL( KIND =dp)                           :: random, sumc
+        TYPE(rng_stream_type), POINTER           :: rng_stream
+
+        NULLIFY(rng_stream)
 
         ALLOCATE(sh_print_env%pop_init(SIZE(C(init,:))))
 
-        CALL init_random_seed()
-        CALL random_number(random)
+        !CALL init_random_seed()
+        !CALL random_number(random)
+        CALL create_rng_stream(rng_stream, "firstadiab")
+        random = next_random_number(rng_stream)
+        CALL delete_rng_stream(rng_stream)
         sh_print_env%initrandom = random
         sumc = 0.0D0
         DO i=1, SIZE(C(init,:))

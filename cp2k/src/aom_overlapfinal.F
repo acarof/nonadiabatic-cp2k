@@ -18,6 +18,11 @@ module aom_overlapfinal
   USE machine,                         ONLY: m_getpid
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE parallel_rng_types,              ONLY: UNIFORM,&
+                                             create_rng_stream,&
+                                             delete_rng_stream,&
+                                             rng_stream_type, &
+                                             next_random_number
 #include "./base/base_uses.f90"
 
       implicit none
@@ -992,6 +997,10 @@ deallocate(prervecsa)
       !CHANGE_AC 170504
       REAL(KIND=dp) :: random, signed
       LOGICAL, INTENT(IN)          :: do_random
+      TYPE(rng_stream_type), POINTER           :: rng_stream
+
+      NULLIFY(rng_stream)
+
 
       natoma=size(xyza,2)
       natomb=size(xyzb,2)
@@ -1048,8 +1057,11 @@ deallocate(prervecsa)
               !FIND A RANDOM SIGN
               if (do_random) then
                  !call a random number
-                 call init_random_seed()
-                 call random_number(random)
+                 !call init_random_seed()
+                 !call random_number(random)
+                 CALL create_rng_stream(rng_stream, "nacva")
+                 random = next_random_number(rng_stream)
+                 CALL delete_rng_stream(rng_stream)
                  if (random < 0.5) then
                     signed = -1
                  else
@@ -1117,8 +1129,11 @@ deallocate(prervecsa)
               !FIND A RANDOM SIGN
               if (do_random) then
                  !call a random number
-                 call init_random_seed()
-                 call random_number(random)
+                 !call init_random_seed()
+                 !call random_number(random)
+                 CALL create_rng_stream(rng_stream, "nacvb")
+                 random = next_random_number(rng_stream)
+                 CALL delete_rng_stream(rng_stream)
                  if (random < 0.5) then
                     signed = -1
                  else
