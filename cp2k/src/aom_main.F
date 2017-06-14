@@ -851,8 +851,14 @@ CONTAINS
              end do
              ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
              aom_env%population(1:mat) = abs(ctin(1:mat)) 
-             CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
-             active_state = first_adiabat
+             IF (my_bo_keyword) THEN
+                CALL section_vals_val_get(adiab_section,"FIRST_ADIABAT",&
+                                       i_val=first_adiabat)
+                active_state = first_adiabat
+             ELSE
+                CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
+                active_state = first_adiabat
+             ENDIF
              decohere = .FALSE.
              sh_env%decohere = .FALSE.
              attempt_hop = .FALSE.
@@ -950,7 +956,7 @@ CONTAINS
                      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
                   ENDDO
                ENDDO
-               !print*, "ACTIVE STATE = ", active_state
+               print*, "ACTIVE STATE = ", active_state
                call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces,   &
