@@ -1,0 +1,351 @@
+
+
+                      ************* ******** ***********   
+                     ************* **********************  
+                     ****     **** ****      ***********   
+                     ******** ****  *******     ****       
+                     *******  ****   *******   ****        
+                     ****     ****       ****  ****        
+                     ****     **** **********  ****        
+                      ****     **** ********    ****       
+                     FRONTIERS IN SIMULATION TECHNOLOGY    
+                                                           
+                        C.J. Mundy, S. Balasubramanian,    
+                     Ken Bagchi, J. Hutter, Ari Seitsonen  
+                      IFW Kuo, T. Laino, J. VandeVondele   
+                                 Version 1.0               
+
+                                                           
+
+ EWALD|                                                                 not used
+          ----------------------------------------------------------------------
+ COLVARS| COLVAR INPUT INDEX:        1
+ COLVARS| BOND          >>> POINTS:                                    1       2
+ COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS
+ COLVARS|  POINT Nr.     1 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         1
+ COLVARS|   ATOM:         4
+ COLVARS|  POINT Nr.     2 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         7
+ COLVARS|   ATOM:        10
+          ----------------------------------------------------------------------
+          ----------------------------------------------------------------------
+ COLVARS| COLVAR INPUT INDEX:        2
+ COLVARS| BOND          >>> POINTS:                                    1       2
+ COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS
+ COLVARS|  POINT Nr.     1 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         1
+ COLVARS|   ATOM:         4
+ COLVARS|  POINT Nr.     2 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:        13
+ COLVARS|   ATOM:        16
+          ----------------------------------------------------------------------
+          ----------------------------------------------------------------------
+ COLVARS| COLVAR INPUT INDEX:        3
+ COLVARS| BOND          >>> POINTS:                                    1       2
+ COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS
+ COLVARS|  POINT Nr.     1 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:        13
+ COLVARS|   ATOM:        16
+ COLVARS|  POINT Nr.     2 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         7
+ COLVARS|   ATOM:        10
+          ----------------------------------------------------------------------
+
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+
+ CHARGE_INFO| Total Charge of the Classical System:                     0.000000
+
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+
+
+ SPLINE_INFO| Generating 6 splines for NONBONDED14 interactions 
+              Due to 3 different atomic kinds
+  ...1  ...2  ...3  ...4  ...5  ...6
+ SPLINE_INFO| Number of unique splines computed:            1
+ SPLINE_INFO| Done
+
+ SPLINE_INFO| Generating 6 splines for NONBONDED interactions 
+              Due to 3 different atomic kinds
+  ...1  ...2  ...3  ...4  ...5  ...6
+ SPLINE_INFO| Number of unique splines computed:            4
+ SPLINE_INFO| Done
+
+
+                      ************* ******** ***********   
+                     ************* **********************  
+                     ****     **** ****      ***********   
+                     ******** ****  *******     ****       
+                     *******  ****   *******   ****        
+                     ****     ****       ****  ****        
+                     ****     **** **********  ****        
+                      ****     **** ********    ****       
+                     FRONTIERS IN SIMULATION TECHNOLOGY    
+                                                           
+                        C.J. Mundy, S. Balasubramanian,    
+                     Ken Bagchi, J. Hutter, Ari Seitsonen  
+                      IFW Kuo, T. Laino, J. VandeVondele   
+                                 Version 1.0               
+
+                                                           
+
+ EWALD|                                                                 not used
+          ----------------------------------------------------------------------
+ COLVARS| COLVAR INPUT INDEX:        1
+ COLVARS| BOND          >>> POINTS:                                    1       2
+ COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS
+ COLVARS|  POINT Nr.     1 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         1
+ COLVARS|   ATOM:         4
+ COLVARS|  POINT Nr.     2 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         7
+ COLVARS|   ATOM:        10
+          ----------------------------------------------------------------------
+          ----------------------------------------------------------------------
+ COLVARS| COLVAR INPUT INDEX:        2
+ COLVARS| BOND          >>> POINTS:                                    1       2
+ COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS
+ COLVARS|  POINT Nr.     1 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         1
+ COLVARS|   ATOM:         4
+ COLVARS|  POINT Nr.     2 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:        13
+ COLVARS|   ATOM:        16
+          ----------------------------------------------------------------------
+          ----------------------------------------------------------------------
+ COLVARS| COLVAR INPUT INDEX:        3
+ COLVARS| BOND          >>> POINTS:                                    1       2
+ COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS
+ COLVARS|  POINT Nr.     1 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:        13
+ COLVARS|   ATOM:        16
+ COLVARS|  POINT Nr.     2 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         7
+ COLVARS|   ATOM:        10
+          ----------------------------------------------------------------------
+
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+
+ CHARGE_INFO| Total Charge of the Classical System:                     0.000000
+
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+
+
+ SPLINE_INFO| Generating 6 splines for NONBONDED14 interactions 
+              Due to 3 different atomic kinds
+  ...1  ...2  ...3  ...4  ...5  ...6
+ SPLINE_INFO| Number of unique splines computed:            1
+ SPLINE_INFO| Done
+
+ SPLINE_INFO| Generating 6 splines for NONBONDED interactions 
+              Due to 3 different atomic kinds
+  ...1  ...2  ...3  ...4  ...5  ...6
+ SPLINE_INFO| Number of unique splines computed:            4
+ SPLINE_INFO| Done
+
+
+                      ************* ******** ***********   
+                     ************* **********************  
+                     ****     **** ****      ***********   
+                     ******** ****  *******     ****       
+                     *******  ****   *******   ****        
+                     ****     ****       ****  ****        
+                     ****     **** **********  ****        
+                      ****     **** ********    ****       
+                     FRONTIERS IN SIMULATION TECHNOLOGY    
+                                                           
+                        C.J. Mundy, S. Balasubramanian,    
+                     Ken Bagchi, J. Hutter, Ari Seitsonen  
+                      IFW Kuo, T. Laino, J. VandeVondele   
+                                 Version 1.0               
+
+                                                           
+
+ EWALD|                                                                 not used
+          ----------------------------------------------------------------------
+ COLVARS| COLVAR INPUT INDEX:        1
+ COLVARS| BOND          >>> POINTS:                                    1       2
+ COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS
+ COLVARS|  POINT Nr.     1 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         1
+ COLVARS|   ATOM:         4
+ COLVARS|  POINT Nr.     2 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         7
+ COLVARS|   ATOM:        10
+          ----------------------------------------------------------------------
+          ----------------------------------------------------------------------
+ COLVARS| COLVAR INPUT INDEX:        2
+ COLVARS| BOND          >>> POINTS:                                    1       2
+ COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS
+ COLVARS|  POINT Nr.     1 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         1
+ COLVARS|   ATOM:         4
+ COLVARS|  POINT Nr.     2 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:        13
+ COLVARS|   ATOM:        16
+          ----------------------------------------------------------------------
+          ----------------------------------------------------------------------
+ COLVARS| COLVAR INPUT INDEX:        3
+ COLVARS| BOND          >>> POINTS:                                    1       2
+ COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS
+ COLVARS|  POINT Nr.     1 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:        13
+ COLVARS|   ATOM:        16
+ COLVARS|  POINT Nr.     2 OF TYPE: GEO_CENTER
+ COLVARS|   ATOMS BUILDING THE GEOMETRICAL POINT
+ COLVARS|   ATOM:         7
+ COLVARS|   ATOM:        10
+          ----------------------------------------------------------------------
+
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+
+ CHARGE_INFO| Total Charge of the Classical System:                     0.000000
+
+ FORCEFIELD| WARNING: A non Critical ForceField parameter is missing! CP2K GOES!
+ FORCEFIELD| Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4
+ FORCEFIELD| All missing parameters will not contribute to the potential energy!
+ FORCEFIELD| Activate the print key FF_INFO to have a list of missing parameters
+
+
+ SPLINE_INFO| Generating 6 splines for NONBONDED14 interactions 
+              Due to 3 different atomic kinds
+  ...1  ...2  ...3  ...4  ...5  ...6
+ SPLINE_INFO| Number of unique splines computed:            1
+ SPLINE_INFO| Done
+
+ SPLINE_INFO| Generating 6 splines for NONBONDED interactions 
+              Due to 3 different atomic kinds
+  ...1  ...2  ...3  ...4  ...5  ...6
+ SPLINE_INFO| Number of unique splines computed:            4
+ SPLINE_INFO| Done
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.028672597202693
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.017163837953531
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.025455189006980
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.029564605120368
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.017724510115477
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.026298822543797
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.029991310157970
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.017980298879417
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.026741190995325
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.029890288287923
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.017874763488255
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.026718653594330
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.029276379107336
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.017424414884469
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.026243087378021
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.028240483139054
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.016717283426821
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.025400789004162
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.026927379673819
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.015890677685010
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.024330466508599
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.025498896499531
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.015094478681339
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.023186640947744
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.024093609206746
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.014451150790947
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.022099623182237
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.022795513501477
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.014024905952724
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.021144497843419
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.021621314659263
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.013809648000550
+
+
+ ENERGY| Total FORCE_EVAL ( FIST ) energy (a.u.):              0.020328748934499
+

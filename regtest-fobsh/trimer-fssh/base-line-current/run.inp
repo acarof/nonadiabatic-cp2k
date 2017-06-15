@@ -1,0 +1,1252 @@
+
+&GLOBAL
+  BLACS_GRID             SQUARE
+  PREFERRED_FFT_LIBRARY  FFTW
+  PRINT_LEVEL            LOW
+  PROGRAM_NAME           CP2K
+  PROJECT_NAME           run
+  RUN_TYPE               MD
+&END GLOBAL
+&MOTION
+	&MD
+     		ENSEMBLE      NVE
+     		STEPS         10
+   		TIMESTEP      0.5
+     		TEMPERATURE   298
+                &THERMOSTAT
+                    REGION  GLOBAL
+                    &NOSE
+                         LENGTH      3
+                         YOSHIDA     3
+                         TIMECON     1000
+                         MTS         2
+                    &END NOSE
+                &END THERMOSTAT
+   	&END MD
+  	&PRINT
+		&TRAJECTORY  LOW
+       			FORMAT  XYZ
+       			&EACH
+         			MD          1
+       			&END EACH
+     		&END TRAJECTORY
+     		&VELOCITIES  LOW
+       			FORMAT  XYZ
+       			&EACH
+         			MD          1
+       			&END EACH
+     		&END VELOCITIES
+     		&FORCES  LOW
+       			FORMAT  XYZ
+       			&EACH
+         			MD          1
+       			&END EACH
+     		&END FORCES
+                &RESTART_HISTORY OFF
+                &END RESTART_HISTORY
+   	&END PRINT
+
+        &CONSTRAINT
+
+
+             &COLLECTIVE
+                  &RESTRAINT
+                         K              0.005000
+                  &END RESTRAINT
+                  COLVAR                1
+                  INTERMOLECULAR
+                  TARGET      [angstrom]          3.616897
+             &END COLLECTIVE
+                         
+     
+
+             &COLLECTIVE
+                  &RESTRAINT
+                         K              0.005000
+                  &END RESTRAINT
+                  COLVAR                2
+                  INTERMOLECULAR
+                  TARGET      [angstrom]          7.233793
+             &END COLLECTIVE
+                         
+     
+
+             &COLLECTIVE
+                  &RESTRAINT
+                         K              0.005000
+                  &END RESTRAINT
+                  COLVAR                3
+                  INTERMOLECULAR
+                  TARGET      [angstrom]          3.616897
+             &END COLLECTIVE
+                         
+             &END CONSTRAINT
+&END MOTION
+&MULTIPLE_FORCE_EVALS
+   FORCE_EVAL_ORDER 1..4
+   MULTIPLE_SUBSYS
+&END
+&FORCE_EVAL
+        METHOD MIXED
+        &MIXED
+                MIXING_TYPE ADIABATIC
+                &ADIABATIC
+                        METHOD_PROPAGATION  FSSH
+                        METHOD_COUPLING     AOM
+                        SURF_HOP_CHOICE          TRIVIAL_HOP_CORRECT
+                        DECOHERENCE_CORRECTIONS  DAMPING
+                        EDC_C 1.0
+                        EDC_E0 0.1
+                        INITIALIZATION                        DIABATIC
+                        FIRST_DIABAT                          1
+                        FIRST_ADIABAT                         1
+		  	SEED                                  42
+                        &AOM
+                             NUMBER_DIABATIC_STATES                3
+                             NUMBER_ATOMS_PER_SITE                 6
+                             NUMBER_ORBITALS                       1
+                             CUT_OFF_BETWEEN_SITES [angstrom]      12.0
+                             CUT_OFF_CONNECTIVITY                  3.5
+                             SCALING_FACTOR   [hartree]            0.001
+                             DECOHERENCE_CRITERION                 1e-06
+                             CBAR                                  0.5082
+                             ATOMIC_OVERLAP_CUTOFF                 1e-17
+                             NUCLEAR_TIMESTEP  [fs]                0.5
+                             ELECTRONIC_PARTIAL_STEP               5
+                             ANALYTICS                             F
+                             RANDOM_DERIVATIVE                     T
+                             CENTER_OF_MASS                        T
+                             METHOD_RESCALING                      NACV
+                             METHOD_ADIABATIC_NACV                 FAST
+                             METHOD_REVERSAL                       NEVER
+                             NACV_INCREMENT   [bohr]               0.0018872589
+
+
+C1  6    1   0.0   0.5890
+H   1    1   0.0   0.0
+H   1    1   0.0   0.0
+C1  6    1   0.0   0.5890
+H   1    1   0.0   0.0
+H   1    1   0.0   0.0
+C1  6    1   0.0   0.5890
+H   1    1   0.0   0.0
+H   1    1   0.0   0.0
+C1  6    1   0.0   0.5890
+H   1    1   0.0   0.0
+H   1    1   0.0   0.0
+C1  6    1   0.0   0.5890
+H   1    1   0.0   0.0
+H   1    1   0.0   0.0
+C1  6    1   0.0   0.5890
+H   1    1   0.0   0.0
+H   1    1   0.0   0.0
+                        &END AOM
+                        &PRINT
+                            &COEFFICIENTS  LOW
+                               &EACH
+                                   MD          1
+                               &END EACH
+                            &END COEFFICIENTS
+                            #&POPULATIONS  LOW
+                            #   &EACH
+                            #       MD          5000
+                            #   &END EACH
+                            #&END POPULATIONS
+                            &HAMILTONIAN
+                               UNIT     hartree
+                               &EACH
+                                   MD          1
+                               &END EACH
+                            &END HAMILTONIAN
+                            #&DENSITY_MATRIX
+                            #   &EACH
+                            #       MD          5000
+                            #   &END EACH
+                            #&END DENSITY_MATRIX
+                            &HOP_NACV
+                               &EACH
+                                   MD          1
+                               &END EACH
+                            &END HOP_NACV
+                            &NACV
+                               &EACH
+                                   MD          5000
+                               &END EACH
+                            &END NACV
+                            &NACE
+                               &EACH
+                                   MD          5000
+                               &END EACH
+                            &END NACE
+                            #&STATE
+                            #   &EACH
+                            #       MD          5000
+                            #   &END EACH
+                            #&END STATE
+                            &EXACT_FORCES
+                               &EACH
+                                   MD          5000
+                               &END EACH
+                            &END EXACT_FORCES
+                            &ACTIVE_STATE_INFO
+                               &EACH
+                                   MD          5000
+                               &END EACH
+                            &END ACTIVE_STATE_INFO
+                            &SH_INFO
+                               &EACH
+                                   MD          1
+                               &END EACH
+                            &END SH_INFO
+                            &ADIABAT_ENERGIES
+                               &EACH
+                                   MD          5000
+                               &END EACH
+                            &END ADIABAT_ENERGIES
+                        &END PRINT
+                &END ADIABATIC
+                &PRINT
+                        &PROGRAM_RUN_INFO LOW
+                                        &EACH
+                                                MD 1
+                                        &END EACH
+                        &END PROGRAM_RUN_INFO
+                &END PRINT
+        &END MIXED
+        &SUBSYS
+                &CELL
+                        ABC                    108.506897937        108.506897937        108.506897937
+                        PERIODIC               NONE
+                &END CELL
+                &COORD
+
+CN  4.477174029, 3.6007430242, 1.6203347172
+H  5.291426913, 3.47712175, 2.3360601921
+H  4.6652969305, 4.2496225919, 0.7169972207
+CN  3.2746720958, 3.3557269678, 1.9885808736
+H  2.4767287195, 3.6147763877, 1.3124012437
+H  3.0911230531, 2.7969380467, 2.8728860383
+CP  2.7764531924, -0.1188205648, 0.6340418265
+H  3.2660025378, 0.5542424065, 1.3646636991
+H  3.168686745, -1.1269840028, 0.6051915358
+CP  2.1055456747, 0.3599258832, -0.5186560307
+H  1.8527159579, -0.3243981506, -1.308795969
+H  1.8996878962, 1.45301974, -0.5805099683
+CN  5.1116933639, -2.0515129449, -2.6233265093
+H  5.6433098294, -2.4734497456, -3.5168235713
+H  4.8023478433, -1.0447070313, -2.6095052437
+CN  4.8033693772, -2.8078097646, -1.5873221126
+H  4.3144525067, -2.4671592514, -0.6606981313
+H  5.0785902421, -3.8412268455, -1.6697060378
+                &END COORD
+                &VELOCITY
+
+-0.0002125033,	-6.82612e-05,	-0.0002231501
+-0.000711623,	3.93599e-05,	-0.0001201412
+-0.0006219488,	0.0004601963,	0.0004334093
+1.07888e-05,	2.57899e-05,	3.60444e-05
+-0.0003106997,	-0.0007187991,	-0.0001825826
+-0.0003630711,	-0.0012590651,	0.0003702242
+0.0001999953,	-2.8836e-05,	-1.89267e-05
+0.0003813527,	-0.0003935477,	0.0011420591
+-0.0006671619,	0.0002123968,	-0.0007532058
+-0.0001034348,	-9.56497e-05,	-0.0002210878
+-0.0006057785,	0.0010962685,	9.05322e-05
+-0.0003046288,	0.0003944675,	0.0010892976
+0.0001019752,	-2.0986e-05,	0.0001152504
+0.0016524128,	0.0010464885,	-0.0003759398
+-0.0004986346,	-0.0004524722,	5.18807e-05
+0.0002250499,	7.53484e-05,	0.0001373478
+-0.0006781679,	0.0010115489,	-0.00098043
+8.44244e-05,	-9.53128e-05,	0.0013142706
+                &END VELOCITY
+
+
+
+                   &KIND CP
+                        ELEMENT C
+                &END KIND
+                &KIND H
+                        ELEMENT H
+                &END KIND
+                &KIND CN
+                        ELEMENT C
+                &END KIND
+                        &TOPOLOGY
+                        NUMBER_OF_ATOMS                   18
+                        CONN_FILE_FORMAT  MOL_SET
+                        &MOL_SET
+
+
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_CHARGE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+ 
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_NEUTRE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+ 
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_NEUTRE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+                         &END MOL_SET
+                        &DUMP_PSF
+                                &EACH
+                                   MD          1
+                                &END EACH
+                                FILENAME ./input
+                        &END DUMP_PSF
+                &END TOPOLOGY
+
+
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 1	4
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 7	10
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 1	4
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 13	16
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 13	16
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 7	10
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                        &END SUBSYS
+&END FORCE_EVAL
+
+
+&FORCE_EVAL
+	METHOD  FIST
+	&MM
+    		&FORCEFIELD
+      			&SPLINE
+        			RCUT_NB         54.2534489687
+       			&END SPLINE
+
+    &NONBONDED
+     &LENNARD-JONES
+      ATOMS                     CP    CP
+      EPSILON   [kcalmol]       0.08600D0
+      SIGMA     [angstrom]      3.99670D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     CP   H
+      EPSILON   [kcalmol]       0.03675D0
+      SIGMA     [angstrom]      3.02460D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     CP  CN
+      EPSILON   [kcalmol]       0.08600D0
+      SIGMA     [angstrom]      3.99670D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     H   H
+      EPSILON   [kcalmol]       0.01570D0
+      SIGMA     [angstrom]      2.64953D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     H   CN
+      EPSILON   [kcalmol]       0.03655D0
+      SIGMA     [angstrom]      3.02460D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     CN  CN
+      EPSILON   [kcalmol]       0.08600D0
+      SIGMA     [angstrom]      3.99670D0
+     &END LENNARD-JONES
+    &END NONBONDED 
+
+
+#
+    &BOND
+     ATOMS                      CP CP
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  589.70D0
+#UNITS hartree/bohr^2
+     K                          0.263099D0
+#     R0         [bohr]          2.6475D0
+#     R0         [angstrom]       1.4008D0
+     R0          [angstrom]        1.369
+    &END BOND
+    &BOND
+     ATOMS                      CP H
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  344.30D0
+#UNITS hartree/bohr^2
+K                          0.15361D0
+#     R0         [bohr]          2.0540D0
+     R0         [angstrom]       1.0868D0
+    &END BOND
+    &BOND
+     ATOMS                      CN CN
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  589.70D0
+#UNITS hartree/bohr^2
+     K                          0.263099D0
+#     R0         [bohr]          2.5020D0
+     R0         [angstrom]       1.3239D0
+    &END BOND
+    &BOND
+     ATOMS                      CN H
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  344.30D0
+#UNITS hartree/bohr^2
+K                          0.15361D0
+#     R0         [bohr]          2.0540D0
+     R0         [angstrom]       1.0868D0
+    &END BOND
+#
+
+
+    &BEND
+     ATOMS                      H  CN  H
+     KIND                       AMBER
+#     K                          37.810D0
+#UNITS hartree/rad^2
+     K                          0.065026914D0
+     THETA0     [rad]           2.075546440D0
+    &END BEND
+    &BEND
+     ATOMS                      H  CN  CN
+     KIND                       AMBER
+#     K                          50.30D0
+#UNITS hartree/rad^2
+     K                          0.0801782D0
+     THETA0     [rad]           2.08916001D0
+    &END BEND
+    &BEND
+     ATOMS                      H  CP  H
+     KIND                       AMBER
+#     K                          37.810D0
+#UNITS hartree/rad^2
+     K                          0.065026914D0
+     THETA0     [rad]           2.075546440D0
+    &END BEND
+    &BEND
+     ATOMS                      H  CP  CP
+     KIND                       AMBER
+#     K                          50.30D0
+#UNITS hartree/rad^2
+     K                          0.0801782D0
+     THETA0     [rad]           2.08916001D0
+    &END BEND
+
+#
+    &TORSION
+     ATOMS                      H CN CN H
+     KIND                       AMBER
+     K       [kcalmol]          6.650D0
+     M                          2
+     PHI0    [rad]              3.1415940D0
+    &END TORSION
+    &TORSION
+     ATOMS                      H CP CP H
+     KIND                       AMBER
+     K       [kcalmol]          6.650D0
+     M                          2
+     PHI0    [rad]              3.1415940D0
+    &END TORSION
+
+		&END FORCEFIELD	
+		&POISSON
+       			&EWALD
+         			EWALD_TYPE  NONE
+         			#EWALD_TYPE  EWALD
+         			#ALPHA        17
+         			#GMAX         17
+         			#O_SPLINE     6
+       			&END EWALD
+     		&END POISSON
+     		&PRINT
+      			&ITER_INFO  SILENT
+      			&END ITER_INFO
+      				&PROGRAM_RUN_INFO LOW
+        				&EACH
+          					MD 1
+        				&END EACH
+      				&END PROGRAM_RUN_INFO
+     			&END PRINT
+   	&END MM
+   	&SUBSYS
+     		&CELL
+       			ABC                    108.506897937        108.506897937        108.506897937     
+       			PERIODIC               NONE
+     		&END CELL
+     		&COORD
+
+CN  4.477174029, 3.6007430242, 1.6203347172
+H  5.291426913, 3.47712175, 2.3360601921
+H  4.6652969305, 4.2496225919, 0.7169972207
+CN  3.2746720958, 3.3557269678, 1.9885808736
+H  2.4767287195, 3.6147763877, 1.3124012437
+H  3.0911230531, 2.7969380467, 2.8728860383
+CP  2.7764531924, -0.1188205648, 0.6340418265
+H  3.2660025378, 0.5542424065, 1.3646636991
+H  3.168686745, -1.1269840028, 0.6051915358
+CP  2.1055456747, 0.3599258832, -0.5186560307
+H  1.8527159579, -0.3243981506, -1.308795969
+H  1.8996878962, 1.45301974, -0.5805099683
+CN  5.1116933639, -2.0515129449, -2.6233265093
+H  5.6433098294, -2.4734497456, -3.5168235713
+H  4.8023478433, -1.0447070313, -2.6095052437
+CN  4.8033693772, -2.8078097646, -1.5873221126
+H  4.3144525067, -2.4671592514, -0.6606981313
+H  5.0785902421, -3.8412268455, -1.6697060378
+     		&END COORD
+                &VELOCITY
+
+-0.0002125033,	-6.82612e-05,	-0.0002231501
+-0.000711623,	3.93599e-05,	-0.0001201412
+-0.0006219488,	0.0004601963,	0.0004334093
+1.07888e-05,	2.57899e-05,	3.60444e-05
+-0.0003106997,	-0.0007187991,	-0.0001825826
+-0.0003630711,	-0.0012590651,	0.0003702242
+0.0001999953,	-2.8836e-05,	-1.89267e-05
+0.0003813527,	-0.0003935477,	0.0011420591
+-0.0006671619,	0.0002123968,	-0.0007532058
+-0.0001034348,	-9.56497e-05,	-0.0002210878
+-0.0006057785,	0.0010962685,	9.05322e-05
+-0.0003046288,	0.0003944675,	0.0010892976
+0.0001019752,	-2.0986e-05,	0.0001152504
+0.0016524128,	0.0010464885,	-0.0003759398
+-0.0004986346,	-0.0004524722,	5.18807e-05
+0.0002250499,	7.53484e-05,	0.0001373478
+-0.0006781679,	0.0010115489,	-0.00098043
+8.44244e-05,	-9.53128e-05,	0.0013142706
+                &END VELOCITY
+                &KIND CP
+                        ELEMENT C
+                &END KIND
+                &KIND H
+                        ELEMENT H
+                &END KIND
+                &KIND CN
+                        ELEMENT C
+                &END KIND
+                &TOPOLOGY
+                        NUMBER_OF_ATOMS                   18
+                        CONN_FILE_FORMAT  MOL_SET
+                        &MOL_SET
+
+
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_CHARGE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+ 
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_NEUTRE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+ 
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_NEUTRE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+                         &END MOL_SET
+                        &DUMP_PSF
+                                &EACH
+                                   MD          1
+                                &END EACH
+                                FILENAME ./input
+                        &END DUMP_PSF
+                &END TOPOLOGY
+
+
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 1	4
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 7	10
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 1	4
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 13	16
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 13	16
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 7	10
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                   	&END SUBSYS
+&END FORCE_EVAL
+&FORCE_EVAL
+	METHOD  FIST
+	&MM
+    		&FORCEFIELD
+      			&SPLINE
+        			RCUT_NB         54.2534489687
+       			&END SPLINE
+
+    &NONBONDED
+     &LENNARD-JONES
+      ATOMS                     CP    CP
+      EPSILON   [kcalmol]       0.08600D0
+      SIGMA     [angstrom]      3.99670D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     CP   H
+      EPSILON   [kcalmol]       0.03675D0
+      SIGMA     [angstrom]      3.02460D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     CP  CN
+      EPSILON   [kcalmol]       0.08600D0
+      SIGMA     [angstrom]      3.99670D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     H   H
+      EPSILON   [kcalmol]       0.01570D0
+      SIGMA     [angstrom]      2.64953D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     H   CN
+      EPSILON   [kcalmol]       0.03655D0
+      SIGMA     [angstrom]      3.02460D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     CN  CN
+      EPSILON   [kcalmol]       0.08600D0
+      SIGMA     [angstrom]      3.99670D0
+     &END LENNARD-JONES
+    &END NONBONDED 
+
+
+#
+    &BOND
+     ATOMS                      CP CP
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  589.70D0
+#UNITS hartree/bohr^2
+     K                          0.263099D0
+#     R0         [bohr]          2.6475D0
+#     R0         [angstrom]       1.4008D0
+     R0          [angstrom]        1.369
+    &END BOND
+    &BOND
+     ATOMS                      CP H
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  344.30D0
+#UNITS hartree/bohr^2
+K                          0.15361D0
+#     R0         [bohr]          2.0540D0
+     R0         [angstrom]       1.0868D0
+    &END BOND
+    &BOND
+     ATOMS                      CN CN
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  589.70D0
+#UNITS hartree/bohr^2
+     K                          0.263099D0
+#     R0         [bohr]          2.5020D0
+     R0         [angstrom]       1.3239D0
+    &END BOND
+    &BOND
+     ATOMS                      CN H
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  344.30D0
+#UNITS hartree/bohr^2
+K                          0.15361D0
+#     R0         [bohr]          2.0540D0
+     R0         [angstrom]       1.0868D0
+    &END BOND
+#
+
+
+    &BEND
+     ATOMS                      H  CN  H
+     KIND                       AMBER
+#     K                          37.810D0
+#UNITS hartree/rad^2
+     K                          0.065026914D0
+     THETA0     [rad]           2.075546440D0
+    &END BEND
+    &BEND
+     ATOMS                      H  CN  CN
+     KIND                       AMBER
+#     K                          50.30D0
+#UNITS hartree/rad^2
+     K                          0.0801782D0
+     THETA0     [rad]           2.08916001D0
+    &END BEND
+    &BEND
+     ATOMS                      H  CP  H
+     KIND                       AMBER
+#     K                          37.810D0
+#UNITS hartree/rad^2
+     K                          0.065026914D0
+     THETA0     [rad]           2.075546440D0
+    &END BEND
+    &BEND
+     ATOMS                      H  CP  CP
+     KIND                       AMBER
+#     K                          50.30D0
+#UNITS hartree/rad^2
+     K                          0.0801782D0
+     THETA0     [rad]           2.08916001D0
+    &END BEND
+
+#
+    &TORSION
+     ATOMS                      H CN CN H
+     KIND                       AMBER
+     K       [kcalmol]          6.650D0
+     M                          2
+     PHI0    [rad]              3.1415940D0
+    &END TORSION
+    &TORSION
+     ATOMS                      H CP CP H
+     KIND                       AMBER
+     K       [kcalmol]          6.650D0
+     M                          2
+     PHI0    [rad]              3.1415940D0
+    &END TORSION
+
+		&END FORCEFIELD	
+		&POISSON
+       			&EWALD
+         			EWALD_TYPE  NONE
+         			#EWALD_TYPE  EWALD
+         			#ALPHA        17
+         			#GMAX         17
+         			#O_SPLINE     6
+       			&END EWALD
+     		&END POISSON
+     		&PRINT
+      			&ITER_INFO  SILENT
+      			&END ITER_INFO
+      				&PROGRAM_RUN_INFO LOW
+        				&EACH
+          					MD 1
+        				&END EACH
+      				&END PROGRAM_RUN_INFO
+     			&END PRINT
+   	&END MM
+   	&SUBSYS
+     		&CELL
+       			ABC                    108.506897937        108.506897937        108.506897937     
+       			PERIODIC               NONE
+     		&END CELL
+     		&COORD
+
+CN  4.477174029, 3.6007430242, 1.6203347172
+H  5.291426913, 3.47712175, 2.3360601921
+H  4.6652969305, 4.2496225919, 0.7169972207
+CN  3.2746720958, 3.3557269678, 1.9885808736
+H  2.4767287195, 3.6147763877, 1.3124012437
+H  3.0911230531, 2.7969380467, 2.8728860383
+CP  2.7764531924, -0.1188205648, 0.6340418265
+H  3.2660025378, 0.5542424065, 1.3646636991
+H  3.168686745, -1.1269840028, 0.6051915358
+CP  2.1055456747, 0.3599258832, -0.5186560307
+H  1.8527159579, -0.3243981506, -1.308795969
+H  1.8996878962, 1.45301974, -0.5805099683
+CN  5.1116933639, -2.0515129449, -2.6233265093
+H  5.6433098294, -2.4734497456, -3.5168235713
+H  4.8023478433, -1.0447070313, -2.6095052437
+CN  4.8033693772, -2.8078097646, -1.5873221126
+H  4.3144525067, -2.4671592514, -0.6606981313
+H  5.0785902421, -3.8412268455, -1.6697060378
+     		&END COORD
+                &VELOCITY
+
+-0.0002125033,	-6.82612e-05,	-0.0002231501
+-0.000711623,	3.93599e-05,	-0.0001201412
+-0.0006219488,	0.0004601963,	0.0004334093
+1.07888e-05,	2.57899e-05,	3.60444e-05
+-0.0003106997,	-0.0007187991,	-0.0001825826
+-0.0003630711,	-0.0012590651,	0.0003702242
+0.0001999953,	-2.8836e-05,	-1.89267e-05
+0.0003813527,	-0.0003935477,	0.0011420591
+-0.0006671619,	0.0002123968,	-0.0007532058
+-0.0001034348,	-9.56497e-05,	-0.0002210878
+-0.0006057785,	0.0010962685,	9.05322e-05
+-0.0003046288,	0.0003944675,	0.0010892976
+0.0001019752,	-2.0986e-05,	0.0001152504
+0.0016524128,	0.0010464885,	-0.0003759398
+-0.0004986346,	-0.0004524722,	5.18807e-05
+0.0002250499,	7.53484e-05,	0.0001373478
+-0.0006781679,	0.0010115489,	-0.00098043
+8.44244e-05,	-9.53128e-05,	0.0013142706
+                &END VELOCITY
+                &KIND CP
+                        ELEMENT C
+                &END KIND
+                &KIND H
+                        ELEMENT H
+                &END KIND
+                &KIND CN
+                        ELEMENT C
+                &END KIND
+                &TOPOLOGY
+                        NUMBER_OF_ATOMS                   18
+                        CONN_FILE_FORMAT  MOL_SET
+                        &MOL_SET
+
+
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_NEUTRE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+ 
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_CHARGE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+ 
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_NEUTRE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+                         &END MOL_SET
+                        &DUMP_PSF
+                                &EACH
+                                   MD          1
+                                &END EACH
+                                FILENAME ./input
+                        &END DUMP_PSF
+                &END TOPOLOGY
+
+
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 1	4
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 7	10
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 1	4
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 13	16
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 13	16
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 7	10
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                   	&END SUBSYS
+&END FORCE_EVAL
+&FORCE_EVAL
+	METHOD  FIST
+	&MM
+    		&FORCEFIELD
+      			&SPLINE
+        			RCUT_NB         54.2534489687
+       			&END SPLINE
+
+    &NONBONDED
+     &LENNARD-JONES
+      ATOMS                     CP    CP
+      EPSILON   [kcalmol]       0.08600D0
+      SIGMA     [angstrom]      3.99670D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     CP   H
+      EPSILON   [kcalmol]       0.03675D0
+      SIGMA     [angstrom]      3.02460D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     CP  CN
+      EPSILON   [kcalmol]       0.08600D0
+      SIGMA     [angstrom]      3.99670D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     H   H
+      EPSILON   [kcalmol]       0.01570D0
+      SIGMA     [angstrom]      2.64953D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     H   CN
+      EPSILON   [kcalmol]       0.03655D0
+      SIGMA     [angstrom]      3.02460D0
+     &END LENNARD-JONES
+     &LENNARD-JONES
+      ATOMS                     CN  CN
+      EPSILON   [kcalmol]       0.08600D0
+      SIGMA     [angstrom]      3.99670D0
+     &END LENNARD-JONES
+    &END NONBONDED 
+
+
+#
+    &BOND
+     ATOMS                      CP CP
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  589.70D0
+#UNITS hartree/bohr^2
+     K                          0.263099D0
+#     R0         [bohr]          2.6475D0
+#     R0         [angstrom]       1.4008D0
+     R0          [angstrom]        1.369
+    &END BOND
+    &BOND
+     ATOMS                      CP H
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  344.30D0
+#UNITS hartree/bohr^2
+K                          0.15361D0
+#     R0         [bohr]          2.0540D0
+     R0         [angstrom]       1.0868D0
+    &END BOND
+    &BOND
+     ATOMS                      CN CN
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  589.70D0
+#UNITS hartree/bohr^2
+     K                          0.263099D0
+#     R0         [bohr]          2.5020D0
+     R0         [angstrom]       1.3239D0
+    &END BOND
+    &BOND
+     ATOMS                      CN H
+     KIND                       AMBER
+#     K   [kcalmol*angstrom^-2]  344.30D0
+#UNITS hartree/bohr^2
+K                          0.15361D0
+#     R0         [bohr]          2.0540D0
+     R0         [angstrom]       1.0868D0
+    &END BOND
+#
+
+
+    &BEND
+     ATOMS                      H  CN  H
+     KIND                       AMBER
+#     K                          37.810D0
+#UNITS hartree/rad^2
+     K                          0.065026914D0
+     THETA0     [rad]           2.075546440D0
+    &END BEND
+    &BEND
+     ATOMS                      H  CN  CN
+     KIND                       AMBER
+#     K                          50.30D0
+#UNITS hartree/rad^2
+     K                          0.0801782D0
+     THETA0     [rad]           2.08916001D0
+    &END BEND
+    &BEND
+     ATOMS                      H  CP  H
+     KIND                       AMBER
+#     K                          37.810D0
+#UNITS hartree/rad^2
+     K                          0.065026914D0
+     THETA0     [rad]           2.075546440D0
+    &END BEND
+    &BEND
+     ATOMS                      H  CP  CP
+     KIND                       AMBER
+#     K                          50.30D0
+#UNITS hartree/rad^2
+     K                          0.0801782D0
+     THETA0     [rad]           2.08916001D0
+    &END BEND
+
+#
+    &TORSION
+     ATOMS                      H CN CN H
+     KIND                       AMBER
+     K       [kcalmol]          6.650D0
+     M                          2
+     PHI0    [rad]              3.1415940D0
+    &END TORSION
+    &TORSION
+     ATOMS                      H CP CP H
+     KIND                       AMBER
+     K       [kcalmol]          6.650D0
+     M                          2
+     PHI0    [rad]              3.1415940D0
+    &END TORSION
+
+		&END FORCEFIELD	
+		&POISSON
+       			&EWALD
+         			EWALD_TYPE  NONE
+         			#EWALD_TYPE  EWALD
+         			#ALPHA        17
+         			#GMAX         17
+         			#O_SPLINE     6
+       			&END EWALD
+     		&END POISSON
+     		&PRINT
+      			&ITER_INFO  SILENT
+      			&END ITER_INFO
+      				&PROGRAM_RUN_INFO LOW
+        				&EACH
+          					MD 1
+        				&END EACH
+      				&END PROGRAM_RUN_INFO
+     			&END PRINT
+   	&END MM
+   	&SUBSYS
+     		&CELL
+       			ABC                    108.506897937        108.506897937        108.506897937     
+       			PERIODIC               NONE
+     		&END CELL
+     		&COORD
+
+CN  4.477174029, 3.6007430242, 1.6203347172
+H  5.291426913, 3.47712175, 2.3360601921
+H  4.6652969305, 4.2496225919, 0.7169972207
+CN  3.2746720958, 3.3557269678, 1.9885808736
+H  2.4767287195, 3.6147763877, 1.3124012437
+H  3.0911230531, 2.7969380467, 2.8728860383
+CP  2.7764531924, -0.1188205648, 0.6340418265
+H  3.2660025378, 0.5542424065, 1.3646636991
+H  3.168686745, -1.1269840028, 0.6051915358
+CP  2.1055456747, 0.3599258832, -0.5186560307
+H  1.8527159579, -0.3243981506, -1.308795969
+H  1.8996878962, 1.45301974, -0.5805099683
+CN  5.1116933639, -2.0515129449, -2.6233265093
+H  5.6433098294, -2.4734497456, -3.5168235713
+H  4.8023478433, -1.0447070313, -2.6095052437
+CN  4.8033693772, -2.8078097646, -1.5873221126
+H  4.3144525067, -2.4671592514, -0.6606981313
+H  5.0785902421, -3.8412268455, -1.6697060378
+     		&END COORD
+                &VELOCITY
+
+-0.0002125033,	-6.82612e-05,	-0.0002231501
+-0.000711623,	3.93599e-05,	-0.0001201412
+-0.0006219488,	0.0004601963,	0.0004334093
+1.07888e-05,	2.57899e-05,	3.60444e-05
+-0.0003106997,	-0.0007187991,	-0.0001825826
+-0.0003630711,	-0.0012590651,	0.0003702242
+0.0001999953,	-2.8836e-05,	-1.89267e-05
+0.0003813527,	-0.0003935477,	0.0011420591
+-0.0006671619,	0.0002123968,	-0.0007532058
+-0.0001034348,	-9.56497e-05,	-0.0002210878
+-0.0006057785,	0.0010962685,	9.05322e-05
+-0.0003046288,	0.0003944675,	0.0010892976
+0.0001019752,	-2.0986e-05,	0.0001152504
+0.0016524128,	0.0010464885,	-0.0003759398
+-0.0004986346,	-0.0004524722,	5.18807e-05
+0.0002250499,	7.53484e-05,	0.0001373478
+-0.0006781679,	0.0010115489,	-0.00098043
+8.44244e-05,	-9.53128e-05,	0.0013142706
+                &END VELOCITY
+                &KIND CP
+                        ELEMENT C
+                &END KIND
+                &KIND H
+                        ELEMENT H
+                &END KIND
+                &KIND CN
+                        ELEMENT C
+                &END KIND
+                &TOPOLOGY
+                        NUMBER_OF_ATOMS                   18
+                        CONN_FILE_FORMAT  MOL_SET
+                        &MOL_SET
+
+
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_NEUTRE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+ 
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_NEUTRE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+ 
+
+                    &MOLECULE
+                        NMOL              1
+                        CONN_FILE_NAME    ./ETHYLENE_CHARGE.psf
+                        CONN_FILE_FORMAT  PSF
+                   &END MOLECULE
+                         &END MOL_SET
+                        &DUMP_PSF
+                                &EACH
+                                   MD          1
+                                &END EACH
+                                FILENAME ./input
+                        &END DUMP_PSF
+                &END TOPOLOGY
+
+
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 1	4
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 7	10
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 1	4
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 13	16
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                
+
+                &COLVAR
+                     &DISTANCE
+                          &POINT
+                               ATOMS 13	16
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          &POINT
+                               ATOMS 7	10
+                               TYPE  GEO_CENTER
+                          &END POINT
+                          POINTS 1 2
+                     &END DISTANCE
+                &END COLVAR
+                
+
+                   	&END SUBSYS
+&END FORCE_EVAL
