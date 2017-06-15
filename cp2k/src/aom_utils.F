@@ -601,6 +601,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
 
         NULLIFY(rng_stream)
 
+        mol = size(Stt,1)
 
         !many allocations
         allocate(ak(mol))
