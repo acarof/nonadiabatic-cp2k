@@ -205,6 +205,8 @@ CONTAINS
       integer :: o
 !end PC
       LOGICAL    :: do_random
+      REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
+      INTEGER    :: input_seed
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -289,9 +291,12 @@ CONTAINS
        sh_print_env%deltatMD = deltatMD
        ALLOCATE(sh_print_env%adiab_energies_t(mat))
 
+       CALL section_vals_val_get(adiab_section,"SEED",i_val=input_seed)
+       initial_seed(:,:) = REAL(input_seed,KIND=dp)
        CALL create_rng_stream(rng_stream=aom_env%rng_stream,&
                                name="aom fssh",&
-                               distribution_type=UNIFORM)
+                               distribution_type=UNIFORM, &
+                               seed=initial_seed)
      else
        sh_print_env = aom_env%sh_print_env
      endif

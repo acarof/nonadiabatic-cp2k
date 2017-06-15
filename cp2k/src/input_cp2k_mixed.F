@@ -247,6 +247,13 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword,name="SEED",&
+         description="Initial seed for the global (pseudo)random number "//&
+         "generator to create a stream of normally Gaussian "//&
+         "distributed random numbers.",&
+         usage="SEED <INTEGER>",default_i_val=2000)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
 
     NULLIFY(sub2section)
     CALL section_create(sub2section,name="AOM",&
