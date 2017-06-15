@@ -103,12 +103,9 @@ MODULE aom_utils
 
   USE non_adiabatic_types,             ONLY: sh_env_type
 
-  USE parallel_rng_types,              ONLY: UNIFORM,&
-                                             create_rng_stream,&
-                                             delete_rng_stream,&
-                                             rng_stream_type, &
-                                             next_random_number
+  USE parallel_rng_types,              ONLY: next_random_number 
 
+  USE aom_types,                       ONLY: aom_env_type
 
 !  USE integrator_utils,                ONLY: tmp_variables_type 
 
@@ -207,7 +204,7 @@ end subroutine makeX
 
 
 subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-           sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+           sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
 
 !Choose whether doing surface hopping with trivial hopping correction or witgout
 !it following the old code 
@@ -222,6 +219,7 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
        LOGICAL, INTENT(OUT)        :: attempt_hop
        TYPE(sh_print_env_type)     :: sh_print_env
        TYPE(sh_env_type)           :: sh_env
+       TYPE(aom_env_type)          :: aom_env
        !COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
        
        CHARACTER(len=*), PARAMETER :: routineN ='surf_hop_type', &
@@ -244,12 +242,12 @@ subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, d
        !CALL section_vals_val_get(adiab_section,"THRESHOLD_TRIVIAL_CROSS", r_val=triv_threshold)
        CALL modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
                         sh_env, new_state, attempt_hop, decohere_criterion, &
-                       sh_print_env) !triv_threshold)
+                       sh_print_env, aom_env) !triv_threshold)
 
        CASE("UNMODIFIED_SURF_HOP")
         
        CALL surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-                        sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+                        sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
        
        CASE DEFAULT
          CPABORT("There is no method to add trivial crossing correction")
@@ -260,7 +258,7 @@ END SUBROUTINE surf_hop_type
 
 subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
-              sh_print_env) !triv_threshold)
+              sh_print_env, aom_env) !triv_threshold)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -275,6 +273,7 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
         TYPE(sh_env_type), INTENT(OUT) :: sh_env
+        TYPE(aom_env_type)           :: aom_env
 
         LOGICAL        :: trivial_correction, correct_for_negative
         integer :: i, j, mol, k, l
@@ -287,9 +286,7 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         COMPLEX(KIND=dp), dimension(:), allocatable :: ct, cttm_ad
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak, akttm
         COMPLEX(KIND=dp) :: cstate, cstate_tm
-        TYPE(rng_stream_type), POINTER           :: rng_stream
  
-        NULLIFY(rng_stream)
 
         mol = size(Stt,1)
 
@@ -503,9 +500,9 @@ subroutine modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, ol
         !call a random number
         !call init_random_seed()
         !call random_number(hop)
-        CALL create_rng_stream(rng_stream, "fssh")
-        hop = next_random_number(rng_stream)
-        CALL delete_rng_stream(rng_stream)
+        !CALL create_rng_stream(rng_stream, "fssh")
+        hop = next_random_number(aom_env%rng_stream)
+        !CALL delete_rng_stream(rng_stream)
 
         sh_print_env%hop       = hop
         sh_print_env%old_state = old_state
@@ -572,7 +569,7 @@ end subroutine modified_surfacehop
 
 
 subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -587,6 +584,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
         TYPE(sh_env_type), INTENT(OUT) :: sh_env
+        TYPE(aom_env_type)           :: aom_env
 
         integer :: i, j, mol, k, l
         REAL(KIND=dp) :: hop, sumg
@@ -597,9 +595,7 @@ subroutine surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, 
         COMPLEX(KIND=dp), dimension(:), allocatable :: ct
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak
         COMPLEX(KIND=dp) :: cstate
-        TYPE(rng_stream_type), POINTER           :: rng_stream
 
-        NULLIFY(rng_stream)
 
         mol = size(Stt,1)
 
@@ -717,9 +713,9 @@ print *, "Probability_RENORM: ", g
         !call a random number
         !call init_random_seed()
         !call random_number(hop)
-        CALL create_rng_stream(rng_stream, "fssh")
-        hop = next_random_number(rng_stream)
-        CALL delete_rng_stream(rng_stream)
+        !CALL create_rng_stream(rng_stream, "fssh")
+        hop = next_random_number(aom_env%rng_stream)
+        !CALL delete_rng_stream(rng_stream)
 
         sh_print_env%hop       = hop
         sh_print_env%old_state = old_state
@@ -1583,28 +1579,26 @@ end subroutine calcTDT
 
 
 
-   SUBROUTINE choose_firstadiabat(C, init, sh_print_env, first_adiabat)
+   SUBROUTINE choose_firstadiabat(C, init, sh_print_env, first_adiabat, aom_env)
         REAL(KIND=dp), dimension(:,:), intent(in) :: C
         INTEGER, INTENT(IN)                       :: init
         TYPE(sh_print_env_type), INTENT(INOUT)   :: sh_print_env
         INTEGER, INTENT(OUT)                      :: first_adiabat
+        TYPE(aom_env_type)           :: aom_env
 
         CHARACTER(len=*), PARAMETER :: routineN = 'choose_firstadiabat', &
         routineP = moduleN//':'//routineN
         
         INTEGER                                   :: i
         REAL( KIND =dp)                           :: random, sumc
-        TYPE(rng_stream_type), POINTER           :: rng_stream
-
-        NULLIFY(rng_stream)
 
         ALLOCATE(sh_print_env%pop_init(SIZE(C(init,:))))
 
         !CALL init_random_seed()
         !CALL random_number(random)
-        CALL create_rng_stream(rng_stream, "firstadiab")
-        random = next_random_number(rng_stream)
-        CALL delete_rng_stream(rng_stream)
+        !CALL create_rng_stream(rng_stream, "firstadiab")
+        random = next_random_number(aom_env%rng_stream)
+        !CALL delete_rng_stream(rng_stream)
         sh_print_env%initrandom = random
         sumc = 0.0D0
         DO i=1, SIZE(C(init,:))

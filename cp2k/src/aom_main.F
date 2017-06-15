@@ -103,6 +103,10 @@ MODULE aom_main
                                           
      USE non_adiabatic_types,           ONLY: sh_env_type
 
+     USE parallel_rng_types,              ONLY: UNIFORM,&
+                                             create_rng_stream,&
+                                             delete_rng_stream
+
 #include "./base/base_uses.f90"
 
 
@@ -285,6 +289,9 @@ CONTAINS
        sh_print_env%deltatMD = deltatMD
        ALLOCATE(sh_print_env%adiab_energies_t(mat))
 
+       CALL create_rng_stream(rng_stream=aom_env%rng_stream,&
+                               name="aom fssh",&
+                               distribution_type=UNIFORM)
      else
        sh_print_env = aom_env%sh_print_env
      endif
@@ -589,7 +596,7 @@ CONTAINS
                                              &nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
                                              &nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
-                                             &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, do_random)
+                                             &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, do_random, aom_env)
                                         end do
                                    end do
 
@@ -785,7 +792,7 @@ CONTAINS
                                              nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
                                              nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
-                                             scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, do_random)
+                                             scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, do_random, aom_env)
                                         end do
                                    end do
                               endif 
@@ -856,7 +863,7 @@ CONTAINS
                                        i_val=first_adiabat)
                 active_state = first_adiabat
              ELSE
-                CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat)
+                CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat, aom_env)
                 active_state = first_adiabat
              ENDIF
              decohere = .FALSE.
@@ -921,7 +928,7 @@ CONTAINS
                                    new_state, &
                                    attempt_hop, &
                                    decohere_criterion, &
-                                   sh_print_env)
+                                   sh_print_env, aom_env)
             ELSE
                 attempt_hop = .FALSE.
 
