@@ -263,6 +263,7 @@ CONTAINS
        ALLOCATE(aom_env%connlist1(4,atoms))
        ALLOCATE(aom_env%neighbourlist(mol,mol,0:atoms,0:atoms))
        ALLOCATE(aom_env%Stt(mat,mat))
+       !ALLOCATE(aom_env%Stptp_0(mat,mat))
        ALLOCATE(aom_env%Stptp(mat,mat))
        ALLOCATE(aom_env%Stmt(mat,mat))
        ALLOCATE(aom_env%Sttm(mat,mat))
@@ -494,6 +495,7 @@ CONTAINS
                     end do
                end do
                
+print *, "LOOOK_At", At
                !then for each other molecule
                do k=1,mol
                     !create the array of its atomic coordinates at both t and t+dt
@@ -518,6 +520,7 @@ CONTAINS
 
                               pcoeffsrun(:,orb*(k-1)+d,2) = pcoeffs(:,d)
                               call calc_sab(Bt, connlist2, pcoeffsrun(:,orb*(k-1)+d,2))
+print *, "pcoeffsrun(:,orb*(k-1)+d,2)", pcoeffsrun(:,orb*(k-1)+d,2)
 
                               pcoeffsrun(:,orb*(k-1)+d,3) = pcoeffs(:,d)
                               call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
@@ -586,6 +589,7 @@ CONTAINS
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
                                              !Calcul of the NACV
+!print *, "THIS IS S T=1", i, k, S
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
                                              &nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
@@ -594,7 +598,8 @@ CONTAINS
                                              &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR)
                                         end do
                                    end do
-
+!print *, "Btp", Btp
+!print *, "connlist2", connlist2
                                    do d=1,orb
                                         do m=1,orb
                                              call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
@@ -615,10 +620,15 @@ CONTAINS
                                                   Stt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                                   H_t(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
+!print *, "pcoeffsrun(1:atoms,orb*(i-1)+d,2)", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
+!print *, "pcoeffsrun(1:atoms,orb*(k-1)+m,2)", pcoeffsrun(1:atoms,orb*(k-1)+m,2)
                                                   call calc_sab(Atm, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, Btm, connlist2,&
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,1))
                                                   Stmtm(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+
+!print *, "pcoeffsrun(1:atoms,orb*(i-1)+d,1)", pcoeffsrun(1:atoms,orb*(i-1)+d,1)
+!print *, "pcoeffsrun(1:atoms,orb*(k-1)+m,1))", pcoeffsrun(1:atoms,orb*(k-1)+m,1)
 
                                                   call calc_sab(At, connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btm, connlist2,&
@@ -631,6 +641,10 @@ CONTAINS
                                                   Stmt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              end do
                                         end do
+!print *, "Bt", Bt
+!print *, "connlist2_AFTER", connlist2
+!print *, "pcoeffsrun(1:atoms,orb*(k-1)+m,3)", pcoeffsrun
+
                                    end if ! (.not.inrun)
                               end if ! ( k < i)
 
@@ -670,33 +684,53 @@ CONTAINS
           if (itimes.gt.1) then   !!itimes strictly grater than 1
                do i=1,mat
                     do j=1,mat
-                         Stt(j,i) = aom_env%Stt(j,i)
-                         if (i .ne. j) then
-                              H_t(j,i) = cmplx(0.0D0, -1.0D0*scaling*Stt(j,i)/cbar,dp)
-                         end if
+!                         Stt(j,i) = aom_env%Stt(j,i)
+!                         if (i .ne. j) then
+!                              H_t(j,i) = cmplx(0.0D0, -1.0D0*scaling*Stt(j,i)/cbar,dp)
+!                         end if
                          Sttm(j,i)  = aom_env%Sttm(j,i)
                          Stmt(j,i)  = aom_env%Stmt(j,i)
                          Stmtm(j,i) = aom_env%Stmtm(j,i)
                     end do
                end do
-          endif
+          end if
 
 !          else if (itimes.eq.1) then !CHANGE_AC
                do i=1,mat
                   do j=1,mat
-                                aom_env%Stt(j,i)   = Stptp(j,i)
-                                aom_env%Sttm(j,i)  = Stpt(j,i)
-                                aom_env%Stmt(j,i)  = Sttp(j,i)
-                                aom_env%Stmtm(j,i) = Stt(j,i)
+                         Stt(j,i) = aom_env%Stt(j,i)
+print *, "Stt(j,i) = aom_env%Stt(j,i)", Stt(j,i)
+                         if (i .ne. j) then
+                              H_t(j,i) = cmplx(0.0D0, -1.0D0*scaling*Stt(j,i)/cbar,dp)
+                         end if
+                         aom_env%Stt(j,i)   = Stptp(j,i)
+                         aom_env%Sttm(j,i)  = Stpt(j,i)
+                         aom_env%Stmt(j,i)  = Sttp(j,i)
+                         aom_env%Stmtm(j,i) = Stt(j,i)
+!                         Stt(j,i) = aom_env%Stt(j,i)
+!                         if (i .ne. j) then
+!                              H_t(j,i) = cmplx(0.0D0, -1.0D0*scaling*Stt(j,i)/cbar,dp)
+!                         end if
                   end do
                end do
+
+print *, "aom_env%Stt(j,i)   = Stptp(j,i)", aom_env%Stt
 !print *, "DELTA_T_BEFORE", deltat
-print *, "aom_env%Stmtm(j,i)", aom_env%Stt
 print *, "PRINT INITIAL Stt", Stt
 print *, "PRINT INITIAL Sttp", Sttp
 print *, "PRINT INITIAL Stpt", Stpt
 print *, "PRINT INITIAL Stptp", Stptp
+print *, "PRINT INITIAL Sttm", Sttm
+print *, "PRINT INITIAL Stmtm", Stmtm
+print *, "aom_env%Stt(j,i)   = Stptp(j,i)", aom_env%Stt
+print *, "aom_env%Sttm(j,i)  = Stpt(j,i)", aom_env%Sttm
+print *, "aom_env%Stmt(j,i)  = Sttp(j,i)", aom_env%Stmt
+print *, "aom_env%Stmtm(j,i) = Stt(j,i)", aom_env%Stmtm
+
+
+
 print *, "DELTAMD_BEFORE", deltatMD
+
 
 !          endif !CHANGE_AC
 !END GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
@@ -707,8 +741,6 @@ print *, "DELTAMD_BEFORE", deltatMD
 
 !DIAGONALIZE the Hamiltonian to find the eigenvectors used in the adiab
 !propagation
-
-
 !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
 !It gives us back the eigenvalues and eigenvectors
           CALL adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
@@ -722,7 +754,7 @@ print *, "ONLY GRATER EQUAL C_tp", C_tp
 
           CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
 
-
+!stop
 
 !PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
          IF (.NOT.successful_hop) THEN
@@ -760,6 +792,7 @@ print *, "ONLY GRATER EQUAL C_tp", C_tp
                do j=1,atoms
                     Atp(2:4,j) = crds(1:3,(i-1)*atoms+j,3)
                end do
+!print *, "TIME=0_Atp", Atp
 
                !then for each other molecule
                do k=1,mol
@@ -789,6 +822,7 @@ print *, "ONLY GRATER EQUAL C_tp", C_tp
                               do d=1,orb
                                    do m=1,orb
                                         !These diagonals are 1 by definition
+                                        Stptp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
                                         H_tp(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
                                    end do
                               end do
@@ -811,6 +845,12 @@ print *, "ONLY GRATER EQUAL C_tp", C_tp
                                               S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, -scaling*S,dp)
+!print *, "THIS_IS_S", S
+!print *, "Btp", Btp
+!print *, "connlist2_FIRST", connlist2
+!print *, "pcoeffsrun(1:atoms,orb*(i-1)+d,3)", pcoeffsrun(1:atoms,orb*(i-1)+d,3)
+!print *, "pcoeffsrun(1:atoms,orb*(k-1)+m,3))", pcoeffsrun(1:atoms,orb*(k-1)+m,3)
+
 
                                              call calc_dRSab(Atp, atomlist, connlist1, &
                                              pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
@@ -833,6 +873,19 @@ print *, "ONLY GRATER EQUAL C_tp", C_tp
                     end if !(NN(i,k) == 1
                end do !loop over k 
          enddo !loop-over i
+
+
+        do i=1,mat
+             do j=1,mat
+                  aom_env%Stt(j,i) = Stptp(j,i)
+             end do
+        end do
+
+
+print *, "aom_env%Stt(j,i)", aom_env%Stt
+print *, "TIME=0_Stt", Stt
+print *, "TIME=0_Stptp", Stptp
+
          nacv = cbar*nacv
          CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
          sh_env%E_tp = E_tp
@@ -883,6 +936,7 @@ print *, "ONLY EQUAL zero C_tp", C_tp
 
 
       IF ( (itimes.EQ.0)  .AND. (.NOT. my_test_keyword)) THEN
+
  
          decohere = .FALSE.
          sh_env%decohere = .FALSE.

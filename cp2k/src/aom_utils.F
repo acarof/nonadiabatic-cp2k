@@ -176,10 +176,12 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         Splace1 = Stptpinvsqrt - Stmtminvsqrt
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttsqrt, mol, Splace1, mol, 0.0D0, Sterm1, mol)
 
+print *, "TERM1_TST", Sterm1
         !second term: Sttinvsqrt*(Sttp - Sttm)*Sttinvsqrt
         Splace1 = Sttp - Sttm
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Splace1, mol, Sttinvsqrt, mol, 0.0D0, Splace2, mol)
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
+print *, "TERM2_TDT", Sterm1
 !ADD: SYMMETRIZE NACE
         my_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2) 
         my_NACE = (my_NACE - TRANSPOSE(my_NACE)) / 2
@@ -191,7 +193,7 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
 
         IF (PRESENT(NACE)) THEN
            NACE = my_NACE
-!           print *, 'LOOK NACE=', NACE 
+print *, 'LOOK NACE=', NACE 
         ENDIF
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
@@ -680,11 +682,11 @@ subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, sh_env
         DS = (0.5D0/deltat)*(Sttp - Sttm)
         DC = (1.0D0/deltat)*(C2 - C1)
 
-print *, "Sttp", Sttp
-print *, "Stt", Stt
-print *, "Stptp", Stptp
-print *, "Sttm", Sttm
-print *, " Stmtm", Stmtm
+!print *, "Sttp", Sttp
+!print *, "Stt", Stt
+!print *, "Stptp", Stptp
+!print *, "Sttm", Sttm
+!print *, " Stmtm", Stmtm
 print *, "C1", C1
 print *, "C2", C2
 
@@ -708,6 +710,9 @@ print *, "DC", DC
                         end do
                 end do
         end do
+print *, "TERM1_TST", TST
+print *, "TERM2_TDT", TDT
+print *, "DIAB_NACE", (TST + TDT)
         do i=1,mol
                 do j=1,mol
                         sh_env%dphi(i,j) = 0.0D0
