@@ -47,6 +47,7 @@ MODULE aom_types
                                              dp
   USE input_section_types,             ONLY: section_vals_type
 
+  USE parallel_rng_types,              ONLY: rng_stream_type
 
 
 IMPLICIT NONE
@@ -153,6 +154,7 @@ IMPLICIT NONE
 !> Adiabatic nace at time t and t-dt
      REAL(KIND=dp), dimension(:,:), POINTER      :: adiab_nace_tp, adiab_nace_t
      TYPE(sh_print_env_type)                     :: sh_print_env
+     TYPE(rng_stream_type), POINTER                       :: rng_stream
    END TYPE aom_env_type
 
    PUBLIC :: aom_env_type, &

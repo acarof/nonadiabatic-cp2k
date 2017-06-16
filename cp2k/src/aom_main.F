@@ -104,6 +104,10 @@ MODULE aom_main
                                           
      USE non_adiabatic_types,           ONLY: sh_env_type
 
+     USE parallel_rng_types,              ONLY: UNIFORM,&
+                                             create_rng_stream,&
+                                             delete_rng_stream
+
 #include "./base/base_uses.f90"
 
 
@@ -204,6 +208,9 @@ CONTAINS
       real(kind=dp), allocatable :: PC_rvecs(:,:)
       integer :: o
 !end PC
+      LOGICAL    :: do_random
+      REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
+      INTEGER    :: input_seed
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -229,6 +236,7 @@ CONTAINS
              r_val=dR)
 !     CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
      CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
+     CALL section_vals_val_get(coupling_section,"RANDOM_DERIVATIVE", l_val=do_random)
 !     CALL section_vals_val_get(coupling_section,"SELECT_FIRST_ADIABAT", l_val=select_first_adiabat)
      CALL section_vals_val_get(coupling_section,"CENTER_OF_MASS", l_val=keyword_translate)
 
@@ -292,6 +300,12 @@ CONTAINS
        sh_print_env%deltatMD = deltatMD
        ALLOCATE(sh_print_env%adiab_energies_t(mat))
 
+       CALL section_vals_val_get(adiab_section,"SEED",i_val=input_seed)
+       initial_seed(:,:) = REAL(input_seed,KIND=dp)
+       CALL create_rng_stream(rng_stream=aom_env%rng_stream,&
+                               name="aom fssh",&
+                               distribution_type=UNIFORM, &
+                               seed=initial_seed)
      else
        sh_print_env = aom_env%sh_print_env
      endif
@@ -605,7 +619,7 @@ print *, "pcoeffsrun(:,orb*(k-1)+d,2)", pcoeffsrun(:,orb*(k-1)+d,2)
                                              &nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
                                              &nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
-                                             &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR)
+                                             &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, do_random, aom_env)
                                         end do
                                    end do
 !print *, "Btp", Btp
@@ -874,7 +888,7 @@ print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp
                                              nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
                                              nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
                                              Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
-                                             scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR)
+                                             scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, do_random, aom_env)
                                         end do
                                    end do
                               endif 
@@ -1007,6 +1021,24 @@ print *, "ctin_ADIAB", ctin
                  CPABORT("Choose one representation: DIABATIC, ADIABATIC")
              END SELECT
 
+!             !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
+!!             do i=1,mat
+!                ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
+!             end do
+!             ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
+!             aom_env%population(1:mat) = abs(ctin(1:mat)) 
+!             IF (my_bo_keyword) THEN
+!               CALL section_vals_val_get(adiab_section,"FIRST_ADIABAT",&
+!                                      i_val=first_adiabat)
+!               active_state = first_adiabat
+!            ELSE
+!               CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat, aom_env)
+!               active_state = first_adiabat
+!            ENDIF
+!            decohere = .FALSE.
+!            sh_env%decohere = .FALSE.
+!            attempt_hop = .FALSE.
+
          CASE("ADIABATIC")
              CALL section_vals_val_get(adiab_section,"FIRST_ADIABAT",&
                                        i_val=active_state)
@@ -1092,7 +1124,7 @@ print *, "ctin(AADIAB)", ctin
                      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
                   ENDDO
                ENDDO
-               !print*, "ACTIVE STATE = ", active_state
+               print*, "ACTIVE STATE = ", active_state
                call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
                            ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces)

@@ -104,9 +104,14 @@ MODULE aom_utils
 
   USE non_adiabatic_types,             ONLY: sh_env_type
 
+  USE parallel_rng_types,              ONLY: next_random_number 
+
+  USE aom_types,                       ONLY: aom_env_type
+
 !  USE integrator_utils,                ONLY: tmp_variables_type 
 
 #include "./base/base_uses.f90"
+
 
 
 
@@ -222,6 +227,7 @@ subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
        LOGICAL, INTENT(OUT)        :: attempt_hop
        TYPE(sh_print_env_type)     :: sh_print_env
        TYPE(sh_env_type)           :: sh_env
+       TYPE(aom_env_type)          :: aom_env
        !COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
        TYPE(aom_env_type)          :: aom_env
        
@@ -327,6 +333,9 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         TYPE(sh_print_env_type) :: sh_print_env
         TYPE(sh_env_type)       :: sh_env
         TYPE(aom_env_type), INTENT(IN)             :: aom_env
+        !TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
+        !TYPE(sh_env_type), INTENT(OUT) :: sh_env
+        !TYPE(aom_env_type)           :: aom_env
 
         LOGICAL        :: trivial_correction, correct_for_negative, adiabatic_prop
         integer :: i, j, mol!, k, l
@@ -341,6 +350,7 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak, akttm
         !COMPLEX(KIND=dp) :: cstate, cstate_tm
         COMPLEX(KIND=dp) :: cstate, cstate_tm
+ 
 
         mol = size(Stt,1)
 
@@ -580,8 +590,12 @@ print *, "SINGLE_CICLE b(i)", b(i)
 !unphysical number larger than 1. 
 
         !call a random number
-        call init_random_seed()
-        call random_number(hop)
+        !call init_random_seed()
+        !call random_number(hop)
+        !CALL create_rng_stream(rng_stream, "fssh")
+        hop = next_random_number(aom_env%rng_stream)
+        !CALL delete_rng_stream(rng_stream)
+
         sh_print_env%hop       = hop
         sh_print_env%old_state = old_state
         !and see if this random number causes a surface hop
@@ -657,9 +671,15 @@ subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, aom_en
         REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
         !REAL(KIND=dp), dimension(:,:), allocatable, intent(out) :: dphi
         TYPE(aom_env_type), INTENT(OUT) :: aom_env
+!        INTEGER, INTENT(OUT)        :: new_state
+!        LOGICAL, INTENT(OUT)        :: attempt_hop
+!        TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
+!        TYPE(sh_env_type), INTENT(OUT) :: sh_env
+!        TYPE(aom_env_type)           :: aom_env
 
         integer :: i, j, mol, k, l
         REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
+
 
         mol = size(Stt,1)
 
@@ -908,8 +928,12 @@ print *, "Probability_RENORM: ", g
         sh_print_env%proba     = g
 
         !call a random number
-        call init_random_seed()
-        call random_number(hop)
+        !call init_random_seed()
+        !call random_number(hop)
+        !CALL create_rng_stream(rng_stream, "fssh")
+        hop = next_random_number(aom_env%rng_stream)
+        !CALL delete_rng_stream(rng_stream)
+
         sh_print_env%hop       = hop
         sh_print_env%old_state = old_state
         !and see if this random number causes a surface hop
@@ -1773,11 +1797,12 @@ end subroutine calcTDT
 
 
 
-   SUBROUTINE choose_firstadiabat(C, init, sh_print_env, first_adiabat)
+   SUBROUTINE choose_firstadiabat(C, init, sh_print_env, first_adiabat, aom_env)
         REAL(KIND=dp), dimension(:,:), intent(in) :: C
         INTEGER, INTENT(IN)                       :: init
         TYPE(sh_print_env_type), INTENT(INOUT)   :: sh_print_env
         INTEGER, INTENT(OUT)                      :: first_adiabat
+        TYPE(aom_env_type)           :: aom_env
 
         CHARACTER(len=*), PARAMETER :: routineN = 'choose_firstadiabat', &
         routineP = moduleN//':'//routineN
@@ -1787,8 +1812,11 @@ end subroutine calcTDT
 
         ALLOCATE(sh_print_env%pop_init(SIZE(C(init,:))))
 
-        CALL init_random_seed()
-        CALL random_number(random)
+        !CALL init_random_seed()
+        !CALL random_number(random)
+        !CALL create_rng_stream(rng_stream, "firstadiab")
+        random = next_random_number(aom_env%rng_stream)
+        !CALL delete_rng_stream(rng_stream)
         sh_print_env%initrandom = random
         sumc = 0.0D0
         DO i=1, SIZE(C(init,:))

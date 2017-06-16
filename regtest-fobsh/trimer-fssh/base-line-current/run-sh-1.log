@@ -1,0 +1,236 @@
+LET'S START. 
+Adiabatic Initial Population = 
+   1         0.0000109305
+   2         0.0000001119
+   3         0.9999889576
+Initial Random Number =         0.8712476767
+First Adiabatic State =        3
+  
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        12.5959364241
+   2        45.0552332394
+   3         0.0000000000
+  
+Surface Hopping Info,  nadiab =       3 , norbitals =        1
+   i = 1, time =                0.500 (fs)
+   Minimum adiab. energy difference =         0.0032266573
+   Exact sum of fluxes =        -0.0000001546
+   Approximate sum of fluxes =         0.0000005352
+   Sum of probability =         0.0000005474
+   Probability = 
+   1         0.0000005474
+   2         0.0000000000
+   3         0.9999994526
+   Random number =         0.4357859862
+NO HOP!
+Final state   =        3
+  
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        12.5106271691
+   2        45.6038622951
+   3         0.0000000000
+  
+Surface Hopping Info,  nadiab =       3 , norbitals =        1
+   i = 2, time =                1.000 (fs)
+   Minimum adiab. energy difference =         0.0030942765
+   Exact sum of fluxes =         0.0000003209
+   Approximate sum of fluxes =         0.0000003357
+   Sum of probability =         0.0000003209
+   Probability = 
+   1         0.0000003207
+   2         0.0000000002
+   3         0.9999996791
+   Random number =         0.3929008599
+NO HOP!
+Final state   =        3
+  
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        12.7564420153
+   2        48.2315535362
+   3         0.0000000000
+  
+Surface Hopping Info,  nadiab =       3 , norbitals =        1
+   i = 3, time =                1.500 (fs)
+   Minimum adiab. energy difference =         0.0028246631
+   Exact sum of fluxes =         0.0000007028
+   Approximate sum of fluxes =        -0.0000005095
+   Sum of probability =         0.0000011683
+   Probability = 
+   1         0.0000000000
+   2         0.0000011683
+   3         0.9999988317
+   Random number =         0.1656371994
+NO HOP!
+Final state   =        3
+  
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        12.9120461754
+   2        51.7530313416
+   3         0.0000000000
+  
+Surface Hopping Info,  nadiab =       3 , norbitals =        1
+   i = 4, time =                2.000 (fs)
+   Minimum adiab. energy difference =         0.0024257405
+   Exact sum of fluxes =         0.0000010558
+   Approximate sum of fluxes =        -0.0000009588
+   Sum of probability =         0.0000019284
+   Probability = 
+   1         0.0000000000
+   2         0.0000019284
+   3         0.9999980716
+   Random number =         0.8716560514
+NO HOP!
+Final state   =        3
+  
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        13.0524541513
+   2        57.2352033809
+   3         0.0000000000
+  
+Surface Hopping Info,  nadiab =       3 , norbitals =        1
+   i = 5, time =                2.500 (fs)
+   Minimum adiab. energy difference =         0.0019087969
+   Exact sum of fluxes =         0.0000015115
+   Approximate sum of fluxes =         0.0000015241
+   Sum of probability =         0.0000015115
+   Probability = 
+   1         0.0000013377
+   2         0.0000001738
+   3         0.9999984885
+   Random number =         0.9317218712
+NO HOP!
+Final state   =        3
+  
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        13.3851831194
+   2        67.7504625725
+   3         0.0000000000
+  
+Surface Hopping Info,  nadiab =       3 , norbitals =        1
+   i = 6, time =                3.000 (fs)
+   Minimum adiab. energy difference =         0.0012880721
+   Exact sum of fluxes =         0.0000025306
+   Approximate sum of fluxes =         0.0000027613
+   Sum of probability =         0.0000025306
+   Probability = 
+   1         0.0000020964
+   2         0.0000004342
+   3         0.9999974694
+   Random number =         0.5952605491
+NO HOP!
+Final state   =        3
+  
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        14.2221022280
+   2        92.9625290888
+   3         0.0000000000
+  
+Surface Hopping Info,  nadiab =       3 , norbitals =        1
+   i = 7, time =                3.500 (fs)
+   Minimum adiab. energy difference =         0.0005802450
+   Exact sum of fluxes =         0.0000079388
+   Approximate sum of fluxes =         0.0000102769
+   Sum of probability =         0.0000079388
+   Probability = 
+   1         0.0000042554
+   2         0.0000036834
+   3         0.9999920612
+   Random number =         0.5342256569
+NO HOP!
+Final state   =        3
+  
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        16.0525817193
+   2       192.0346889426
+   3         0.0000000000
+  
+Surface Hopping Info,  nadiab =       3 , norbitals =        1
+   i = 8, time =                4.000 (fs)
+   Minimum adiab. energy difference =         0.0001961883
+   Exact sum of fluxes =         0.9999458386
+   Approximate sum of fluxes =       271.6447490140
+   Sum of probability =         0.9999458386
+   Probability = 
+   1         0.0017827066
+   2         0.9981631320
+   3         0.0000541614
+   Random number =         0.1229602402
+   ATTEMPT between old_state =        3 and new_state =        2
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        19.2135968682
+   2       534.7510166997
+   3         0.0000000000
+  
+TRY ENERGY CONSERVATION WITH ISOTROPIC RESCALING: PASSED!
+   Kinetic energy   (Ha) =         0.0304058056
+TRY ENERGY CONSERVATION WITH NACV-ORIENTED RESCALING:
+   Energy old state (Ha) =         0.0200885367
+   Energy new state (Ha) =         0.0195082917
+   A-term   =         0.0000286745
+   B-term   =         0.0004355953
+   Discriminant   =         0.0000002563
+SUCCESSFUL HOP!
+   Directional rescale factor  =         1.2321357777
+   Momentum change  =         0.0000000000        0.0000000000       -0.0000000000
+Final state   =        2
+  
+Surface Hopping Info,  nadiab =       3 , norbitals =        1
+   i = 9, time =                4.500 (fs)
+   Minimum adiab. energy difference =         0.0010597988
+   Exact sum of fluxes =        -0.0004377550
+   Approximate sum of fluxes =        -0.0003887543
+   Sum of probability =         0.0000556647
+   Probability = 
+   1         0.0000556647
+   2         0.9999443353
+   3         0.0000000000
+   Random number =         0.9798743000
+NO HOP!
+Final state   =        2
+  
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        29.2484300101
+   2         0.0000000000
+   3        94.1153340659
+  
+Surface Hopping Info,  nadiab =       3 , norbitals =        1
+   i = 10, time =                5.000 (fs)
+   Minimum adiab. energy difference =         0.0014449956
+   Exact sum of fluxes =         0.0003984728
+   Approximate sum of fluxes =         0.0006317389
+   Sum of probability =         0.0004417254
+   Probability = 
+   1         0.0004417254
+   2         0.9995582746
+   3         0.0000000000
+   Random number =         0.5842572890
+NO HOP!
+Final state   =        2
+  
+  
+METHOD FOR DECOHERENCE: EDC.
+    Damping time (fs) = 
+   1        66.9375352045
+   2         0.0000000000
+   3        49.5869031944
+  

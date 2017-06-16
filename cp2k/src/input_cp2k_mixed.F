@@ -257,6 +257,13 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword,name="SEED",&
+         description="Initial seed for the global (pseudo)random number "//&
+         "generator to create a stream of normally Gaussian "//&
+         "distributed random numbers.",&
+         usage="SEED <INTEGER>",default_i_val=2000)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
 
     NULLIFY(sub2section)
     CALL section_create(sub2section,name="AOM",&
@@ -338,6 +345,15 @@ CONTAINS
          description="Decide if we use the decoherence procedure",&
          usage="True", & 
          default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="RANDOM_DERIVATIVE",&
+         description="Decide if we use forward and backward derivative "//&
+                      "in a random way (True) or only forward (False).",&
+         usage="True", &
+         default_l_val=.TRUE., &
          lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
