@@ -46,7 +46,8 @@ MODULE aom_utils
    USE kinds,                          ONLY: default_string_length,&
                                                dp
    USE machine,                        ONLY: m_getpid
-   USE aom_types,                      ONLY: sh_print_env_type
+   USE aom_types,                      ONLY: sh_print_env_type, &
+                                             aom_env_type
    USE aom_print,                      ONLY: adiab_print_sh_info,  &
                                              adiab_print_hop_nacv
 
@@ -205,7 +206,7 @@ end subroutine makeX
  !          sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
 
 subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
-           sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+           sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
 !Choose whether doing surface hopping with trivial hopping correction or witgout
 !it following the old code 
         
@@ -222,6 +223,7 @@ subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
        TYPE(sh_print_env_type)     :: sh_print_env
        TYPE(sh_env_type)           :: sh_env
        !COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
+       TYPE(aom_env_type)          :: aom_env
        
        CHARACTER(len=*), PARAMETER :: routineN ='surf_hop_type', &
                                routineP = moduleN//':'//routineN
@@ -247,13 +249,13 @@ subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
 
        CALL modified_surfacehop(Stt, C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
-              sh_print_env) !triv_threshold)
+              sh_print_env, aom_env) !triv_threshold)
        CASE("UNMODIFIED_SURF_HOP")
         
        !CALL surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
        !                 sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
        CALL  surfacehop(deltat, old_state, Stt, C2, &
-              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
        
        CASE DEFAULT
          CPABORT("There is no method to add trivial crossing correction")
@@ -308,7 +310,7 @@ end subroutine diab_to_adiab
 
 subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
-              sh_print_env) !triv_threshold)
+              sh_print_env, aom_env) !triv_threshold)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -323,7 +325,8 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type) :: sh_print_env
-        TYPE(sh_env_type) :: sh_env
+        TYPE(sh_env_type)       :: sh_env
+        TYPE(aom_env_type), INTENT(IN)             :: aom_env
 
         LOGICAL        :: trivial_correction, correct_for_negative, adiabatic_prop
         integer :: i, j, mol!, k, l
@@ -478,7 +481,7 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
                !other state
                 ak(i) = ct(i)*conjg(cstate)
                 akttm(i) = cttm_ad(i)*conjg(cstate_tm)
-                b(i) = -2.0D0*REAL(conjg(ak(i))*sh_env%dphi(i,old_state))
+                b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
 print *, "SINGLE_CICLE ak(i)", ak(i)
 print *, "SINGLE_CICLE akttm(i)", akttm(i)
 print *, "SINGLE_CICLE b(i)", b(i)
@@ -606,7 +609,8 @@ print *, "SINGLE_CICLE b(i)", b(i)
                                 !if the non-adiabatic coupling dphi to all other states is below a certain threshold
                                 !then a wavefunction collapse will be enforced
                                 do j=1,mol
-                                        if (abs(sh_env%dphi(old_state,j)) > decohere_criterion .and. old_state .ne. j) then
+                                        if (abs(aom_env%adiab_nace_tp(old_state,j)) & 
+                                                     > decohere_criterion .and. old_state .ne. j) then
                                                ! decohere = .FALSE.
                                                 sh_env%decohere = .FALSE.
                                                 EXIT
@@ -643,7 +647,7 @@ print *, "SINGLE_CICLE b(i)", b(i)
 end subroutine modified_surfacehop
 
 
-subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, sh_env)
+subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, aom_env)
 
         !this subroutine calculates the adiabatic nace used in the calculation
         !of the hopping probability and also in the RK adiabatic propagation 
@@ -652,7 +656,7 @@ subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, sh_env
         REAL(KIND=dp), intent(in) :: deltat
         REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
         !REAL(KIND=dp), dimension(:,:), allocatable, intent(out) :: dphi
-        TYPE(sh_env_type), INTENT(OUT) :: sh_env
+        TYPE(aom_env_type), INTENT(OUT) :: aom_env
 
         integer :: i, j, mol, k, l
         REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
@@ -660,7 +664,7 @@ subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, sh_env
         mol = size(Stt,1)
 
         !many allocations
-        allocate(sh_env%dphi(mol,mol))
+!        allocate(aom_env%adiab_nace_tp(mol,mol))
         allocate(T1(mol,mol))
         allocate(T2(mol,mol))
         allocate(DT(mol,mol))
@@ -715,19 +719,21 @@ print *, "TERM2_TDT", TDT
 print *, "DIAB_NACE", (TST + TDT)
         do i=1,mol
                 do j=1,mol
-                        sh_env%dphi(i,j) = 0.0D0
+                        aom_env%adiab_nace_tp(i,j) = 0.0D0
                         do k=1,mol
-                                sh_env%dphi(i,j) = sh_env%dphi(i,j) + C2(k,i)*DC(k,j)
+                                aom_env%adiab_nace_tp(i,j) = & 
+                                        aom_env%adiab_nace_tp(i,j) + C2(k,i)*DC(k,j)
                                 do l=1,mol
-                                        sh_env%dphi(i,j) = sh_env%dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
+                                        aom_env%adiab_nace_tp(i,j) = & 
+                          aom_env%adiab_nace_tp(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
 print *, "i,j coefficients", i, j
-print *, "NACE_ADIABATIC", sh_env%dphi(i,j) 
+print *, "NACE_ADIABATIC", aom_env%adiab_nace_tp(i,j) 
                                 end do
                         end do
                 end do
         end do
 
-!        deallocate(sh_env%dphi)
+!        deallocate(aom_env%adiab_nace_tp)
         deallocate(T1)
         deallocate(T2)
         deallocate(DT)
@@ -739,7 +745,7 @@ print *, "NACE_ADIABATIC", sh_env%dphi(i,j)
 end subroutine calc_adiab_nace
 
 subroutine surfacehop(deltat, old_state, Stt, C2, &
-              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
+              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -755,6 +761,7 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
         TYPE(sh_env_type), INTENT(OUT) :: sh_env
+        TYPE(aom_env_type), INTENT(IN)              :: aom_env
 
         logical :: adiabatic_prop
         REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C2
@@ -856,7 +863,7 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
 
         do i=1,mol
                 ak(i) = ct(i)*conjg(cstate)
-                b(i) = -2.0D0*REAL(conjg(ak(i))*sh_env%dphi(i,old_state))
+                b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
 !print*, "i b dphi", i, b(i), dphi(i, old_state)
 print *, "SINGLE_CICLE ak(i)", ak(i)
 print *, "SINGLE_CICLE b(i)", b(i)
@@ -932,7 +939,8 @@ print *, "Probability_RENORM: ", g
                                 sh_env%decohere = .TRUE.
                                 do j=1,mol
 !print*, j, old_state, abs(dphi(old_state,j)), decohere_criterion
-                                        if (abs(sh_env%dphi(old_state,j)) > decohere_criterion .and. old_state .ne. j) then
+                                        if (abs(aom_env%adiab_nace_tp(old_state,j)) & 
+                                                 > decohere_criterion .and. old_state .ne. j) then
 !print*, j, abs(dphi(old_state,j)), decohere_criterion
                                                ! decohere = .FALSE.
                                                 sh_env%decohere = .FALSE.

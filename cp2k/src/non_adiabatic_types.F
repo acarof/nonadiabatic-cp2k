@@ -34,7 +34,7 @@ IMPLICIT NONE
      REAL(KIND=dp), DIMENSION(:,:), POINTER      :: C_tp          
      INTEGER                                     :: active_state, state_min  
      REAL(KIND=dp), dimension(:), POINTER        :: E_tp, E_t, enerdiff
-     REAL(KIND=dp), dimension(:,:), POINTER      :: dphi                                                                           
+     !REAL(KIND=dp), dimension(:,:), POINTER      :: dphi_tp, dphi_t                                                                           
 
 
                     

@@ -175,7 +175,7 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
 
-     !REAL(KIND=dp), dimension(:,:), allocatable :: dphi
+     !REAL(KIND=dp), dimension(:,:), allocatable :: dphi_t, dphi_tp
      !REAL(KIND=dp) :: deltat
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
     ! LOGICAL                                      :: decohere, collapse, analytics
@@ -251,6 +251,9 @@ CONTAINS
 
 !> ALLOCATE aom_env at timestep = 1
      if (itimes.eq.0) then
+!       allocate(dphi(mat,mat))
+!       allocate(sh_env%dphi_tp(mat,mat))
+
        ALLOCATE(aom_env%population(mat))
        ALLOCATE(aom_env%ctin(mat))
        ALLOCATE(sh_env%ctin(mat))
@@ -280,6 +283,7 @@ CONTAINS
 !       ALLOCATE(aom_env%velocities_tp(3, natom))
        ALLOCATE(aom_env%forces_adiab(3,natom))
        ALLOCATE(aom_env%forces_adiab_new(3,natom))
+       allocate(aom_env%adiab_nace_tp(mat,mat))
        aom_env%futur_decohere = .FALSE.
 
        sh_print_env%adiab_section => adiab_section
@@ -319,9 +323,15 @@ CONTAINS
      allocate(Stmt(mat,mat))
      allocate(Sttm(mat,mat))
      allocate(Stmtm(mat,mat))
+    
 
      allocate(crds(3,c,3))
+     allocate(aom_env%adiab_nace_t(mat,mat))
 
+!     allocate(aom_env%adiab_nace_tp(mat,mat))
+!     allocate(aom_env%adiab_nace_t(mat,mat))
+!     allocate(dphi_tp(mat,mat))
+!     allocate(dphi_t(mat,mat))
 
      !then the complex ones i.e. H matrices; combinations of H and S
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
@@ -682,17 +692,20 @@ print *, "pcoeffsrun(:,orb*(k-1)+d,2)", pcoeffsrun(:,orb*(k-1)+d,2)
 !GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
 
           if (itimes.gt.1) then   !!itimes strictly grater than 1
-               do i=1,mat
-                    do j=1,mat
+!               do i=1,mat
+!                    do j=1,mat
 !                         Stt(j,i) = aom_env%Stt(j,i)
 !                         if (i .ne. j) then
 !                              H_t(j,i) = cmplx(0.0D0, -1.0D0*scaling*Stt(j,i)/cbar,dp)
 !                         end if
-                         Sttm(j,i)  = aom_env%Sttm(j,i)
-                         Stmt(j,i)  = aom_env%Stmt(j,i)
-                         Stmtm(j,i) = aom_env%Stmtm(j,i)
-                    end do
-               end do
+!                         Sttm(j,i)  = aom_env%Sttm(j,i)
+!                         Stmt(j,i)  = aom_env%Stmt(j,i)
+!                         Stmtm(j,i) = aom_env%Stmtm(j,i)
+!                    end do
+!               end do
+                         Sttm  = aom_env%Sttm
+                         Stmt  = aom_env%Stmt
+                         Stmtm = aom_env%Stmtm
           end if
 
 !          else if (itimes.eq.1) then !CHANGE_AC
@@ -707,10 +720,6 @@ print *, "Stt(j,i) = aom_env%Stt(j,i)", Stt(j,i)
                          aom_env%Sttm(j,i)  = Stpt(j,i)
                          aom_env%Stmt(j,i)  = Sttp(j,i)
                          aom_env%Stmtm(j,i) = Stt(j,i)
-!                         Stt(j,i) = aom_env%Stt(j,i)
-!                         if (i .ne. j) then
-!                              H_t(j,i) = cmplx(0.0D0, -1.0D0*scaling*Stt(j,i)/cbar,dp)
-!                         end if
                   end do
                end do
 
@@ -761,7 +770,15 @@ print *, "ONLY GRATER EQUAL C_tp", C_tp
             ctin(:) = aom_env%ctin(:)
 !store diabatic coefficients at tdeltat, this will be useful to find the adiabatic
 !coefficients at tdeltat and to use them to solve the trivial crossing problem
-            CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, sh_env)
+           
+           aom_env%adiab_nace_t =  aom_env%adiab_nace_tp
+
+print *, " OKKKKK_NACE_t",  aom_env%adiab_nace_t 
+            CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, aom_env)
+
+
+print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp 
+
 
             ALLOCATE(sh_env%cttm(mat))
             sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
@@ -874,18 +891,27 @@ print *, "ONLY GRATER EQUAL C_tp", C_tp
                end do !loop over k 
          enddo !loop-over i
 
-
-        do i=1,mat
-             do j=1,mat
-                  aom_env%Stt(j,i) = Stptp(j,i)
-             end do
-        end do
+!!IMPORTANT FOR THE FIRST TIME STEP
+        aom_env%Stt = Stptp
+!        do i=1,mat
+!             do j=1,mat
+!                  aom_env%Stt(j,i) = Stptp(j,i)
+!             end do
+!        end do
 
 
 print *, "aom_env%Stt(j,i)", aom_env%Stt
 print *, "TIME=0_Stt", Stt
 print *, "TIME=0_Stptp", Stptp
 
+!INITIALIZE NACE TO ZERO AT t=0
+        do i=1,mat
+             do j=1,mat
+                  aom_env%adiab_nace_tp(j,i) = 0.0D0 
+             end do
+        end do
+
+print *, "NACE_t=0", aom_env%adiab_nace_tp 
          nacv = cbar*nacv
          CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
          sh_env%E_tp = E_tp
@@ -1047,7 +1073,7 @@ print *, "ctin(AADIAB)", ctin
                                    new_state, &
                                    attempt_hop, &
                                    decohere_criterion, &
-                                   sh_print_env)
+                                   sh_print_env, aom_env)
             ELSE
                 attempt_hop = .FALSE.
                 decohere = .FALSE.
@@ -1181,6 +1207,7 @@ print *, "ctin(AADIAB)", ctin
        deallocate(H_t, H_tp)
        deallocate(Stt, Stptp, Stmtm, Sttp, Sttm, Stpt, Stmt)
        deallocate(nacv, dist)
+!       deallocate(dphi_t, dphi_tp)
        deallocate(exact_forces)
        deallocate(F)
 !END DEALLOCATE
