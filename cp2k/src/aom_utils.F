@@ -229,7 +229,7 @@ subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
        TYPE(sh_env_type)           :: sh_env
        TYPE(aom_env_type)          :: aom_env
        !COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
-       TYPE(aom_env_type)          :: aom_env
+       !TYPE(aom_env_type)          :: aom_env
        
        CHARACTER(len=*), PARAMETER :: routineN ='surf_hop_type', &
                                routineP = moduleN//':'//routineN

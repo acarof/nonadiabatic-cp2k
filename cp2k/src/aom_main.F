@@ -989,7 +989,7 @@ print *, "ONLY EQUAL zero C_tp", C_tp
              CALL section_vals_val_get(adiab_section,"FIRST_DIABAT", &
                                        i_val=first_diabat)
 print *, "FIRST_DIABAT", first_diabat 
-             CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state)
+             CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state, aom_env)
 
 !!!!!!!!!!!!! JUST TO TEST, TO BE REMOVED!!!!!!!!!!!
 active_state = 2

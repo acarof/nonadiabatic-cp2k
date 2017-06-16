@@ -99,6 +99,7 @@
                         EDC_C 1.0
                         EDC_E0 0.1
                         INITIALIZATION                        DIABATIC
+                        REPRESENTATION                        DIABATIC_BASIS
                         FIRST_DIABAT                          1
                         FIRST_ADIABAT                         1
                         &AOM

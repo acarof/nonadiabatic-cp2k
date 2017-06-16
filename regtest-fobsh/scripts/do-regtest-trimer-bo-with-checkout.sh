@@ -3,7 +3,8 @@
 system=$1
 version=$2
 
-MAIN_PATH=/scratch/acarof/src/CP2K/flavoured-cptk
+#MAIN_PATH=/scratch/acarof/src/CP2K/flavoured-cptk
+MAIN_PATH=/scratch/sgiannini/CODE_versions/adiab_propagation/flavoured-cptk/
 
 # prepare build enviromnent
 source ${MAIN_PATH}/cp2k/tools/toolchain/install/setup
@@ -19,7 +20,7 @@ then
 else
    git checkout $version
 fi
-rsync -azvP ${MAIN_PATH}/cp2k/arch/*  cp2k/arch/
+#rsync -azvP ${MAIN_PATH}/cp2k/arch/*  cp2k/arch/
 
 # clean & build
 cd cp2k/makefiles/
