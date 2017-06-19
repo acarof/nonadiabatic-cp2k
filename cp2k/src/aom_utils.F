@@ -211,7 +211,7 @@ print *, 'LOOK NACE=', NACE
 end subroutine makeX
 
 
-subroutine make_adiabX(mol, E_t, aom_env, X) !deltat, NACE)
+subroutine make_adiabX(mol, E_t, NACE_ad_t, X) !deltat, NACE)
         !X is the name I give to the matrix in the solution to the Schroedinger equation:
         !dc/dt = X*sh_env%ctt
         !makeX constructs an X matrix from inputs of S and H
@@ -220,7 +220,8 @@ subroutine make_adiabX(mol, E_t, aom_env, X) !deltat, NACE)
 
         integer, intent(in) :: mol
         integer :: i, j
-        TYPE(aom_env_type), intent(in)             :: aom_env
+        REAL(KIND=dp), dimension(:,:), intent(in)     :: NACE_ad_t
+        !TYPE(aom_env_type), intent(in)             :: aom_env
         REAL(KIND=dp), DIMENSION(:), intent(in)     :: E_t
         !REAL(KIND=dp), intent(in) :: deltat
         !REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, Sttp, Sttm, Stptp, Stmtm
@@ -248,11 +249,11 @@ subroutine make_adiabX(mol, E_t, aom_env, X) !deltat, NACE)
 
 
         
-        do i=1,mol
-            do j=1,mol
-                H(i,j) =  cmplx(0.0D0, 0.0D0, dp)
-            end do
-        end do
+        !do i=1,mol
+        !    do j=1,mol
+        !        H(i,j) =  cmplx(0.0D0, 0.0D0, dp)
+        !    end do
+        !end do
 
         do i=1,mol
             do j=1,mol
@@ -266,10 +267,10 @@ subroutine make_adiabX(mol, E_t, aom_env, X) !deltat, NACE)
 
 print *, "ADIAB_HAMILTONIAN", H
 
-        my_NACE = 0.0D0
+        !my_NACE = 0.0D0
                     
-print *, "MY_NACE_NON_SIMM_NEWWW", aom_env%adiab_nace_t
-        my_NACE = (aom_env%adiab_nace_t - TRANSPOSE(aom_env%adiab_nace_t)) / 2
+print *, "MY_NACE_NON_SIMM_NEWWW", NACE_ad_t
+        my_NACE = (NACE_ad_t - TRANSPOSE(NACE_ad_t)) / 2
                 
 print *, "MY_NACE_SIMM_NEWWW", my_NACE
 

@@ -101,7 +101,8 @@ MODULE aom_main
      USE distribution_1d_types,        ONLY: distribution_1d_type
 
      USE non_adiabatic_utils,            ONLY: decohere_wf,  &
-                                               propagate_wf
+                                               propagate_wf, &
+                                               propagate_adiab_wf
                                           
      USE non_adiabatic_types,           ONLY: sh_env_type
 
@@ -180,7 +181,7 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: X
-     !REAL(KIND=dp), dimension(:,:), allocatable :: dphi_t, dphi_tp
+     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE_ad_t, NACE_ad_tp
      !REAL(KIND=dp) :: deltat
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
     ! LOGICAL                                      :: decohere, collapse, analytics
@@ -346,8 +347,8 @@ CONTAINS
 
 !     allocate(aom_env%adiab_nace_tp(mat,mat))
 !     allocate(aom_env%adiab_nace_t(mat,mat))
-!     allocate(dphi_tp(mat,mat))
-!     allocate(dphi_t(mat,mat))
+     allocate(NACE_ad_t(mat,mat))
+     allocate(NACE_ad_tp(mat,mat))
 
      !then the complex ones i.e. H matrices; combinations of H and S
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
@@ -789,15 +790,17 @@ print *, "ONLY GRATER EQUAL C_tp", C_tp
 !coefficients at tdeltat and to use them to solve the trivial crossing problem
            
            aom_env%adiab_nace_t =  aom_env%adiab_nace_tp
+           NACE_ad_t = aom_env%adiab_nace_t
 
 print *, " OKKKKK_NACE_t",  aom_env%adiab_nace_t 
             CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, aom_env)
 
 
 print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp 
+           NACE_ad_tp = aom_env%adiab_nace_tp
 
 !TEST
-            CALL make_adiabX(mol, E_t, aom_env, X)
+            CALL make_adiabX(mol, E_t, NACE_ad_t, X)
 !ENDTEST
 
 
@@ -826,8 +829,12 @@ print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp
 
            CASE("ADIABATIC_PROP")
                  
+                 CALL propagate_adiab_wf(E_t, E_tp, ctin, aom_env, nadiab, norbitals, ELsteps, &
+                           itimes, adiab_section, deltatMD, deltatE , times,  & 
+                              mat)
+ 
   
-                 print *, "TO BE ADDED"
+                 
 
           CASE("HS_CORRECTION")  
                  print *, "TO BE ADDED"
