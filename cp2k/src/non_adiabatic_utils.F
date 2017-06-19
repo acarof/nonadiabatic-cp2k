@@ -79,7 +79,7 @@ CONTAINS
         TYPE(sh_env_type)                              :: sh_env
         REAL(KIND=dp), INTENT(IN)                      :: deltatMD
         REAL(KIND=dp)                                  :: C_param, E_0_param
-        LOGICAL, dimension(:), ALLOCATABLE             :: ext_pres
+        LOGICAL, dimension(:), POINTER, INTENT(IN)     :: ext_pres
 
         CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
                                        routineP = moduleN//':'//routineN
@@ -99,34 +99,24 @@ CONTAINS
 
         REAL(kind=dp), INTENT(OUT)                         :: K_tot
 
-                                                         
-          CALL section_vals_val_get(adiab_section,"DECOHERENCE_CORRECTIONS",c_val=deco_keyword)
+        CALL section_vals_val_get(adiab_section,"DECOHERENCE_CORRECTIONS",c_val=deco_keyword)
         
         SELECT CASE(deco_keyword)                                                          
         CASE("NO_DECO_CORR")
-
              PRINT *, 'NO DECOHERENCE CORRECTIONS'
-    
         CASE("INSTANT_COLLAPSE")
-          
           CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes,successful_hop)
-
         CASE("TRESH_ONLY_COLLAPSE")  
           CALL  wf_tresh_collaps(sh_print_env, sh_env, itimes)
-
         CASE("DAMPING")
-
           CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
           CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
-          CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &                                               
-                      atomic_kind_set, K_tot, ext_pres)
-
+          CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
+                                nparticle_kind, atomic_kind_set, K_tot, ext_pres)
           CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)
- 
         CASE DEFAULT                                           
           CPABORT("There is no method to add the decoherence.") 
         END SELECT                                             
-
   END SUBROUTINE decohere_wf
 
 
@@ -416,7 +406,7 @@ CONTAINS
              POINTER, OPTIONAL                             :: atomic_kind_set
 
         REAL(kind=dp), INTENT(OUT)                         :: K_tot
-        LOGICAL, dimension(:), ALLOCATABLE           :: ext_pres
+        LOGICAL, dimension(:), INTENT(IN)           :: ext_pres
 
         CHARACTER(len=*), PARAMETER :: routineN = 'calc_kinetic_tot', &
         routineP = moduleN//':'//routineN
@@ -430,7 +420,6 @@ CONTAINS
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-
            IF (PRESENT(atomic_kinds)) THEN
               my_nparticle_kind = atomic_kinds%n_els
               my_atomic_kind_set => atomic_kinds%els
@@ -441,7 +430,6 @@ CONTAINS
               END IF
            END IF
 
-          
            DO iparticle_kind= 1, my_nparticle_kind
               atomic_kind => my_atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)

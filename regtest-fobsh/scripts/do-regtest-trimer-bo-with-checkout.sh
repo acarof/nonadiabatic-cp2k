@@ -3,8 +3,9 @@
 system=$1
 version=$2
 
-#MAIN_PATH=/scratch/acarof/src/CP2K/flavoured-cptk
-MAIN_PATH=/scratch/sgiannini/CODE_versions/adiab_propagation/flavoured-cptk/
+MAIN_PATH=/scratch/acarof/src/CP2K/flavoured-cptk
+MAIN_PATH=/scratch/grudorff/antoine/GIT/CP2K/flavoured-cptk/nonadiabatic
+#MAIN_PATH=/scratch/sgiannini/CODE_versions/adiab_propagation/flavoured-cptk/
 
 # prepare build enviromnent
 source ${MAIN_PATH}/cp2k/tools/toolchain/install/setup
@@ -28,7 +29,7 @@ if [ $version != "here" ]
 then
    make distclean &> make.log
 fi
-make -j12 ARCH="local" VERSION="sopt" &> make.log
+#make -j12 ARCH="local" VERSION="sopt" &> make.log
 cd ../../regtest-fobsh
 
 # run cp2k

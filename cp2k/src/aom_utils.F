@@ -1773,7 +1773,7 @@ end subroutine calcTDT
                             ext_scoeff, ext_pcoeff, natom)
     TYPE(cp_sll_val_type), POINTER                         :: listcoeff
     INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(OUT)        :: ext_elements
-    LOGICAL, DIMENSION(:), ALLOCATABLE,  INTENT(OUT)       :: ext_pres
+    LOGICAL, DIMENSION(:), POINTER,  INTENT(OUT)       :: ext_pres
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT)  :: ext_scoeff, ext_pcoeff
     INTEGER, INTENT(IN)                                    :: natom
 

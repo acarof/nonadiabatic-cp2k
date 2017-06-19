@@ -140,6 +140,7 @@ IMPLICIT NONE
      INTEGER, DIMENSION(:,:), POINTER                    :: NN
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER            :: diabatic_forces
      LOGICAL, DIMENSION(:), POINTER                      :: ext_pres
+     INTEGER, DIMENSION(:), POINTER                      :: elements, atomlist
 !> To print the NACEs
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: nace
 !> To print the NACVs
@@ -154,7 +155,9 @@ IMPLICIT NONE
 !> Adiabatic nace at time t and t-dt
      REAL(KIND=dp), dimension(:,:), POINTER      :: adiab_nace_tp, adiab_nace_t
      TYPE(sh_print_env_type)                     :: sh_print_env
-     TYPE(rng_stream_type), POINTER                       :: rng_stream
+     TYPE(rng_stream_type), POINTER              :: rng_stream
+     REAL(KIND=dp), DIMENSION(:,:), POINTER      :: pcoeffs
+     REAL(KIND=dp), DIMENSION(:), POINTER         :: scoeffs
    END TYPE aom_env_type
 
    PUBLIC :: aom_env_type, &

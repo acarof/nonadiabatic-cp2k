@@ -101,6 +101,7 @@
                         FIRST_DIABAT                          1
                         FIRST_ADIABAT                         1
 		  	SEED                                  42
+			REPRESENTATION                        ADIABATIC_BASIS
                         &AOM
                              NUMBER_DIABATIC_STATES                3
                              NUMBER_ATOMS_PER_SITE                 6

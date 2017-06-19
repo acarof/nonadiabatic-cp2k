@@ -162,22 +162,19 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      integer :: coord, t2
      integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, active_state, mat, orb
-     integer, dimension(:), allocatable :: atomlist, elements
-     integer, dimension(:,:), allocatable :: NN, connlist1, connlist2, aneighbour, bneighbour  !, connlist
+     integer, dimension(:,:), allocatable :: NN,  aneighbour, bneighbour  
      integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
      REAL(KIND=dp)    :: cbar, minao
-     REAL(KIND=dp), dimension(:), allocatable :: scoeffs
      REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      REAL(KIND=dp), dimension(:,:,:), allocatable :: crds, pcoeffsrun
-     REAL(KIND=dp), dimension(:,:), allocatable :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm, pcoeffs
+     REAL(KIND=dp), dimension(:,:), allocatable :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
      REAL(KIND=dp), dimension(:,:), allocatable :: dist
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_t, H_tp
      REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
-     LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: X
@@ -190,10 +187,6 @@ CONTAINS
      REAL(KIND=dp)                                :: dR, times 
      REAL(KIND=dp)                                :: decohere_criterion
      INTEGER                                      :: imol, iatom, natom
-     integer, dimension(:), ALLOCATABLE           :: ext_elements
-     LOGICAL, dimension(:), ALLOCATABLE           :: ext_pres
-     TYPE(cp_sll_val_type), POINTER               :: listcoeff
-     !INTEGER                                      :: first_adiabat
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
@@ -212,8 +205,6 @@ CONTAINS
       integer :: o
 !end PC
       LOGICAL    :: do_random
-      REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
-      INTEGER    :: input_seed
 
 !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -262,53 +253,17 @@ CONTAINS
 
 !> ALLOCATE aom_env at timestep = 1
      if (itimes.eq.0) then
-!       allocate(dphi(mat,mat))
-!       allocate(sh_env%dphi_tp(mat,mat))
 
-       ALLOCATE(aom_env%population(mat))
-       ALLOCATE(aom_env%ctin(mat))
        ALLOCATE(sh_env%ctin(mat))
        ALLOCATE(sh_env%cttm(mat))
        ALLOCATE(sh_env%ctt(mat))
        ALLOCATE(sh_env%C_tp(mat,mat))
-       ALLOCATE(aom_env%hamiltonian(mat,mat))
-       ALLOCATE(aom_env%eigenvector_matrix(mat,mat))
-!       ALLOCATE(aom_env%nace(mat,mat))
-       ALLOCATE(aom_env%connlist1(4,atoms))
-       ALLOCATE(aom_env%neighbourlist(mol,mol,0:atoms,0:atoms))
-       ALLOCATE(aom_env%Stt(mat,mat))
-       !ALLOCATE(aom_env%Stptp_0(mat,mat))
-       ALLOCATE(aom_env%Stptp(mat,mat))
-       ALLOCATE(aom_env%Stmt(mat,mat))
-       ALLOCATE(aom_env%Sttm(mat,mat))
-       ALLOCATE(aom_env%Stmtm(mat,mat))
-       ALLOCATE(aom_env%NN(mat, mat))
-       ALLOCATE(aom_env%rm_t(3, natom))
-       ALLOCATE(aom_env%rm_tm(3, natom))
-       ALLOCATE(aom_env%energies_t(mol))
-       ALLOCATE(aom_env%adiab_energies_t(mat))
-       ALLOCATE(aom_env%bneighbour(3,0:atoms))
-       ALLOCATE(aom_env%nacv(3,mat,mat,mat*atoms))
-       ALLOCATE(aom_env%diabatic_forces(3,natom, mat))
-       ALLOCATE(aom_env%ext_pres(natom))
-!       ALLOCATE(aom_env%velocities_tp(3, natom))
-       ALLOCATE(aom_env%forces_adiab(3,natom))
-       ALLOCATE(aom_env%forces_adiab_new(3,natom))
-       allocate(aom_env%adiab_nace_tp(mat,mat))
-       aom_env%futur_decohere = .FALSE.
 
        sh_print_env%adiab_section => adiab_section
        sh_print_env%nadiab = mat
        sh_print_env%norbitals = orb
        sh_print_env%deltatMD = deltatMD
        ALLOCATE(sh_print_env%adiab_energies_t(mat))
-
-       CALL section_vals_val_get(adiab_section,"SEED",i_val=input_seed)
-       initial_seed(:,:) = REAL(input_seed,KIND=dp)
-       CALL create_rng_stream(rng_stream=aom_env%rng_stream,&
-                               name="aom fssh",&
-                               distribution_type=UNIFORM, &
-                               seed=initial_seed)
      else
        sh_print_env = aom_env%sh_print_env
      endif
@@ -363,9 +318,7 @@ CONTAINS
      nacv = 0.0D0
      allocate(siteenergies(3,mat))      !diagonals of the Hamiltonian
 
-     allocate(pcoeffs(atoms,orb)) !atomic coefficients for the overlap routine
      allocate(pcoeffsrun(atoms,mat,3)) !pcoeffsrun exists because the p-coefficients need to be renormalised for each structure
-     allocate(scoeffs(atoms))
      allocate(pcoefftot(c))
      allocate(scoefftot(c))
      allocate(coms(3,mol))
@@ -384,34 +337,10 @@ CONTAINS
 
      allocate(F(3,natom,mol)) !array of diagonal atomic forces
 
-!READ THE AOM COEFFICIENT
-     CALL section_vals_list_get(coupling_section,"_DEFAULT_KEYWORD_",list=listcoeff) !Read them in the input files
-     CALL read_listcoeff(listcoeff, ext_elements, ext_pres, &
-                         scoefftot, pcoefftot, natom) !Transform them into four arrays
-     allocate(elements(c))
-     elements = PACK(ext_elements, ext_pres) !Only select active atoms
-     allocate(atomlist_mask(c))
-     atomlist_mask =.NOT.((scoefftot.eq.0).AND.(pcoefftot.eq.0)) !Only select atoms with orbitals
-     allocate(atomlist(COUNT(atomlist_mask(1:atoms))))
-     atomlist = PACK( (/ (i, i=1,atoms) /), atomlist_mask(1:atoms) ) !List atoms with orbitals
-     if (itimes.eq.0) then
-       allocate(aom_env%connlist2(4,size(atomlist)))
-     endif
-     do i=1,atoms
-          do j=1,orb
-                pcoeffs(i,j) = pcoefftot( i + (j-1)*orb)
-          end do
-          scoeffs(i) = scoefftot(i)
-      end do
- !print the AOM coefficients
-
-!END READ THE AOM COEFFICIENT
 
      !these arrays are data for the non-adiabatic coupling calculation
      !they help efficiency by telling the program which atoms are connected
      !and thus which pairs to carry out the calculation for
-     allocate(connlist1(4,atoms))
-     allocate(connlist2(4,size(atomlist)))
      allocate(aneighbour(0:atoms,0:atoms))
      allocate(bneighbour(0:atoms,0:atoms))
      aneighbour = 0
@@ -425,26 +354,24 @@ CONTAINS
      CALL translate_com(velocities_t, keyword_translate, velocities_com_tp, local_particles, atomic_kinds = atomic_kinds)  
      do coord=1,3
            if (itimes.ge.1) then
-              crds(coord,:,1) = PACK(aom_env%rm_tm(coord,:), ext_pres)
-              crds(coord,:,2) = PACK(aom_env%rm_t(coord,:), ext_pres)
-              crds(coord,:,3) = PACK(positions_com_tp(coord,:), ext_pres)
+              crds(coord,:,1) = PACK(aom_env%rm_tm(coord,:), aom_env%ext_pres)
+              crds(coord,:,2) = PACK(aom_env%rm_t(coord,:), aom_env%ext_pres)
+              crds(coord,:,3) = PACK(positions_com_tp(coord,:), aom_env%ext_pres)
               siteenergies(2,:) = aom_env%energies_t(:) ! CHANGE_AC
               siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
               active_state = aom_env%active_state
            else if (itimes.eq.0) then 
-              crds(coord,:,1) = PACK(positions_com_tp(coord,:), ext_pres)
+              crds(coord,:,1) = PACK(positions_com_tp(coord,:), aom_env%ext_pres)
 !At time 0, we must guess the positions at time -1 with the inital velocities
-              crds(coord,:,2) = PACK(positions_com_tp(coord,:), ext_pres) -  &
-                                PACK(velocities_com_tp(coord,:), ext_pres)*deltatMD
-              crds(coord,:,3) = PACK(positions_com_tp(coord,:), ext_pres)
+              crds(coord,:,2) = PACK(positions_com_tp(coord,:), aom_env%ext_pres) -  &
+                                PACK(velocities_com_tp(coord,:), aom_env%ext_pres)*deltatMD
+              crds(coord,:,3) = PACK(positions_com_tp(coord,:), aom_env%ext_pres)
               siteenergies(2,:) = 0.0D0 ! CHANGE_AC
               siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
               !old_state = 1
            endif
      enddo
 !READ THE COORDINATES, ENERGIES AND STATE
-
-
 
 
 !CALCULATE THE CENTER OF MASS
@@ -485,25 +412,9 @@ CONTAINS
           end do
      end do
 !END CONSTRUCT NEIGHBOURS LIST
-        
-!CONSTRUCT THE CONNLIST
-     !we fill out the connlist arrays before calculating the nacv
-     if (itimes.eq.0) then
-         At(2:4,1:atoms) = crds(1:3,1:atoms,3)
-         call connect_list2(At(2:4,:), atomlist, connlist1, connlist2, cutoff_connect)
-         aom_env%connlist1  = connlist1
-         aom_env%connlist2  = connlist2
-     else
-         connlist1 = aom_env%connlist1
-         connlist2 = aom_env%connlist2
-     endif
-!END CONSTRUCT THE CONNLIST
-
 
 !CHECK IF WE ARE IN A POST-HOP RUN
      successful_hop = aom_env%successful_hop
-     !used to give correct commands to ZGEMX subroutines later
-!     zgemm_type = 'N'
 
      if (itimes.ge.1) then
           !for each molecule
@@ -511,9 +422,9 @@ CONTAINS
                !create the array of all its atomic coordinates at t
                !numerical factor converts from Angstroms into Bohr radii
                do j=1,atoms
-                    At(1,j)  = dble(elements(j))
-                    Atp(1,j) = dble(elements(j))
-                    Atm(1,j) = dble(elements(j))
+                    At(1,j)  = dble(aom_env%elements(j))
+                    Atp(1,j) = dble(aom_env%elements(j))
+                    Atm(1,j) = dble(aom_env%elements(j))
                     do d=2,4
 !> CHANGE_AC : already coordonates in atomic units
                          Atm(d,j) = crds(d-1,(i-1)*atoms+j,1)
@@ -522,14 +433,13 @@ CONTAINS
                     end do
                end do
                
-print *, "LOOOK_At", At
                !then for each other molecule
                do k=1,mol
                     !create the array of its atomic coordinates at both t and t+dt
                     do l=1,atoms
-                         Bt(1,l)  = dble(elements(l))
-                         Btp(1,l) = dble(elements(l))
-                         Btm(1,l) = dble(elements(l))
+                         Bt(1,l)  = dble(aom_env%elements(l))
+                         Btp(1,l) = dble(aom_env%elements(l))
+                         Btm(1,l) = dble(aom_env%elements(l))
                          do d=2,4
 !> CHANGE_AC : already coordonates in atomic units
                               Btm(d,l) = crds(d-1,(k-1)*atoms+l,1)
@@ -542,15 +452,14 @@ print *, "LOOOK_At", At
                               !do l=1,atoms
                               !     pcoeffsrun(l,orb*(k-1)+d,1) = pcoeffs(l,d)
                               !end do
-                              pcoeffsrun(:,orb*(k-1)+d,1) = pcoeffs(:,d)
-                              call calc_sab(Btm, connlist2, pcoeffsrun(:,orb*(k-1)+d,1))
+                              pcoeffsrun(:,orb*(k-1)+d,1) = aom_env%pcoeffs(:,d)
+                              call calc_sab(Btm, aom_env%connlist2, pcoeffsrun(:,orb*(k-1)+d,1))
 
-                              pcoeffsrun(:,orb*(k-1)+d,2) = pcoeffs(:,d)
-                              call calc_sab(Bt, connlist2, pcoeffsrun(:,orb*(k-1)+d,2))
-print *, "pcoeffsrun(:,orb*(k-1)+d,2)", pcoeffsrun(:,orb*(k-1)+d,2)
+                              pcoeffsrun(:,orb*(k-1)+d,2) = aom_env%pcoeffs(:,d)
+                              call calc_sab(Bt, aom_env%connlist2, pcoeffsrun(:,orb*(k-1)+d,2))
 
-                              pcoeffsrun(:,orb*(k-1)+d,3) = pcoeffs(:,d)
-                              call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
+                              pcoeffsrun(:,orb*(k-1)+d,3) = aom_env%pcoeffs(:,d)
+                              call calc_sab(Btp, aom_env%connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
                     end if
                     neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
@@ -610,67 +519,59 @@ print *, "pcoeffsrun(:,orb*(k-1)+d,2)", pcoeffsrun(:,orb*(k-1)+d,2)
                                    do d=1,orb
                                         do m=1,orb
                                         !PC added print_rvecs =yes so p vectors and coords would be printed 
-                                             call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
-                                             & S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3),& 
+                                             call calc_sab(Atp, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
+                                             & S, Btp, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3),& 
                                              & print_rvecs='yes', molA_index=i, molB_index=k)
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
+
                                              !Calcul of the NACV
-!print *, "THIS IS S T=1", i, k, S
-                                             call calc_dRSab(Atp, atomlist, connlist1, &
-                                             &pcoeffsrun(1:atoms,orb*(i-1)+d,2), scoeffs, &
+                                             call calc_dRSab(Atp, aom_env%atomlist, aom_env%connlist1, &
+                                             &pcoeffsrun(1:atoms,orb*(i-1)+d,2), aom_env%scoeffs, &
                                              &nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
                                              &nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
-                                             &Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
-                                             &scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, do_random, aom_env)
+                                             &Btp, aom_env%atomlist, aom_env%connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,2),&
+                                             &aom_env%scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR,  &
+                                              do_random, aom_env)
                                         end do
                                    end do
-!print *, "Btp", Btp
-!print *, "connlist2", connlist2
                                    do d=1,orb
                                         do m=1,orb
-                                             call calc_sab(At, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
-                                             & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
+                                             call calc_sab(At, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btp,&
+                                             & aom_env%connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                              Sttp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
 
-                                             call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3), S, Bt,&
-                                             & connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
+                                             call calc_sab(Atp, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3), S, Bt,&
+                                             & aom_env%connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                              Stpt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                         end do
                                    end do
                                    if (itimes.eq.1) then
                                         do d=1,orb
                                              do m=1,orb
-                                                  call calc_sab(At, connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Bt, connlist2,&
+                                                  call calc_sab(At, aom_env%connlist2, &
+                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Bt, aom_env%connlist2,&
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                                   Stt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                                   H_t(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
-!print *, "pcoeffsrun(1:atoms,orb*(i-1)+d,2)", pcoeffsrun(1:atoms,orb*(i-1)+d,2)
-!print *, "pcoeffsrun(1:atoms,orb*(k-1)+m,2)", pcoeffsrun(1:atoms,orb*(k-1)+m,2)
-                                                  call calc_sab(Atm, connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, Btm, connlist2,&
+                                                  call calc_sab(Atm, aom_env%connlist2, &
+                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, Btm, aom_env%connlist2,&
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,1))
                                                   Stmtm(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
 
-!print *, "pcoeffsrun(1:atoms,orb*(i-1)+d,1)", pcoeffsrun(1:atoms,orb*(i-1)+d,1)
-!print *, "pcoeffsrun(1:atoms,orb*(k-1)+m,1))", pcoeffsrun(1:atoms,orb*(k-1)+m,1)
 
-                                                  call calc_sab(At, connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btm, connlist2,&
+                                                  call calc_sab(At, aom_env%connlist2, &
+                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, Btm, aom_env%connlist2,&
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,1))
                                                   Sttm(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
 
-                                                  call calc_sab(Atm, connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, Bt, connlist2, &
+                                                  call calc_sab(Atm, aom_env%connlist2, &
+                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, Bt, aom_env%connlist2, &
                                                   &pcoeffsrun(1:atoms,orb*(k-1)+m,2))
                                                   Stmt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              end do
                                         end do
-!print *, "Bt", Bt
-!print *, "connlist2_AFTER", connlist2
-!print *, "pcoeffsrun(1:atoms,orb*(k-1)+m,3)", pcoeffsrun
 
                                    end if ! (.not.inrun)
                               end if ! ( k < i)
@@ -694,7 +595,7 @@ print *, "pcoeffsrun(:,orb*(k-1)+d,2)", pcoeffsrun(:,orb*(k-1)+d,2)
                     end if !(NN(i,k) == 1
                end do !loop over k
           !PC ------------
-            call calc_sab_pete(Atp, connlist2, PC_rvecs)
+            call calc_sab_pete(Atp, aom_env%connlist2, PC_rvecs)
              do o=1, size(PC_rvecs,2)
               PC_allrvecs(1,((i-1)*atoms)+o) = i
               PC_allrvecs(2,((i-1)*atoms)+o) = o
@@ -729,7 +630,6 @@ print *, "pcoeffsrun(:,orb*(k-1)+d,2)", pcoeffsrun(:,orb*(k-1)+d,2)
                do i=1,mat
                   do j=1,mat
                          Stt(j,i) = aom_env%Stt(j,i)
-print *, "Stt(j,i) = aom_env%Stt(j,i)", Stt(j,i)
                          if (i .ne. j) then
                               H_t(j,i) = cmplx(0.0D0, -1.0D0*scaling*Stt(j,i)/cbar,dp)
                          end if
@@ -739,24 +639,6 @@ print *, "Stt(j,i) = aom_env%Stt(j,i)", Stt(j,i)
                          aom_env%Stmtm(j,i) = Stt(j,i)
                   end do
                end do
-
-print *, "aom_env%Stt(j,i)   = Stptp(j,i)", aom_env%Stt
-!print *, "DELTA_T_BEFORE", deltat
-print *, "PRINT INITIAL Stt", Stt
-print *, "PRINT INITIAL Sttp", Sttp
-print *, "PRINT INITIAL Stpt", Stpt
-print *, "PRINT INITIAL Stptp", Stptp
-print *, "PRINT INITIAL Sttm", Sttm
-print *, "PRINT INITIAL Stmtm", Stmtm
-print *, "aom_env%Stt(j,i)   = Stptp(j,i)", aom_env%Stt
-print *, "aom_env%Sttm(j,i)  = Stpt(j,i)", aom_env%Sttm
-print *, "aom_env%Stmt(j,i)  = Sttp(j,i)", aom_env%Stmt
-print *, "aom_env%Stmtm(j,i) = Stt(j,i)", aom_env%Stmtm
-
-
-
-print *, "DELTAMD_BEFORE", deltatMD
-
 
 !          endif !CHANGE_AC
 !END GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
@@ -774,14 +656,11 @@ print *, "DELTAMD_BEFORE", deltatMD
 !decoherence corrections
           sh_env%E_t = E_t
 
-print *, "ONLY GRATER EQUAL C_t", C_t
           CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
           sh_env%E_tp = E_tp
-print *, "ONLY GRATER EQUAL C_tp", C_tp
 
           CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
 
-!stop
 
 !PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
          IF (.NOT.successful_hop) THEN
@@ -792,11 +671,9 @@ print *, "ONLY GRATER EQUAL C_tp", C_tp
            aom_env%adiab_nace_t =  aom_env%adiab_nace_tp
            NACE_ad_t = aom_env%adiab_nace_t
 
-print *, " OKKKKK_NACE_t",  aom_env%adiab_nace_t 
             CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, aom_env)
 
 
-print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp 
            NACE_ad_tp = aom_env%adiab_nace_tp
 
 !TEST
@@ -811,14 +688,12 @@ print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp
             sh_env%cttm(:) = ctin(:)
 
          
-!print *, "coefficients at t minus deltat", sh_env%cttm
-!print *, "active state", sh_env%cttm(active_state)
 
-            CALL section_vals_val_get(adiab_section,"ELECTR_PROPAGATION", &
+            CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
                                                      c_val=prop_wf_keyword)
             
             SELECT CASE(prop_wf_keyword)                                 
-            CASE("DIABATIC_PROP")
+            CASE("DIABATIC_BASIS")
 
                  CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, & 
                                                        Sttm, Stmtm,    &
@@ -827,7 +702,7 @@ print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp
                             mat)
 
 
-           CASE("ADIABATIC_PROP")
+           CASE("ADIABATIC_BASIS")
                  
                  CALL propagate_adiab_wf(E_t, E_tp, ctin, aom_env, nadiab, norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,  & 
@@ -849,38 +724,35 @@ print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp
             ALLOCATE(sh_env%ctt(mat))
             sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
             sh_env%ctt(:) = ctin(:)
-!print *, "coefficients at t present", sh_env%ctt
 
          ENDIF !ONLY IF NOT POST-HOP RUN
-!print *, "ctin", ctin
      ELSE IF (itimes.eq.0) THEN
           !for each molecule
           do i=1,mol
                !create the array of all its atomic coordinates at t
                !numerical factor converts from Angstroms into Bohr radii
-               Atp(1,1:atoms) = dble(elements((i-1)*atoms+1:i*atoms))
+               Atp(1,1:atoms) = dble(aom_env%elements((i-1)*atoms+1:i*atoms))
                do j=1,atoms
                     Atp(2:4,j) = crds(1:3,(i-1)*atoms+j,3)
                end do
-!print *, "TIME=0_Atp", Atp
 
                !then for each other molecule
                do k=1,mol
                     !create the array of its atomic coordinates at both t and t+dt
-                    Btp(1,1:atoms) = dble(elements((k-1)*atoms+1:k*atoms))
+                    Btp(1,1:atoms) = dble(aom_env%elements((k-1)*atoms+1:k*atoms))
                     do l=1,atoms
                         Btp(2:4,l) = crds(1:3,(k-1)*atoms+l,3)
                     end do
                     if (i == 1) then
                          do d=1,orb
-                              pcoeffsrun(1:atoms,orb*(k-1)+d,3) = pcoeffs(1:atoms,d)
-                              call calc_sab(Btp, connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
+                              pcoeffsrun(1:atoms,orb*(k-1)+d,3) = aom_env%pcoeffs(1:atoms,d)
+                              call calc_sab(Btp, aom_env%connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
                     end if  ! (i == 1)
                     do d=1,orb
                          do m=1,orb
-                              call sab_screen_new(Atp, atomlist, connlist1, pcoeffsrun(:,orb*(i-1)+d,3),&
-                              & atomlist, Btp, atomlist, connlist1, pcoeffsrun(:,orb*(k-1)+m,3),&
+                              call sab_screen_new(Atp, aom_env%atomlist, aom_env%connlist1, pcoeffsrun(:,orb*(i-1)+d,3),&
+                              & aom_env%atomlist, Btp, aom_env%atomlist, aom_env%connlist1, pcoeffsrun(:,orb*(k-1)+m,3),&
                               & aneighbour(:,1:atoms), bneighbour(:,1:atoms), minao)
                          end do
                     end do
@@ -911,23 +783,19 @@ print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp
                               else
                                    do d=1,orb
                                         do m=1,orb
-                                             call calc_sab(Atp, connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
-                                              S, Btp, connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
+                                             call calc_sab(Atp, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
+                                              S, Btp, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
                                              Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
                                              H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, -scaling*S,dp)
-!print *, "THIS_IS_S", S
-!print *, "Btp", Btp
-!print *, "connlist2_FIRST", connlist2
-!print *, "pcoeffsrun(1:atoms,orb*(i-1)+d,3)", pcoeffsrun(1:atoms,orb*(i-1)+d,3)
-!print *, "pcoeffsrun(1:atoms,orb*(k-1)+m,3))", pcoeffsrun(1:atoms,orb*(k-1)+m,3)
 
 
-                                             call calc_dRSab(Atp, atomlist, connlist1, &
-                                             pcoeffsrun(1:atoms,orb*(i-1)+d,3), scoeffs, &
+                                             call calc_dRSab(Atp, aom_env%atomlist, aom_env%connlist1, &
+                                             pcoeffsrun(1:atoms,orb*(i-1)+d,3), aom_env%scoeffs, &
                                              nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
                                              nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
-                                             Btp, atomlist, connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
-                                             scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, do_random, aom_env)
+                                             Btp, aom_env%atomlist, aom_env%connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
+                                             aom_env%scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, &
+                                             do_random, aom_env)
                                         end do
                                    end do
                               endif 
@@ -953,9 +821,6 @@ print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp
 !        end do
 
 
-print *, "aom_env%Stt(j,i)", aom_env%Stt
-print *, "TIME=0_Stt", Stt
-print *, "TIME=0_Stptp", Stptp
 
 !INITIALIZE NACE TO ZERO AT t=0
         do i=1,mat
@@ -964,11 +829,9 @@ print *, "TIME=0_Stptp", Stptp
              end do
         end do
 
-print *, "NACE_t=0", aom_env%adiab_nace_tp 
          nacv = cbar*nacv
          CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
          sh_env%E_tp = E_tp
-print *, "ONLY EQUAL zero C_tp", C_tp
 
          CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
      endif !END OF THE BIG IF-LOOP itimes.ge.1
@@ -985,16 +848,13 @@ print *, "ONLY EQUAL zero C_tp", C_tp
 !               !It gives us back the eigenvalues and eigenvectors
 !      IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
 !      !call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
-!print *, "C-T firts", C_t
 !      call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
-!print *, "EACH_TIME_C_tp", C_tp
 !      CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
 
 !initialize Adiabatic energies that will be used for trivial hopping and
 !decoherence corrections
 !      sh_env%E_t = E_t
 !      sh_env%E_tp = E_tp
-!print *, "ALSO A ITIMES=0"      
 
 
 !allocate(pop(mol))
@@ -1027,14 +887,11 @@ print *, "ONLY EQUAL zero C_tp", C_tp
          CASE("DIABATIC")
              CALL section_vals_val_get(adiab_section,"FIRST_DIABAT", &
                                        i_val=first_diabat)
-print *, "FIRST_DIABAT", first_diabat 
              CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state, aom_env)
 
 !!!!!!!!!!!!! JUST TO TEST, TO BE REMOVED!!!!!!!!!!!
 active_state = 2
           
-print *, "C_tp", C_tp
-print *, "ACTIVE_RANDOM_STATE", active_state
 
 
              SELECT CASE(keyword_basis_repr)
@@ -1048,11 +905,9 @@ print *, "ACTIVE_RANDOM_STATE", active_state
                  ctin(first_diabat) = CMPLX(1.0D0, 0.0D0,dp)  
                  !ctin(first_diabat*((orb-1)+1)) = CMPLX(1.0D0, 0.0D0,dp)  
                  !aom_env%population(1:mat) = abs(ctin(1:mat)) 
-print *, "ctin(first_diabat)_DIAB", ctin
 
              CASE("ADIABATIC_BASIS")
                  ctin(:) = C_tp(first_diabat,:)
-print *, "ctin_ADIAB", ctin
              !decohere = .FALSE.
              !sh_env%decohere = .FALSE.
             ! attempt_hop = .FALSE.
@@ -1081,8 +936,6 @@ print *, "ctin_ADIAB", ctin
          CASE("ADIABATIC")
              CALL section_vals_val_get(adiab_section,"FIRST_ADIABAT",&
                                        i_val=active_state)
-print *, "FIRST_ADIABAT_ACTIVESTATE", active_state 
-print *, "C_tp", C_tp
              !active_state = first_adiabat
              !decohere = .FALSE.
              !sh_env%decohere = .FALSE.
@@ -1092,12 +945,10 @@ print *, "C_tp", C_tp
              SELECT CASE(keyword_basis_repr)
              CASE("DIABATIC_BASIS")
                  ctin(:) = C_tp(:, active_state)
-print *, "ctin(:) = C_tp(:, active_state)", ctin
              CASE("ADIABATIC_BASIS")
                  ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
           !!!! THIS LINE HAS TO BE MODIFIED TO INCLUDE MORE ORBITAL PER MOLECULE
                  ctin(active_state) = CMPLX(1.0D0, 0.0D0,dp)
-print *, "ctin(AADIAB)", ctin 
              CASE DEFAULT
                  CPABORT("Choose one representation: DIABATIC, ADIABATIC")
              END SELECT
@@ -1166,12 +1017,12 @@ print *, "ctin(AADIAB)", ctin
                print*, "ACTIVE STATE = ", active_state
                call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
-                           ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces)
+                           ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
                aom_env%forces_adiab=my_forces_adiab
                IF (attempt_hop) THEN
                   call calcforces(state=new_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                               scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
-                              ext_pres=ext_pres, analytics=analytics, exact_forces=exact_forces)
+                              ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
                   aom_env%forces_adiab_new=my_forces_adiab
                ENDIF
                IF (analytics) THEN
@@ -1192,7 +1043,8 @@ print *, "ctin(AADIAB)", ctin
 
 
                    CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
-                   deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, atomic_kind_set, K_tot, ext_pres)
+                                    deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
+                                    atomic_kind_set, K_tot, aom_env%ext_pres)
 
 
                    ctin=sh_env%ctin
@@ -1238,7 +1090,6 @@ print *, "ctin(AADIAB)", ctin
              aom_env%Stptp = Stptp
              aom_env%eigenvector_matrix = C_tp
              aom_env%diabatic_forces = F
-             aom_env%ext_pres = ext_pres
              aom_env%scaling  = scaling
              aom_env%cbar     = cbar
           ENDIF
@@ -1252,14 +1103,10 @@ print *, "ctin(AADIAB)", ctin
 !END PREPARE THE PRINT
 
 !DEALLOCATE
-!       DEALLOCATE(NACE)
-       !DEALLOCATE(rvecs)
        DEALLOCATE(velocities_t_prime)
        DEALLOCATE(velocities_t) 
-       deallocate(ext_pres, ext_elements)
-       deallocate(elements)
        deallocate(scoefftot, pcoefftot)
-       deallocate(pcoeffs, pcoeffsrun, scoeffs)
+       deallocate(pcoeffsrun)
        deallocate(ctin)
        deallocate(siteenergies)
        deallocate(crds)
@@ -1271,14 +1118,9 @@ print *, "ctin(AADIAB)", ctin
        deallocate(Bt)
        deallocate(Btm)
        deallocate(Btp)
-       deallocate(atomlist)
-       deallocate(atomlist_mask)
-       deallocate(connlist1)
-       deallocate(connlist2)
        deallocate(H_t, H_tp)
        deallocate(Stt, Stptp, Stmtm, Sttp, Sttm, Stpt, Stmt)
        deallocate(nacv, dist)
-!       deallocate(dphi_t, dphi_tp)
        deallocate(exact_forces)
        deallocate(F)
 !END DEALLOCATE

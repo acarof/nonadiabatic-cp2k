@@ -16,18 +16,6 @@
 
 MODULE non_adiabatic_methods
 
-  USE cp_parser_methods,               ONLY: read_float_object
-
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr,&
-                                             cp_print_key_finished_output
-  USE cp_log_handling,                 ONLY: cp_logger_type,&
-                                             cp_logger_release,&
-                                             cp_get_default_logger,&
-                                             cp_to_string
-  USE cp_result_methods,               ONLY: cp_results_erase,&
-                                             get_results,&
-                                             put_results,&
-                                             test_for_result
   USE cp_result_types,                 ONLY: cp_result_p_type,&
                                              cp_result_type
   USE input_section_types,             ONLY: section_vals_get,&
@@ -50,22 +38,12 @@ MODULE non_adiabatic_methods
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
-  USE cp_linked_list_val,              ONLY: &
-       cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, &
-       cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
-       cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
-       cp_sll_val_set_el_at, cp_sll_val_type
 
   USE aom_types,                       ONLY: aom_env_type 
   USE non_adiabatic_types,             ONLY: sh_env_type
 
   USE aom_main,                        ONLY: construct_ham_X_SH
-  USE cp_units,                        ONLY: cp_unit_from_cp2k
 
-!  USE aom_print,                       ONLY: adiab_print_hamiltonian, &
-!                                             adiab_print_nace,        &
-!                                             adiab_print_nacv,        &
-!                                             adiab_print_stateno
   USE distribution_1d_types,           ONLY: distribution_1d_type
 
   USE aom_utils,                       ONLY: read_listcoeff
@@ -74,7 +52,7 @@ MODULE non_adiabatic_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-
+  USE aom_initialization,              ONLY: create_aom_env
 
 #include "./base/base_uses.f90"
 
@@ -162,22 +140,6 @@ CONTAINS
     SELECT CASE(coupling_keyword)
     CASE("AOM")
 !> Get the information for the previous timesteps
-        aom_env = mixed_env%aom_env
-        IF (my_itimes.eq.0) THEN
-           ALLOCATE(aom_env%velocities_t(3, natom))
-        ENDIF
-        DO iparticle = 1, natom
-           jparticle = map_index(iparticle)
-           positions_tp(:,jparticle)        = particles_mix%els(jparticle)%r(:)
-           IF (my_itimes.eq.0) THEN 
-              SELECT CASE(method_keyword)
-              CASE("FROZEN_HAMILTONIAN")
-                  aom_env%velocities_t(:, jparticle) = 0.0D0
-              CASE DEFAULT
-                  aom_env%velocities_t(:, jparticle) = particles_mix%els(jparticle)%v(:)
-              END SELECT
-            ENDIF
-        END DO
 !> Get the coupling section and all the information 
         coupling_section => section_vals_get_subs_vals(adiab_section, "AOM")
         CALL section_vals_val_get(coupling_section,"NUMBER_DIABATIC_STATES",&
@@ -189,35 +151,40 @@ CONTAINS
         CALL section_vals_val_get(coupling_section,"NUCLEAR_TIMESTEP",&
              r_val=MDtimestep)
         itimes => my_itimes
-!> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
-        CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
+        ALLOCATE(aom_env%velocities_t(3, natom))
+        DO iparticle = 1, natom
+           jparticle = map_index(iparticle)
+           positions_tp(:,jparticle)        = particles_mix%els(jparticle)%r(:)
+           !IF (my_itimes.eq.0) THEN 
+           !   SELECT CASE(method_keyword)
+           !   CASE("FROZEN_HAMILTONIAN")
+           !       aom_env%velocities_t(:, jparticle) = 0.0D0
+           !   CASE DEFAULT
+           aom_env%velocities_t(:, jparticle) = particles_mix%els(jparticle)%v(:)
+           !   END SELECT
+           ! ENDIF
+        END DO
+        IF (my_itimes.eq.0) THEN
+           !ALLOCATE(aom_env%velocities_t(3, natom))
+           CALL create_aom_env(nadiab, aom_atoms, norbitals, natom, &
+                               positions_tp, coupling_section, adiab_section, & 
+                               aom_env)
+           CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
              positions_tp, energies_tp, aom_env, sh_env, itimes, &
              is_hop, global_forces, coupling_section, adiab_section,& 
              my_bo_keyword, energy_adiabat, atomic_kinds, &
              local_particles, my_test_keyword)
+        ELSE
+           aom_env = mixed_env%aom_env
+           !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
+           CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
+             positions_tp, energies_tp, aom_env, sh_env, itimes, &
+             is_hop, global_forces, coupling_section, adiab_section,& 
+             my_bo_keyword, energy_adiabat, atomic_kinds, &
+             local_particles, my_test_keyword)
+          
+        ENDIF
             
-        !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
-!        ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
-!        ALLOCATE(nace(norbitals*nadiab, norbitals*nadiab))
-!        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*aom_atoms))
-
-!        IF (.NOT.aom_env%successful_hop) THEN
-!> Get the renewed information from aom_env
-!           hamiltonian  = aom_env%hamiltonian
-!           nace         = aom_env%nace
-!           nacv         = aom_env%nacv
-           !new_state    = aom_env%new_state
-           !old_state    = aom_env%old_state
-!> Print the coefficients, the populations, the Hamiltonian, the density matrix
-!> and the NACV
-!           CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes, MDtimestep)
-!           CALL adiab_print_nace(adiab_section, nace, nadiab,norbitals,itimes, MDtimestep)
-!           CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, MDtimestep)        
-           !CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes, MDtimestep)
-!        ELSE
-!        IF (.NOT.aom_env%successful_hop) THEN
-!           aom_env%successful_hop = .FALSE.
-!        ENDIF
 
 !> IMPORTANT: store all aom_env for the future timesteps
         mixed_env%aom_env=aom_env
