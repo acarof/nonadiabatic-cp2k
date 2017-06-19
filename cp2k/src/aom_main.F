@@ -51,6 +51,7 @@ MODULE aom_main
                                               calc_sab_pete
 
      USE aom_utils,                    ONLY: makeX,    &
+                                             make_adiabX,      &
                                              adiabaticity,   &
                                              !surfacehop,     &
                                              surf_hop_type,     &
@@ -178,7 +179,7 @@ CONTAINS
      LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
-
+     COMPLEX(KIND=dp), dimension(:,:), allocatable :: X
      !REAL(KIND=dp), dimension(:,:), allocatable :: dphi_t, dphi_tp
      !REAL(KIND=dp) :: deltat
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
@@ -199,7 +200,8 @@ CONTAINS
 
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
-     CHARACTER(LEN=default_string_length)           :: deco_keyword, keyword_init, keyword_basis_repr 
+     CHARACTER(LEN=default_string_length)           :: deco_keyword, keyword_init, keyword_basis_repr, &
+                                                                                    prop_wf_keyword 
        ! COMPLEX(KIND=dp), dimension(:), allocatable :: pop
        ! COMPLEX(KIND=dp), dimension(:), allocatable :: adiab
     !REAL(kind=dp), DIMENSION(:,:), allocatable :: prervecs
@@ -770,6 +772,7 @@ print *, "DELTAMD_BEFORE", deltatMD
 !initialize Adiabatic energies that will be used for trivial hopping and
 !decoherence corrections
           sh_env%E_t = E_t
+
 print *, "ONLY GRATER EQUAL C_t", C_t
           CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
           sh_env%E_tp = E_tp
@@ -793,18 +796,47 @@ print *, " OKKKKK_NACE_t",  aom_env%adiab_nace_t
 
 print *, "OKAYYYYYY_NACE_tp", aom_env%adiab_nace_tp 
 
+!TEST
+            CALL make_adiabX(mol, E_t, aom_env, X)
+!ENDTEST
+
+
+
 
             ALLOCATE(sh_env%cttm(mat))
             sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
             sh_env%cttm(:) = ctin(:)
+
          
 !print *, "coefficients at t minus deltat", sh_env%cttm
 !print *, "active state", sh_env%cttm(active_state)
 
-            CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,    &
+            CALL section_vals_val_get(adiab_section,"ELECTR_PROPAGATION", &
+                                                     c_val=prop_wf_keyword)
+            
+            SELECT CASE(prop_wf_keyword)                                 
+            CASE("DIABATIC_PROP")
+
+                 CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, & 
+                                                       Sttm, Stmtm,    &
                           ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,    &
                             mat)
+
+
+           CASE("ADIABATIC_PROP")
+                 
+  
+                 print *, "TO BE ADDED"
+
+          CASE("HS_CORRECTION")  
+                 print *, "TO BE ADDED"
+
+          CASE DEFAULT                                           
+          CPABORT("There is no method to propagate the wf.") 
+          END SELECT                                             
+            
+
 !CHECK T PRESENT
 
             ALLOCATE(sh_env%ctt(mat))

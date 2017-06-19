@@ -187,6 +187,13 @@ CONTAINS
     CALL keyword_release(keyword)
 
 
+    CALL keyword_create(keyword, name="ELECTR_PROPAGATION",&
+         description="Defines basis and methods to propagate the wf.",&
+         usage="DIABATIC_PROP ",  type_of_var=char_t,&
+         n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
 !> 15-12-11
     CALL keyword_create(keyword, name="METHOD_COUPLING",&
          description="Defines the methods to obtain the adiabatic forces.",&

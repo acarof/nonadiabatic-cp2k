@@ -122,6 +122,7 @@ IMPLICIT NONE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'aom_utils'
 
    PUBLIC :: makeX,            &
+             make_adiabX,      &
 !             surfacehop,       &
              adiabaticity,     &
              calcforces,           &
@@ -189,8 +190,11 @@ print *, "TERM1_TST", Sterm1
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
 print *, "TERM2_TDT", Sterm1
 !ADD: SYMMETRIZE NACE
-        my_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2) 
+        my_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2)
+
+print *, "MY_NACE_NON_SIMM", my_NACE
         my_NACE = (my_NACE - TRANSPOSE(my_NACE)) / 2
+print *, "MY_NACE_SIMM", my_NACE
         !X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
         X = H - my_NACE
 
@@ -206,6 +210,82 @@ print *, 'LOOK NACE=', NACE
 
 end subroutine makeX
 
+
+subroutine make_adiabX(mol, E_t, aom_env, X) !deltat, NACE)
+        !X is the name I give to the matrix in the solution to the Schroedinger equation:
+        !dc/dt = X*sh_env%ctt
+        !makeX constructs an X matrix from inputs of S and H
+
+        implicit none
+
+        integer, intent(in) :: mol
+        integer :: i, j
+        TYPE(aom_env_type), intent(in)             :: aom_env
+        REAL(KIND=dp), DIMENSION(:), intent(in)     :: E_t
+        !REAL(KIND=dp), intent(in) :: deltat
+        !REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, Sttp, Sttm, Stptp, Stmtm
+        !REAL(KIND=dp), dimension(:,:), allocatable :: Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt
+        !REAL(KIND=dp), dimension(:,:), allocatable :: Sterm1, Sterm2, Splace1, Splace2
+        !COMPLEX(KIND=dp), dimension(:,:), intent(in) :: H
+        COMPLEX(KIND=dp), dimension(:,:), allocatable, intent(out) :: X
+        !REAL(KIND=dp), dimension(:,:), intent(out), optional    :: NACE   
+        
+        COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H
+        REAL(KIND=dp), dimension(:,:), allocatable     :: my_NACE   
+
+        !allocate matrices
+        !allocate(Sttinvsqrt(mol,mol))
+        !allocate(Sttsqrt(mol,mol))
+        !allocate(Stptpinvsqrt(mol,mol))
+        !allocate(Stmtminvsqrt(mol,mol))
+        !allocate(Sterm1(mol,mol))
+        !allocate(Sterm2(mol,mol))
+        !allocate(Splace1(mol,mol))
+        !allocate(Splace2(mol,mol))
+        allocate(H(mol,mol))
+        allocate(my_NACE(mol,mol))
+        allocate(X(mol,mol))
+
+
+        
+        do i=1,mol
+            do j=1,mol
+                H(i,j) =  cmplx(0.0D0, 0.0D0, dp)
+            end do
+        end do
+
+        do i=1,mol
+            do j=1,mol
+               if (j .eq. i) then
+                    H(i,j) = cmplx(0.0D0,-1.0D0*E_t(i),dp)
+               else
+                    H(i,j) =  cmplx(0.0D0, 0.0D0, dp)
+               end if
+            end do
+        end do
+
+print *, "ADIAB_HAMILTONIAN", H
+
+        my_NACE = 0.0D0
+                    
+print *, "MY_NACE_NON_SIMM_NEWWW", aom_env%adiab_nace_t
+        my_NACE = (aom_env%adiab_nace_t - TRANSPOSE(aom_env%adiab_nace_t)) / 2
+                
+print *, "MY_NACE_SIMM_NEWWW", my_NACE
+
+        X = H - my_NACE
+
+print *, "NEW_X_MATRIXX", X
+!> CHANGE_AC
+
+!        IF (PRESENT(NACE)) THEN
+!           NACE = my_NACE
+!print *, 'LOOK NACE=', NACE 
+!        ENDIF
+
+!        deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
+
+end subroutine make_adiabX
 
 !subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
  !          sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
