@@ -253,14 +253,9 @@ CONTAINS
      TYPE(atomic_kind_list_type), POINTER           :: atomic_kinds
      TYPE(distribution_1d_type), POINTER            :: local_particles
      LOGICAL, INTENT(IN)                            :: my_test_keyword
-     REAL(kind=dp)                                 :: K_tot
-     INTEGER                                    :: nparticle_kind
-     TYPE(atomic_kind_type), DIMENSION(:), POINTER                       :: atomic_kind_set
      CHARACTER(LEN=default_string_length)     :: method_keyword
 
-
-
-     CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
+     CHARACTER(len=*), PARAMETER :: routineN ='propagate_aom_namd_first_step', &
      routineP = moduleN//':'//routineN
 
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
@@ -273,28 +268,26 @@ CONTAINS
      REAL(KIND=dp)    :: cbar, minao
      REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      REAL(KIND=dp), dimension(:,:,:), allocatable :: crds, pcoeffsrun
-     REAL(KIND=dp), dimension(:,:), allocatable :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
+     REAL(KIND=dp), dimension(:,:), allocatable :: Stptp
      REAL(KIND=dp), dimension(:,:), allocatable :: dist
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
-     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_t, H_tp
-     REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
+     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_tp
+     REAL(KIND=dp), dimension(:,:), allocatable ::  Atp, Btp, coms, siteenergies
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp
-     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE_ad_t, NACE_ad_tp
-     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
+     REAL(KIND=dp), dimension(:,:), allocatable   :: NACE_ad_tp
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_tp
      LOGICAL                                      :: decohere, analytics
      INTEGER                                      :: new_state , ELsteps   
      REAL(KIND=dp)                                :: dR, times 
      REAL(KIND=dp)                                :: decohere_criterion
      INTEGER                                      :: imol, iatom, natom
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
-     REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
-     REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
-     LOGICAL                                      :: successful_hop, keyword_translate
+     LOGICAL                                      :: keyword_translate
      TYPE(sh_print_env_type)                      :: sh_print_env
-     REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
-     CHARACTER(LEN=default_string_length)           :: deco_keyword, keyword_init, keyword_basis_repr
+     REAL(kind=dp), DIMENSION(:,:),POINTER        :: positions_com_tp, velocities_com_tp
+     CHARACTER(LEN=default_string_length)         :: keyword_init, keyword_basis_repr
      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
      real(kind=dp), allocatable :: PC_rvecs(:,:)
      LOGICAL    :: do_random
@@ -350,37 +343,26 @@ CONTAINS
      sh_print_env%norbitals = orb
      sh_print_env%deltatMD = deltatMD
      ALLOCATE(sh_print_env%adiab_energies_t(mat))
-     ALLOCATE(E_t(mat))
      ALLOCATE(E_tp(mat))
      ALLOCATE(sh_env%E_tp(mat))
      ALLOCATE(sh_env%E_t(mat))
      ALLOCATE(my_forces_adiab(3,natom))
      ALLOCATE(positions_com_tp(3, natom))
      ALLOCATE(velocities_com_tp(3, natom))
-     ALLOCATE(velocities_t_prime(3,natom))
-     ALLOCATE(velocities_t(3,natom))
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
      ALLOCATE(PC_allrvecs(5,mol*atoms))
      ALLOCATE(PC_rvecs(3,atoms))
      !need to allocate these square matrices
      !first the real, S-related ones
-     allocate(Stt(mat,mat))
-     allocate(Stpt(mat,mat))
-     allocate(Sttp(mat,mat))
      allocate(Stptp(mat,mat))
-     allocate(Stmt(mat,mat))
-     allocate(Sttm(mat,mat))
-     allocate(Stmtm(mat,mat))
      allocate(crds(3,c,3))
-     allocate(NACE_ad_t(mat,mat))
      allocate(NACE_ad_tp(mat,mat))
      !then the complex ones i.e. H matrices; combinations of H and S
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
      !For ease of calculation therefore, in this program,
      !H_t etc are always -i*H.
      !This is why they're complex variables
-     allocate(H_t(mat,mat))
      allocate(H_tp(mat,mat))
      allocate(nacv(3,mat,mat,mat*atoms))      !non-adiabatic coupling vectors
      nacv = 0.0D0
@@ -394,12 +376,8 @@ CONTAINS
      !allocate the arrays that will contain atomic coordinates for the overlap routine
      !first column is now atomic number of atom (e.g. 6 for carbon)
      !Naming convention: At = A(t), Atp = A(t+1), Atm = A(t-1), etc
-     allocate(At(4,atoms))
      allocate(Atp(4,atoms))
-     allocate(Atm(4,atoms))
-     allocate(Bt(4,atoms))
      allocate(Btp(4,atoms))
-     allocate(Btm(4,atoms))
      allocate(F(3,natom,mol)) !array of diagonal atomic forces
      !these arrays are data for the non-adiabatic coupling calculation
      !they help efficiency by telling the program which atoms are connected
@@ -613,7 +591,7 @@ active_state = 2
          active_state = 1
          new_state = mod(active_state + 1, mat) 
          IF ((new_state).EQ.0) new_state = mat
-     ENDIF ! itimes-loop
+     ENDIF 
 
      !> CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE RESULT OF THE SURFACE
      !> HOP ROUTINE IS. 
@@ -624,7 +602,7 @@ active_state = 2
      ENDDO
      print*, "ACTIVE STATE = ", active_state
      call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
-                     scaling=scaling, cbar=cbar, Fin=F, S=Stt, forces_adiab=my_forces_adiab, &
+                     scaling=scaling, cbar=cbar, Fin=F, forces_adiab=my_forces_adiab, &
                      ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      aom_env%forces_adiab=my_forces_adiab
      IF (analytics) THEN
@@ -634,20 +612,16 @@ active_state = 2
 
      !> APPLY DECOHERENCE CORRECTION
      !> initialize derived type variables
-     ALLOCATE(sh_env%ctin(mat))
-
-     sh_env%E_tp=E_tp
-     sh_env%ctin=ctin
-     sh_env%active_state=active_state
-
-     print*, "ctin", ctin
-     CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
-                      deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
-                      atomic_kind_set, K_tot, aom_env%ext_pres)
-
-     print*, "ctin", aom_env%ctin
-     ctin=sh_env%ctin
-     active_state=sh_env%active_state
+     !ALLOCATE(sh_env%ctin(mat))
+     !sh_env%E_tp=E_tp
+     !sh_env%ctin=ctin
+     !sh_env%active_state=active_state
+     !print*, "ctin", ctin
+     !CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
+     !                 deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
+     !                 atomic_kind_set, K_tot, aom_env%ext_pres)
+     !print*, "ctin", sh_env%ctin
+     !ctin=sh_env%ctin
 
      !> STORE THE COORDINATES IF NOT SUCCESSFUL RUN
      aom_env%rm_tm      = positions_com_tp - velocities_com_tp*deltatMD
@@ -666,8 +640,6 @@ active_state = 2
      energy_adiabat = E_tp(active_state)
 
     !> DEALLOCATE
-    DEALLOCATE(velocities_t_prime)
-    DEALLOCATE(velocities_t) 
     deallocate(scoefftot, pcoefftot)
     deallocate(pcoeffsrun)
     deallocate(ctin)
@@ -675,14 +647,10 @@ active_state = 2
     deallocate(crds)
     deallocate(coms)
     deallocate(NN)
-    deallocate(At)
-    deallocate(Atm)
     deallocate(Atp)
-    deallocate(Bt)
-    deallocate(Btm)
     deallocate(Btp)
-    deallocate(H_t, H_tp)
-    deallocate(Stt, Stptp, Stmtm, Sttp, Sttm, Stpt, Stmt)
+    deallocate(H_tp)
+    deallocate(Stptp)
     deallocate(nacv, dist)
     deallocate(exact_forces)
     deallocate(F)

@@ -1554,7 +1554,7 @@ print*, "ERRORFF1HYDROGEN", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / 
         deallocate(F_3)
 END SUBROUTINE calc_hop_nacv
 
-subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_adiab, & 
+subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, forces_adiab, & 
                   ext_pres, analytics,  exact_forces,ctin)
 
         !per our full force expression derivation, this calculates the adiabatic forces
@@ -1567,7 +1567,7 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, for
         REAL(KIND=dp), dimension(:,:), INTENT(OUT) :: exact_forces
         REAL(KIND=dp), dimension(:,:), POINTER                  :: forces_adiab
         REAL(KIND=dp), intent(in) :: scaling, cbar
-        REAL(KIND=dp), intent(in), dimension(:,:) :: Hin, C, S
+        REAL(KIND=dp), intent(in), dimension(:,:) :: Hin, C
         REAL(KIND=dp), intent(in), dimension(:,:,:) :: Fin
         REAL(KIND=dp), intent(in), dimension(:,:,:,:) :: nacv
         integer, intent(in), dimension(:,:) :: NN
