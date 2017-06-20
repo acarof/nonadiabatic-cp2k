@@ -53,7 +53,6 @@ MODULE aom_main
      USE aom_utils,                    ONLY: makeX,    &
                                              make_adiabX,      &
                                              adiabaticity,   &
-                                             !surfacehop,     &
                                              surf_hop_type,     &
                                              calcforces,     &
                                              read_listcoeff, &
@@ -86,7 +85,6 @@ MODULE aom_main
                                              adiab_print_active_state,       &
                                              adiab_print_sh_info,            &
                                              adiab_print_hamiltonian, &
-                                        !     adiab_print_nace,        &
                                              adiab_print_nacv, &
                                              adiab_print_pvecs
 
@@ -160,8 +158,8 @@ CONTAINS
      routineP = moduleN//':'//routineN
 
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
-     integer :: coord, t2
-     integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, active_state, mat, orb
+     integer :: coord
+     integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
      integer, dimension(:,:), allocatable :: NN,  aneighbour, bneighbour  
      integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
@@ -179,9 +177,7 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: X
      REAL(KIND=dp), dimension(:,:), allocatable      :: NACE_ad_t, NACE_ad_tp
-     !REAL(KIND=dp) :: deltat
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
-    ! LOGICAL                                      :: decohere, collapse, analytics
      LOGICAL                                      :: decohere, analytics
      INTEGER                                      :: new_state , ELsteps   
      REAL(KIND=dp)                                :: dR, times 
@@ -191,32 +187,24 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
      LOGICAL                                      :: successful_hop, keyword_translate
-
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
-     CHARACTER(LEN=default_string_length)           :: deco_keyword, keyword_init, keyword_basis_repr, &
-                                                                                    prop_wf_keyword 
-       ! COMPLEX(KIND=dp), dimension(:), allocatable :: pop
-       ! COMPLEX(KIND=dp), dimension(:), allocatable :: adiab
-    !REAL(kind=dp), DIMENSION(:,:), allocatable :: prervecs
-! PC    
+     CHARACTER(LEN=default_string_length)           :: deco_keyword, prop_wf_keyword 
       real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
       real(kind=dp), allocatable :: PC_rvecs(:,:)
       integer :: o
-!end PC
       LOGICAL    :: do_random
 
-!> cutoff to define the neighborough list
+     !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
              r_val=cutoff_sites)
-!> cutoff to define the neighborough list
+     !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_CONNECTIVITY",&
              r_val=cutoff_connect)
-!> Scaling factor Hab = scaling*Sab_bar
+     !> Scaling factor Hab = scaling*Sab_bar
      CALL section_vals_val_get(coupling_section,"SCALING_FACTOR",&
              r_val=scaling)
-!> Starting site number
-!> cbar factor : Sab = cbar*Sab_bar
+     !> cbar factor : Sab = cbar*Sab_bar
      CALL section_vals_val_get(coupling_section,"CBAR",&
              r_val=cbar)
      !minao is an atomic overlap cutoff
@@ -228,51 +216,33 @@ CONTAINS
              r_val=decohere_criterion)
      CALL section_vals_val_get(coupling_section,"NACV_INCREMENT",&
              r_val=dR)
-!     CALL section_vals_val_get(coupling_section,"COLLAPSE", l_val=collapse)
      CALL section_vals_val_get(coupling_section,"ANALYTICS", l_val=analytics)
      CALL section_vals_val_get(coupling_section,"RANDOM_DERIVATIVE", l_val=do_random)
-!     CALL section_vals_val_get(coupling_section,"SELECT_FIRST_ADIABAT", l_val=select_first_adiabat)
      CALL section_vals_val_get(coupling_section,"CENTER_OF_MASS", l_val=keyword_translate)
 
-!> Number of sites
+     !> Number of sites
      mol = nadiab ! CHANGE_AC
-!> Number of atoms per site
+     !> Number of atoms per site
      atoms = aom_atoms ! CHANGE_AC
-!> Number of orbitals per atom
+     !> Number of orbitals per atom
      orb = norbitals ! CHANGE_AC
-!> Size of the vectorial space where the wavefunctions are projected
+     !> Size of the vectorial space where the wavefunctions are projected
      mat = orb*mol
-!> Numbers of active atoms 
+     !> Numbers of active atoms 
      c = mol*atoms
-!> Numbers of atoms
+     !> Numbers of atoms
      natom = SIZE(global_forces(1)%forces,2)
-!> Find deltaMD, nuclear timestep, in atomic units
+     !> Find deltaMD, nuclear timestep, in atomic units
      deltatMD = MDtimestep !CHANGE_AC
-!> electronic timestep is a fraction of the molecular timestep
+     !> electronic timestep is a fraction of the molecular timestep
      deltatE = deltatMD/ELsteps !CHANGE_AC
 
-!> ALLOCATE aom_env at timestep = 1
-     if (itimes.eq.0) then
-
-       ALLOCATE(sh_env%ctin(mat))
-       ALLOCATE(sh_env%cttm(mat))
-       ALLOCATE(sh_env%ctt(mat))
-       ALLOCATE(sh_env%C_tp(mat,mat))
-
-       sh_print_env%adiab_section => adiab_section
-       sh_print_env%nadiab = mat
-       sh_print_env%norbitals = orb
-       sh_print_env%deltatMD = deltatMD
-       ALLOCATE(sh_print_env%adiab_energies_t(mat))
-     else
-       sh_print_env = aom_env%sh_print_env
-     endif
+     sh_print_env = aom_env%sh_print_env
      
      ALLOCATE(E_t(mat))
      ALLOCATE(E_tp(mat))
      ALLOCATE(sh_env%E_tp(mat))
      ALLOCATE(sh_env%E_t(mat))
-
      ALLOCATE(my_forces_adiab(3,natom))
      ALLOCATE(positions_com_tp(3, natom))
      ALLOCATE(velocities_com_tp(3, natom))
@@ -280,12 +250,8 @@ CONTAINS
      ALLOCATE(velocities_t(3,natom))
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
-! PC -----------
-       ALLOCATE(PC_allrvecs(5,mol*atoms))
-       ALLOCATE(PC_rvecs(3,atoms))
-! -------------
-     IF (.NOT.ALLOCATED(ctin)) CPABORT("CTIN NOT ALLOCATED CORRECTLY.")
-
+     ALLOCATE(PC_allrvecs(5,mol*atoms))
+     ALLOCATE(PC_rvecs(3,atoms))
      !need to allocate these square matrices
      !first the real, S-related ones
      allocate(Stt(mat,mat))
@@ -295,16 +261,10 @@ CONTAINS
      allocate(Stmt(mat,mat))
      allocate(Sttm(mat,mat))
      allocate(Stmtm(mat,mat))
-    
-
      allocate(crds(3,c,3))
      allocate(aom_env%adiab_nace_t(mat,mat))
-
-!     allocate(aom_env%adiab_nace_tp(mat,mat))
-!     allocate(aom_env%adiab_nace_t(mat,mat))
      allocate(NACE_ad_t(mat,mat))
      allocate(NACE_ad_tp(mat,mat))
-
      !then the complex ones i.e. H matrices; combinations of H and S
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
      !For ease of calculation therefore, in this program,
@@ -312,19 +272,15 @@ CONTAINS
      !This is why they're complex variables
      allocate(H_t(mat,mat))
      allocate(H_tp(mat,mat))
-
-
      allocate(nacv(3,mat,mat,mat*atoms))      !non-adiabatic coupling vectors
      nacv = 0.0D0
      allocate(siteenergies(3,mat))      !diagonals of the Hamiltonian
-
      allocate(pcoeffsrun(atoms,mat,3)) !pcoeffsrun exists because the p-coefficients need to be renormalised for each structure
      allocate(pcoefftot(c))
      allocate(scoefftot(c))
      allocate(coms(3,mol))
      allocate(NN(mat,mat))
      allocate(dist(mol,mol))
-
      !allocate the arrays that will contain atomic coordinates for the overlap routine
      !first column is now atomic number of atom (e.g. 6 for carbon)
      !Naming convention: At = A(t), Atp = A(t+1), Atm = A(t-1), etc
@@ -334,10 +290,7 @@ CONTAINS
      allocate(Bt(4,atoms))
      allocate(Btp(4,atoms))
      allocate(Btm(4,atoms))
-
      allocate(F(3,natom,mol)) !array of diagonal atomic forces
-
-
      !these arrays are data for the non-adiabatic coupling calculation
      !they help efficiency by telling the program which atoms are connected
      !and thus which pairs to carry out the calculation for
@@ -348,33 +301,20 @@ CONTAINS
      allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
      neighbourlist = 0
 
-!READ THE COORDINATES, ENERGIES AND STATE
+     !> READ THE COORDINATES, ENERGIES AND STATE
      velocities_t = aom_env%velocities_t
      CALL translate_com(positions_tp, keyword_translate, positions_com_tp, local_particles, atomic_kinds = atomic_kinds)  
      CALL translate_com(velocities_t, keyword_translate, velocities_com_tp, local_particles, atomic_kinds = atomic_kinds)  
      do coord=1,3
-           if (itimes.ge.1) then
-              crds(coord,:,1) = PACK(aom_env%rm_tm(coord,:), aom_env%ext_pres)
-              crds(coord,:,2) = PACK(aom_env%rm_t(coord,:), aom_env%ext_pres)
-              crds(coord,:,3) = PACK(positions_com_tp(coord,:), aom_env%ext_pres)
-              siteenergies(2,:) = aom_env%energies_t(:) ! CHANGE_AC
-              siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
-              active_state = aom_env%active_state
-           else if (itimes.eq.0) then 
-              crds(coord,:,1) = PACK(positions_com_tp(coord,:), aom_env%ext_pres)
-!At time 0, we must guess the positions at time -1 with the inital velocities
-              crds(coord,:,2) = PACK(positions_com_tp(coord,:), aom_env%ext_pres) -  &
-                                PACK(velocities_com_tp(coord,:), aom_env%ext_pres)*deltatMD
-              crds(coord,:,3) = PACK(positions_com_tp(coord,:), aom_env%ext_pres)
-              siteenergies(2,:) = 0.0D0 ! CHANGE_AC
-              siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
-              !old_state = 1
-           endif
+        crds(coord,:,1) = PACK(aom_env%rm_tm(coord,:), aom_env%ext_pres)
+        crds(coord,:,2) = PACK(aom_env%rm_t(coord,:), aom_env%ext_pres)
+        crds(coord,:,3) = PACK(positions_com_tp(coord,:), aom_env%ext_pres)
+        siteenergies(2,:) = aom_env%energies_t(:) ! CHANGE_AC
+        siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
+        active_state = aom_env%active_state
      enddo
-!READ THE COORDINATES, ENERGIES AND STATE
 
-
-!CALCULATE THE CENTER OF MASS
+     !> CALCULATE THE CENTER OF MASS
      !calculate CoMs at first timestep
      !coms(1 to 3,i) are the x, y and z coordinates of CoM of i
      coms = 0
@@ -389,9 +329,8 @@ CONTAINS
                end do
           end do
      end do
-!END CALCULATE THE CENTER OF MASS
 
-!CONSTRUCT NEIGHBOURS LIST
+     !> CONSTRUCT NEIGHBOURS LIST
      do i=1,mol
           do j=1,mol
                dist(i,j) = ((coms(1,i) - coms(1,j))*(coms(1,i) - coms(1,j)) + (coms(2,i) - coms(2,j))*&
@@ -411,14 +350,12 @@ CONTAINS
                end if                    
           end do
      end do
-!END CONSTRUCT NEIGHBOURS LIST
 
-!CHECK IF WE ARE IN A POST-HOP RUN
+     !> CHECK IF WE ARE IN A POST-HOP RUN
      successful_hop = aom_env%successful_hop
 
-     if (itimes.ge.1) then
-          !for each molecule
-          do i=1,mol
+     !for each molecule
+     do i=1,mol
                !create the array of all its atomic coordinates at t
                !numerical factor converts from Angstroms into Bohr radii
                do j=1,atoms
@@ -594,7 +531,6 @@ CONTAINS
                          end do
                     end if !(NN(i,k) == 1
                end do !loop over k
-          !PC ------------
             call calc_sab_pete(Atp, aom_env%connlist2, PC_rvecs)
              do o=1, size(PC_rvecs,2)
               PC_allrvecs(1,((i-1)*atoms)+o) = i
@@ -603,12 +539,9 @@ CONTAINS
              end do
            !end PC ------------- 
           end do !loop over i
-          !call adiab_print_pvecs(adiab_section, prervecs, itimes, deltatMD, times)
           !during a simulation, you can read in a lot of these overlaps from a previous timestep
-          !if (inrun) then
 
 !GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
-
           if (itimes.gt.1) then   !!itimes strictly grater than 1
 !               do i=1,mat
 !                    do j=1,mat
@@ -639,8 +572,6 @@ CONTAINS
                          aom_env%Stmtm(j,i) = Stt(j,i)
                   end do
                end do
-
-!          endif !CHANGE_AC
 !END GET INFORMATION FROM PREVIOUS TIMESTEP AND STORE SOME OF THEM
 
 !CONVERT THE NACV WITH THE GOOD UNITS
@@ -661,317 +592,53 @@ CONTAINS
 
           CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
 
-
 !PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
          IF (.NOT.successful_hop) THEN
             ctin(:) = aom_env%ctin(:)
 !store diabatic coefficients at tdeltat, this will be useful to find the adiabatic
 !coefficients at tdeltat and to use them to solve the trivial crossing problem
-           
            aom_env%adiab_nace_t =  aom_env%adiab_nace_tp
            NACE_ad_t = aom_env%adiab_nace_t
-
             CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, aom_env)
-
-
            NACE_ad_tp = aom_env%adiab_nace_tp
 
 !TEST
             CALL make_adiabX(mol, E_t, NACE_ad_t, X)
 !ENDTEST
-
-
-
-
             ALLOCATE(sh_env%cttm(mat))
             sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
             sh_env%cttm(:) = ctin(:)
-
-         
-
             CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
                                                      c_val=prop_wf_keyword)
-            
             SELECT CASE(prop_wf_keyword)                                 
             CASE("DIABATIC_BASIS")
-
                  CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, & 
                                                        Sttm, Stmtm,    &
                           ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,    &
                             mat)
-
-
            CASE("ADIABATIC_BASIS")
-                 
                  CALL propagate_adiab_wf(E_t, E_tp, ctin, aom_env, nadiab, norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,  & 
                               mat)
- 
-  
-                 
-
           CASE("HS_CORRECTION")  
                  print *, "TO BE ADDED"
-
           CASE DEFAULT                                           
           CPABORT("There is no method to propagate the wf.") 
           END SELECT                                             
-            
-
-!CHECK T PRESENT
-
             ALLOCATE(sh_env%ctt(mat))
             sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
             sh_env%ctt(:) = ctin(:)
-
          ENDIF !ONLY IF NOT POST-HOP RUN
-     ELSE IF (itimes.eq.0) THEN
-          !for each molecule
-          do i=1,mol
-               !create the array of all its atomic coordinates at t
-               !numerical factor converts from Angstroms into Bohr radii
-               Atp(1,1:atoms) = dble(aom_env%elements((i-1)*atoms+1:i*atoms))
-               do j=1,atoms
-                    Atp(2:4,j) = crds(1:3,(i-1)*atoms+j,3)
-               end do
 
-               !then for each other molecule
-               do k=1,mol
-                    !create the array of its atomic coordinates at both t and t+dt
-                    Btp(1,1:atoms) = dble(aom_env%elements((k-1)*atoms+1:k*atoms))
-                    do l=1,atoms
-                        Btp(2:4,l) = crds(1:3,(k-1)*atoms+l,3)
-                    end do
-                    if (i == 1) then
-                         do d=1,orb
-                              pcoeffsrun(1:atoms,orb*(k-1)+d,3) = aom_env%pcoeffs(1:atoms,d)
-                              call calc_sab(Btp, aom_env%connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
-                         end do
-                    end if  ! (i == 1)
-                    do d=1,orb
-                         do m=1,orb
-                              call sab_screen_new(Atp, aom_env%atomlist, aom_env%connlist1, pcoeffsrun(:,orb*(i-1)+d,3),&
-                              & aom_env%atomlist, Btp, aom_env%atomlist, aom_env%connlist1, pcoeffsrun(:,orb*(k-1)+m,3),&
-                              & aneighbour(:,1:atoms), bneighbour(:,1:atoms), minao)
-                         end do
-                    end do
-                    neighbourlist(i,k,:,1:atoms) = bneighbour(:,1:atoms)
-                    neighbourlist(k,i,:,1:atoms) = aneighbour(:,1:atoms)
-                    if (NN(i,k) == 1) then
-                         !first the diagonals
-                         if (i == k) then
-                              do d=1,orb
-                                   do m=1,orb
-                                        !These diagonals are 1 by definition
-                                        Stptp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
-                                        H_tp(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(3,k)),dp)
-                                   end do
-                              end do
-
-                         !now the off-diagonals                         
-                         else ! ( i == k)
-                              !symmetric matrices
-                              !no sense calling calc_sab twice as often as you need to
-                              if (k < i) then
-                                   do m=1,orb
-                                        do d=1,orb
-                                             H_tp(orb*(i-1)+d,orb*(k-1)+m)  = H_tp(orb*(k-1)+m,orb*(i-1)+d)
-                                             Stptp(orb*(i-1)+d,orb*(k-1)+m) = Stptp(orb*(k-1)+m,orb*(i-1)+d)
-                                        end do
-                                   end do
-                              else
-                                   do d=1,orb
-                                        do m=1,orb
-                                             call calc_sab(Atp, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
-                                              S, Btp, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
-                                             Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
-                                             H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, -scaling*S,dp)
-
-
-                                             call calc_dRSab(Atp, aom_env%atomlist, aom_env%connlist1, &
-                                             pcoeffsrun(1:atoms,orb*(i-1)+d,3), aom_env%scoeffs, &
-                                             nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
-                                             nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
-                                             Btp, aom_env%atomlist, aom_env%connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
-                                             aom_env%scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, &
-                                             do_random, aom_env)
-                                        end do
-                                   end do
-                              endif 
-                         end if !(i==k)
-                    else !(NN(i,k) == 1
-                         do d=1,orb
-                              do m=1,orb
-                                   !fill in elements of non-overlapping pairs with 0
-                                   H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, 0.0D0,dp)
-                                   Stptp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
-                              end do
-                         end do
-                    end if !(NN(i,k) == 1
-               end do !loop over k 
-         enddo !loop-over i
-
-!!IMPORTANT FOR THE FIRST TIME STEP
-        aom_env%Stt = Stptp
-!        do i=1,mat
-!             do j=1,mat
-!                  aom_env%Stt(j,i) = Stptp(j,i)
-!             end do
-!        end do
-
-
-
-!INITIALIZE NACE TO ZERO AT t=0
-        do i=1,mat
-             do j=1,mat
-                  aom_env%adiab_nace_tp(j,i) = 0.0D0 
-             end do
-        end do
-
-         nacv = cbar*nacv
-         CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
-         sh_env%E_tp = E_tp
-
-         CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
-     endif !END OF THE BIG IF-LOOP itimes.ge.1
-
-!PC
  call adiab_print_pvecs(adiab_section, PC_allrvecs, itimes, deltatMD, times, atoms, nadiab)
        sh_print_env%times = times
-
        sh_print_env%times = DBLE(itimes)
-!DO THE HOPPING TEST
 
- 
-!               !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
-!               !It gives us back the eigenvalues and eigenvectors
-!      IF (itimes.ge.1) call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
-!      !call adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
-!      call adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
-!      CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
-
-!initialize Adiabatic energies that will be used for trivial hopping and
-!decoherence corrections
-!      sh_env%E_t = E_t
-!      sh_env%E_tp = E_tp
-
-
-!allocate(pop(mol))
-!allocate(adiab(mol))
-
-!TEST for printing adiabatic population
-!do i= 1,mol
-!        adiab(i) = cmplx(0.0D0, 0.0D0,dp)
-!     do j=1, mol
-!        adiab(i) = adiab(i) + cmplx(C_tp(j,i), 0.0D0,dp)*ctin(j)
-!     end do 
-!     pop(i) = adiab(i)*conjg(adiab(i))
-
-!end do
-
-      !IF ( (itimes.EQ.0) .AND. (.NOT. my_bo_keyword) .AND. (.NOT. my_test_keyword)) THEN 
-
-
-
-      IF ( (itimes.EQ.0)  .AND. (.NOT. my_test_keyword)) THEN
-
- 
-         decohere = .FALSE.
-         sh_env%decohere = .FALSE.
-         attempt_hop = .FALSE.
-         CALL section_vals_val_get(adiab_section, "INITIALIZATION", c_val=keyword_init)
-         CALL section_vals_val_get(adiab_section, "REPRESENTATION", c_val=keyword_basis_repr)
-
-         SELECT CASE(keyword_init)
-         CASE("DIABATIC")
-             CALL section_vals_val_get(adiab_section,"FIRST_DIABAT", &
-                                       i_val=first_diabat)
-             CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state, aom_env)
-
-!!!!!!!!!!!!! JUST TO TEST, TO BE REMOVED!!!!!!!!!!!
-active_state = 2
-          
-
-
-             SELECT CASE(keyword_basis_repr)
-             CASE("DIABATIC_BASIS")
-                 !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
-                 !do i=1,mat
-                    !ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
-                 !end do
-                 ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
-          !!!! THIS LINE HAS TO BE MODIFIED TO INCLUDE MORE ORBITAL PER MOLECULE
-                 ctin(first_diabat) = CMPLX(1.0D0, 0.0D0,dp)  
-                 !ctin(first_diabat*((orb-1)+1)) = CMPLX(1.0D0, 0.0D0,dp)  
-                 !aom_env%population(1:mat) = abs(ctin(1:mat)) 
-
-             CASE("ADIABATIC_BASIS")
-                 ctin(:) = C_tp(first_diabat,:)
-             !decohere = .FALSE.
-             !sh_env%decohere = .FALSE.
-            ! attempt_hop = .FALSE.
-             CASE DEFAULT
-                 CPABORT("Choose one representation: DIABATIC, ADIABATIC")
-             END SELECT
-
-!             !initialise ct such that ct(init) = 1.0, otherwise 0.0 (i.e. electron localised on molecule 'init')
-!!             do i=1,mat
-!                ctin(i) = CMPLX(0.0D0, 0.0D0,dp)
-!             end do
-!             ctin(first_diabat*(orb-1)+1) = CMPLX(1.0D0, 0.0D0,dp)
-!             aom_env%population(1:mat) = abs(ctin(1:mat)) 
-!             IF (my_bo_keyword) THEN
-!               CALL section_vals_val_get(adiab_section,"FIRST_ADIABAT",&
-!                                      i_val=first_adiabat)
-!               active_state = first_adiabat
-!            ELSE
-!               CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, first_adiabat, aom_env)
-!               active_state = first_adiabat
-!            ENDIF
-!            decohere = .FALSE.
-!            sh_env%decohere = .FALSE.
-!            attempt_hop = .FALSE.
-
-         CASE("ADIABATIC")
-             CALL section_vals_val_get(adiab_section,"FIRST_ADIABAT",&
-                                       i_val=active_state)
-             !active_state = first_adiabat
-             !decohere = .FALSE.
-             !sh_env%decohere = .FALSE.
-             !attempt_hop = .FALSE.
-             !ctin(:) = C_tp(:, first_adiabat)
-             
-             SELECT CASE(keyword_basis_repr)
-             CASE("DIABATIC_BASIS")
-                 ctin(:) = C_tp(:, active_state)
-             CASE("ADIABATIC_BASIS")
-                 ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
-          !!!! THIS LINE HAS TO BE MODIFIED TO INCLUDE MORE ORBITAL PER MOLECULE
-                 ctin(active_state) = CMPLX(1.0D0, 0.0D0,dp)
-             CASE DEFAULT
-                 CPABORT("Choose one representation: DIABATIC, ADIABATIC")
-             END SELECT
-
-         CASE DEFAULT
-             CPABORT("INITIALIZATION implemented: DIABATIC, ADIABATIC")
-         END SELECT
-         DO t2=1,int(deltatMD/deltatE)
-                    times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
-                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, times)
-                    CALL adiab_print_pop(adiab_section, abs(ctin),nadiab,norbitals,itimes,deltatMD, times)
-                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes, &
-                                                    deltatMD, times)
-         ENDDO
-      ELSE 
          !The eigenvectors are needed to calculate the surface hopping probabilities
          !The surfacehop subroutine calculates these probabilites and decides on the
          !new (possibly unchanged) surface for simulation
          IF (my_bo_keyword) THEN
-             !active_state = 
-             !CALL section_vals_val_get(adiab_section,"FIRST_DIABAT",&
-             !                          i_val=first_diabat)
-             !active_state = first_diabat
              decohere = .FALSE.
              sh_env%decohere = .FALSE.
              attempt_hop = .FALSE.
@@ -982,16 +649,8 @@ active_state = 2
              IF ((new_state).EQ.0) new_state = mat
          ELSE
             IF (.NOT.successful_hop) THEN
-                   !call surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp,   &
-                    !              deltatMD, active_state, sh_env,  &
-                     !            !new_state, is_hop)
-                      !             new_state, &
-                       !            attempt_hop, &
-                        !           decohere_criterion, &
-                         !          sh_print_env)
                    call surf_hop_type(adiab_section, Stt, C_t, C_tp,   &
                                   deltatMD, active_state, sh_env,  &
-                                 !new_state, is_hop)
                                    new_state, &
                                    attempt_hop, &
                                    decohere_criterion, &
@@ -1002,13 +661,10 @@ active_state = 2
                 sh_env%decohere = .FALSE.    
             ENDIF
          ENDIF
-!END DO THE HOPPING TEST         
-      ENDIF ! itimes-loop
 
 
 !CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE RESULT OF THE SURFACE
 !HOP ROUTINE IS. 
-      !IF (itimes.ge.1) THEN       
                DO imol=1,mol
                   DO iatom=1, natom
                      F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
@@ -1029,8 +685,6 @@ active_state = 2
                    times = DBLE(itimes)
                    CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, deltatMD, times)
                ENDIF
-      !ENDIF
-!END CALCULATE THE FORCES
 
 !APPLY DECOHERENCE CORRECTION
                if (.NOT.successful_hop) THEN
@@ -1052,24 +706,15 @@ active_state = 2
                else
                   aom_env%futur_decohere = .TRUE.
                endif
-!END APPLY DECOHERENCE CORRECTION
 
 !STORE THE COORDINATES IF NOT SUCCESSFUL RUN
-        if (itimes.ge.1) then
            if (.NOT.successful_hop) THEN
                aom_env%rm_tm      = aom_env%rm_t
                aom_env%rm_t       = positions_com_tp
                aom_env%energies_t = energies_tp
                aom_env%adiab_energies_t = E_t
            endif
-        else if (itimes.eq.0) then
-           aom_env%rm_tm      = positions_com_tp - velocities_com_tp*deltatMD
-           aom_env%rm_t       = positions_com_tp
-           aom_env%energies_t = energies_tp
-           aom_env%neighbourlist = neighbourlist
-        endif
            aom_env%sh_print_env = sh_print_env
-!END STORE THE COORDINATES
 
        IF (.NOT.successful_hop) THEN 
            CALL adiab_print_hamiltonian(adiab_section, -AIMAG(H_tp), nadiab,norbitals,itimes, deltatMD)
@@ -1098,11 +743,10 @@ active_state = 2
           aom_env%old_state = -1
           aom_env%successful_hop = .FALSE.
        ENDIF
-       energy_adiabat = E_tp(active_state)
+     energy_adiabat = E_tp(active_state)
 
-!END PREPARE THE PRINT
 
-!DEALLOCATE
+      !> DEALLOCATE
        DEALLOCATE(velocities_t_prime)
        DEALLOCATE(velocities_t) 
        deallocate(scoefftot, pcoefftot)
@@ -1123,8 +767,6 @@ active_state = 2
        deallocate(nacv, dist)
        deallocate(exact_forces)
        deallocate(F)
-!END DEALLOCATE
-
     END SUBROUTINE construct_ham_X_SH
 
 END MODULE aom_main

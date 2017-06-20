@@ -151,7 +151,9 @@ CONTAINS
         DO iparticle = 1, natom
            jparticle = map_index(iparticle)
            positions_tp(:,jparticle)   = particles_mix%els(jparticle)%r(:)
-           velocities_tp(:, jparticle) = particles_mix%els(jparticle)%v(:)
+           IF (my_itimes.eq.0) THEN
+                velocities_tp(:, jparticle) = particles_mix%els(jparticle)%v(:)
+           ENDIF
         END DO
         IF (my_itimes.eq.0) THEN
            CALL create_aom_env(nadiab, aom_atoms, norbitals, natom, &
@@ -165,7 +167,9 @@ CONTAINS
         ELSE
            !> Get the information for the previous timesteps
            aom_env = mixed_env%aom_env
-           aom_env%velocities_t = velocities_tp
+           !> Velocities are taken directly from the integrator, note from
+           !> velocities_tp
+           !aom_env%velocities_t = velocities_tp
            !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
            CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
              positions_tp, energies_tp, aom_env, sh_env, itimes, &

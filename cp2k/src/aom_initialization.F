@@ -573,7 +573,9 @@ CONTAINS
              CALL section_vals_val_get(adiab_section,"FIRST_DIABAT", &
                                        i_val=first_diabat)
              CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state, aom_env)
-             SELECT CASE(keyword_basis_repr)
+!ONLY FOR THE TEST
+active_state = 2 
+            SELECT CASE(keyword_basis_repr)
              CASE("DIABATIC_BASIS")
                  ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
                  !> WARNING: THIS LINE HAS TO BE MODIFIED TO INCLUDE MORE ORBITAL PER MOLECULE
@@ -661,6 +663,7 @@ CONTAINS
      aom_env%active_state = active_state
      !> IMPORTANT FOR THE FIRST TIME STEP
      aom_env%Stt = Stptp
+     energy_adiabat = E_tp(active_state)
 
     !> DEALLOCATE
     DEALLOCATE(velocities_t_prime)
