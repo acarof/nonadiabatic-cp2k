@@ -160,7 +160,7 @@ CONTAINS
 
      ALLOCATE(aom_env%population(mat))
      ALLOCATE(aom_env%ctin(mat))
-     ALLOCATE(aom_env%hamiltonian(mat,mat))
+     ALLOCATE(aom_env%H_t(mat,mat))
      ALLOCATE(aom_env%eigenvector_matrix(mat,mat))
      ALLOCATE(aom_env%connlist1(4,aom_atoms))
      ALLOCATE(aom_env%neighbourlist(nadiab, nadiab,0:aom_atoms,0:aom_atoms))
@@ -186,6 +186,8 @@ CONTAINS
      ALLOCATE(aom_env%velocities_t(3, natom))
      aom_env%futur_decohere = .FALSE.
      allocate(aom_env%elements(c))
+     allocate(aom_env%adiab_nace_t(mat,mat))
+
 
      IF (do_random) THEN
         CALL section_vals_val_get(adiab_section,"SEED",i_val=input_seed)
@@ -552,14 +554,14 @@ CONTAINS
                                        i_val=first_diabat)
              CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state, aom_env)
 !ONLY FOR THE TEST
-active_state = 2 
+active_state = 1 
             SELECT CASE(keyword_basis_repr)
              CASE("DIABATIC_BASIS")
                  ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
                  !> WARNING: THIS LINE HAS TO BE MODIFIED TO INCLUDE MORE ORBITAL PER MOLECULE
                  ctin(first_diabat) = CMPLX(1.0D0, 0.0D0,dp)  
              CASE("ADIABATIC_BASIS")
-                 ctin(:) = C_tp(first_diabat,:)
+                 ctin(:) = C_tp(first_diabat+2,:)
              CASE DEFAULT
                  CPABORT("Choose REPRESENTATION, only: DIABATIC_BASIS or ADIABATIC_BASIS")
              END SELECT
@@ -604,7 +606,6 @@ active_state = 2
      call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                      scaling=scaling, cbar=cbar, Fin=F, forces_adiab=my_forces_adiab, &
                      ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
-     aom_env%forces_adiab=my_forces_adiab
      IF (analytics) THEN
         times = DBLE(itimes)
         CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, deltatMD, times)
@@ -624,6 +625,7 @@ active_state = 2
      !ctin=sh_env%ctin
 
      !> STORE THE COORDINATES IF NOT SUCCESSFUL RUN
+     aom_env%forces_adiab=my_forces_adiab
      aom_env%rm_tm      = positions_com_tp - velocities_com_tp*deltatMD
      aom_env%rm_t       = positions_com_tp
      aom_env%energies_t = energies_tp
@@ -631,7 +633,7 @@ active_state = 2
      aom_env%sh_print_env = sh_print_env
      aom_env%ctin        = ctin
      aom_env%attempt_hop  = attempt_hop
-     aom_env%hamiltonian = -AIMAG(H_tp)
+     aom_env%H_t = H_tp
      aom_env%nacv        = nacv
      aom_env%new_state = new_state
      aom_env%active_state = active_state
