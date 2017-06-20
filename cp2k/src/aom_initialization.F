@@ -116,7 +116,8 @@ MODULE aom_initialization
  
      CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN ='aom_initialization'   
 
-     PUBLIC :: create_aom_env
+     PUBLIC :: create_aom_env, &
+               propagate_aom_namd_first_step
 
 CONTAINS
 
@@ -182,6 +183,7 @@ CONTAINS
      ALLOCATE(aom_env%pcoeffs(aom_atoms,norbitals))
      ALLOCATE(aom_env%scoeffs(aom_atoms))
      allocate(aom_env%adiab_nace_t(mat,mat))
+     ALLOCATE(aom_env%velocities_t(3, natom))
      aom_env%futur_decohere = .FALSE.
      allocate(aom_env%elements(c))
 
@@ -225,17 +227,19 @@ CONTAINS
 
   SUBROUTINE propagate_aom_namd_first_step(nadiab, aom_atoms, norbitals, MDtimestep, &
                                   positions_tp,  &
+                                  velocities_tp,  &
                                   energies_tp,  &
                                   aom_env, sh_env,itimes, &
                                   attempt_hop, global_forces, coupling_section, &
                                   adiab_section, my_bo_keyword, energy_adiabat, &
                                   atomic_kinds, local_particles,                &
-                                  my_test_keyword)
+                                  my_test_keyword, method_keyword)
 
      INTEGER, INTENT(IN)                            :: nadiab,  norbitals 
      INTEGER, INTENT(IN)                            :: aom_atoms
      REAL(KIND=dp), INTENT(OUT)                     :: MDtimestep
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_tp
+     REAL(kind=dp), DIMENSION(:,:),POINTER          :: velocities_tp
      REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_tp
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
      TYPE(sh_env_type), INTENT(INOUT)               :: sh_env
@@ -252,6 +256,7 @@ CONTAINS
      REAL(kind=dp)                                 :: K_tot
      INTEGER                                    :: nparticle_kind
      TYPE(atomic_kind_type), DIMENSION(:), POINTER                       :: atomic_kind_set
+     CHARACTER(LEN=default_string_length)     :: method_keyword
 
 
 
@@ -407,9 +412,12 @@ CONTAINS
      neighbourlist = 0
 
      !READ THE COORDINATES, ENERGIES AND STATE
-     velocities_t = aom_env%velocities_t
+     IF (method_keyword.eq."FROZEN_HAMILTONIAN") THEN
+        velocities_com_tp = 0.0D0
+     ELSE
+        CALL translate_com(velocities_tp, keyword_translate, velocities_com_tp, local_particles, atomic_kinds = atomic_kinds)  
+     ENDIF
      CALL translate_com(positions_tp, keyword_translate, positions_com_tp, local_particles, atomic_kinds = atomic_kinds)  
-     CALL translate_com(velocities_t, keyword_translate, velocities_com_tp, local_particles, atomic_kinds = atomic_kinds)  
      do coord=1,3
         crds(coord,:,1) = PACK(positions_com_tp(coord,:), aom_env%ext_pres)
         !At time 0, we must guess the positions at time -1 with the inital velocities
@@ -630,10 +638,12 @@ CONTAINS
      sh_env%ctin=ctin
      sh_env%active_state=active_state
 
+     print*, "ctin", ctin
      CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
                       deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
                       atomic_kind_set, K_tot, aom_env%ext_pres)
 
+     print*, "ctin", aom_env%ctin
      ctin=sh_env%ctin
      active_state=sh_env%active_state
 
