@@ -185,7 +185,7 @@ CONTAINS
      REAL(KIND=dp)                                :: decohere_criterion
      INTEGER                                      :: imol, iatom, natom
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
-     LOGICAL                                      :: successful_hop, keyword_translate
+     LOGICAL                                      :: keyword_translate
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
      CHARACTER(LEN=default_string_length)           :: deco_keyword, prop_wf_keyword 
@@ -298,6 +298,7 @@ CONTAINS
      allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
      neighbourlist = 0
 
+
      !> OBTAIN COORDINATES, ENERGIES, STATES, etc. FROM PREVIOUS STEP
      CALL translate_com(positions_tp, keyword_translate, positions_com_tp, local_particles, atomic_kinds = atomic_kinds)  
      CALL translate_com(aom_env%velocities_t, keyword_translate, velocities_com_tp, local_particles, atomic_kinds = atomic_kinds)  
@@ -319,6 +320,7 @@ CONTAINS
      ctin(:) = aom_env%ctin(:)
      aom_env%adiab_nace_t = aom_env%adiab_nace_tp
 
+
      !> CALCULATE THE CENTER OF MASS
      !calculate CoMs at first timestep
      !coms(1 to 3,i) are the x, y and z coordinates of CoM of i
@@ -330,6 +332,7 @@ CONTAINS
                end do
           end do
      end do
+
 
      !> CONSTRUCT NEIGHBOURS LIST
      do i=1,mol
@@ -352,11 +355,9 @@ CONTAINS
           end do
      end do
 
-     !> CHECK IF WE ARE IN A POST-HOP RUN
-     successful_hop = aom_env%successful_hop
 
-     if (.not.successful_hop) then
-     !for each molecule
+     !> CALCULATE THE HAMILTONIAN, THE STTP MATRIX AND THE NACV
+     !for each molecule i
      do i=1,mol
                !create the array of all its atomic coordinates at t
                !numerical factor converts from Angstroms into Bohr radii
@@ -536,9 +537,8 @@ CONTAINS
                   PC_allrvecs (3:5,((i-1)*atoms)+o) = PC_rvecs(:,o)
                end do
      end do !loop over i
-     endif 
 
-print*, "Sttp in main", Sttp
+
      !> CONVERT THE NACV WITH THE GOOD UNITS
      nacv = cbar*nacv
      !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
@@ -550,40 +550,38 @@ print*, "Sttp in main", Sttp
      CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
 
-print*, "ctin", ctin
-     !PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
-     IF (.NOT.successful_hop) THEN
-        CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, aom_env)
-        NACE_ad_tp = aom_env%adiab_nace_tp
-!TEST
-        CALL make_adiabX(mol, E_t, NACE_ad_t, X)
-!ENDTEST
-        ALLOCATE(sh_env%cttm(mat))
-        sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
-        sh_env%cttm(:) = ctin(:)
-        CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
-                                                     c_val=prop_wf_keyword)
-        SELECT CASE(prop_wf_keyword)                                 
-        CASE("DIABATIC_BASIS")
-              CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, & 
-                                Sttm, Stmtm,    &
-                                ctin, aom_env, nadiab,  norbitals, ELsteps, &
-                                itimes, adiab_section, deltatMD, deltatE , times,    &
-                                mat)
-        CASE("ADIABATIC_BASIS")
-              CALL propagate_adiab_wf(E_t, E_tp, ctin, aom_env, nadiab, norbitals, ELsteps, &
-                                      itimes, adiab_section, deltatMD, deltatE , times,  & 
-                                      mat)
-        CASE("HS_CORRECTION")  
-               print *, "TO BE ADDED"
-        CASE DEFAULT                                           
-               CPABORT("There is no method to propagate the wavefunction.") 
-        END SELECT                                             
-        ALLOCATE(sh_env%ctt(mat))
-        sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
-        sh_env%ctt(:) = ctin(:)
-     ENDIF !ONLY IF NOT POST-HOP RUN
-print*, "ctin", ctin
+
+     !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
+     CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, aom_env)
+     NACE_ad_tp = aom_env%adiab_nace_tp
+     !TEST
+     CALL make_adiabX(mol, E_t, NACE_ad_t, X)
+     !ENDTEST
+     ALLOCATE(sh_env%cttm(mat))
+     sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
+     sh_env%cttm(:) = ctin(:)
+     CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
+                                                  c_val=prop_wf_keyword)
+     SELECT CASE(prop_wf_keyword)                                 
+     CASE("DIABATIC_BASIS")
+           CALL propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, & 
+                             Sttm, Stmtm,    &
+                             ctin, aom_env, nadiab,  norbitals, ELsteps, &
+                             itimes, adiab_section, deltatMD, deltatE , times,    &
+                             mat)
+     CASE("ADIABATIC_BASIS")
+           CALL propagate_adiab_wf(E_t, E_tp, ctin, aom_env, nadiab, norbitals, ELsteps, &
+                                   itimes, adiab_section, deltatMD, deltatE , times,  & 
+                                   mat)
+     CASE("HS_CORRECTION")  
+            print *, "TO BE ADDED"
+     CASE DEFAULT                                           
+           CPABORT("There is no method to propagate the wavefunction.") 
+     END SELECT                                             
+     ALLOCATE(sh_env%ctt(mat))
+     sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
+     sh_env%ctt(:) = ctin(:)
+
 
      !The eigenvectors are needed to calculate the surface hopping probabilities
      !The surfacehop subroutine calculates these probabilites and decides on the
@@ -596,16 +594,15 @@ print*, "ctin", ctin
         active_state = 1
         new_state = mod(active_state + 1, mat) 
         IF ((new_state).EQ.0) new_state = mat
-     ELSE IF (.NOT.my_bo_keyword) THEN
-        IF (.NOT.successful_hop) THEN
-            call surf_hop_type(adiab_section, Stt, C_t, C_tp,   &
+     ELSE IF (.NOT.my_bo_keyword) THEN ! THEN IT IS A FSSH RUN
+        call surf_hop_type(adiab_section, Stt, C_t, C_tp,   &
                                   deltatMD, active_state, sh_env,  &
                                   new_state, &
                                   attempt_hop, &
                                   decohere_criterion, &
                                   sh_print_env, aom_env)
-            ENDIF
      ENDIF
+
 
      !CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE RESULT OF THE SURFACE
      !HOP ROUTINE IS. 
@@ -624,73 +621,63 @@ print*, "ctin", ctin
                               ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      ENDIF
 
+
      !> APPLY DECOHERENCE CORRECTION
-     if (.NOT.successful_hop) THEN
-        !> initialize derived type variables
-        ALLOCATE(sh_env%ctin(mat))
-        sh_env%E_tp=E_tp
-        sh_env%ctin=ctin
-        sh_env%active_state=active_state
-        CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
+     !> initialize derived type variables
+     ALLOCATE(sh_env%ctin(mat))
+     sh_env%E_tp=E_tp
+     sh_env%ctin=ctin
+     sh_env%active_state=active_state
+     CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, &
                                     deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
                                     atomic_kind_set, K_tot, aom_env%ext_pres)
-        ctin=sh_env%ctin
-        active_state=sh_env%active_state
-     endif
+     ctin=sh_env%ctin
+     active_state=sh_env%active_state
+
 
      !> PRINT
-     IF (.NOT.successful_hop) THEN 
-        CALL adiab_print_hamiltonian(adiab_section, -AIMAG(H_tp), nadiab,norbitals,itimes, deltatMD)
-        CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, deltatMD)
-        CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
-        CALL adiab_print_pvecs(adiab_section, PC_allrvecs, itimes, deltatMD, times, atoms, nadiab)
-                            sh_print_env%times = times
-                            sh_print_env%times = DBLE(itimes)
-        IF (analytics) THEN
-           times = DBLE(itimes)
-           CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, deltatMD, times)
-        ENDIF
+     CALL adiab_print_hamiltonian(adiab_section, -AIMAG(H_tp), nadiab,norbitals,itimes, deltatMD)
+     CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, deltatMD)
+     CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
+     CALL adiab_print_pvecs(adiab_section, PC_allrvecs, itimes, deltatMD, times, atoms, nadiab)
+                         sh_print_env%times = times
+                         sh_print_env%times = DBLE(itimes)
+     IF (analytics) THEN
+        times = DBLE(itimes)
+        CALL adiab_print_exact_forces(adiab_section, exact_forces, natom, deltatMD, times)
      ENDIF
 
+
      !> STORE THE COORDINATES IF NOT SUCCESSFUL RUN
-     IF (.NOT.successful_hop) THEN 
-         aom_env%forces_adiab=my_forces_adiab
-         aom_env%rm_tm      = aom_env%rm_t
-         aom_env%rm_t       = positions_com_tp
-         aom_env%energies_t = energies_tp
-         aom_env%adiab_energies_t = E_t
-         aom_env%ctin        = ctin
-         aom_env%attempt_hop  = attempt_hop
-         aom_env%H_t = H_tp
-         aom_env%nacv        = nacv
-         aom_env%new_state = new_state
+     aom_env%forces_adiab=my_forces_adiab
+     aom_env%rm_tm      = aom_env%rm_t
+     aom_env%rm_t       = positions_com_tp
+     aom_env%energies_t = energies_tp
+     aom_env%adiab_energies_t = E_t
+     aom_env%ctin        = ctin
+     aom_env%attempt_hop  = attempt_hop
+     aom_env%H_t = H_tp
+     aom_env%nacv        = nacv
+     aom_env%new_state = new_state
+     aom_env%active_state = active_state
+     aom_env%Stt   = Stptp
+     aom_env%Sttm  = Stpt
+     aom_env%Stmt  = Sttp
+     aom_env%Stmtm = Stt
+     IF (attempt_hop) THEN
+         aom_env%forces_adiab_new = my_forces_adiab_new
          aom_env%active_state = active_state
-         aom_env%Stt   = Stptp
-         aom_env%Sttm  = Stpt
-         aom_env%Stmt  = Sttp
-         aom_env%Stmtm = Stt
-         IF (attempt_hop) THEN
-             aom_env%forces_adiab_new = my_forces_adiab_new
-             aom_env%active_state = active_state
-             aom_env%NN = NN
-             aom_env%Stptp = Stptp
-             aom_env%eigenvector_matrix = C_tp
-             aom_env%diabatic_forces = F
-             aom_env%scaling  = scaling
-             aom_env%cbar     = cbar
-             aom_env%energy_new = E_tp(aom_env%new_state)
-         ENDIF
-         energy_adiabat = E_tp(active_state)
-     ELSE
-         aom_env%forces_adiab = aom_env%forces_adiab_new
-         aom_env%forces_adiab_new = 0.0D0
-         aom_env%futur_decohere = .TRUE.
-         aom_env%new_state = -1
-         aom_env%old_state = -1
-         aom_env%successful_hop = .FALSE.
-         energy_adiabat = aom_env%energy_new
+         aom_env%NN = NN
+         aom_env%Stptp = Stptp
+         aom_env%eigenvector_matrix = C_tp
+         aom_env%diabatic_forces = F
+         aom_env%scaling  = scaling
+         aom_env%cbar     = cbar
+         aom_env%energy_new = E_tp(aom_env%new_state)
      ENDIF
+     energy_adiabat = E_tp(active_state)
      aom_env%sh_print_env = sh_print_env
+
 
      !> DEALLOCATE
      deallocate(scoefftot, pcoefftot)

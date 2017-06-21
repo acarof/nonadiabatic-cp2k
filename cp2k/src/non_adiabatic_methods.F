@@ -122,6 +122,7 @@ CONTAINS
     ALLOCATE(forces_adiab(3,natom))
     factor = 1
 
+
     my_bo_keyword = .TRUE.
     my_test_keyword = .FALSE.
     IF (method_keyword.eq."FSSH") THEN
@@ -130,6 +131,7 @@ CONTAINS
        my_bo_keyword = .FALSE.
        my_test_keyword = .TRUE. 
     ENDIF
+
 
     !> Find the method to calculate the off-diagonal elements
     CALL section_vals_val_get(adiab_section,"METHOD_COUPLING",c_val=coupling_keyword)
@@ -170,19 +172,29 @@ CONTAINS
            !> Velocities are taken directly from the integrator, note from
            !> velocities_tp
            !aom_env%velocities_t = velocities_tp
-           !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
-           CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-             positions_tp, energies_tp, aom_env, sh_env, itimes, &
-             is_hop, global_forces, coupling_section, adiab_section,& 
-             my_bo_keyword, energy_adiabat, atomic_kinds, &
-             local_particles, my_test_keyword)
-          
+           IF (aom_env%successful_hop) THEN
+              aom_env%forces_adiab = aom_env%forces_adiab_new
+              energy_adiabat = aom_env%energy_new
+              aom_env%futur_decohere = .TRUE.
+              aom_env%successful_hop = .FALSE.
+              aom_env%forces_adiab_new = 0.0D0
+              aom_env%new_state = -1
+              aom_env%old_state = -1
+           ELSE
+              !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
+              CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
+                            positions_tp, energies_tp, aom_env, sh_env, itimes, &
+                            is_hop, global_forces, coupling_section, adiab_section,& 
+                            my_bo_keyword, energy_adiabat, atomic_kinds, &
+                            local_particles, my_test_keyword)
+           ENDIF
         ENDIF
         !> IMPORTANT: store all aom_env for the future timesteps
         mixed_env%aom_env=aom_env
     CASE DEFAULT
         CPABORT("There is no method to calculate the coupling")
     END SELECT
+
 
     !> IMPORTANT : GIVE BACK THE FORCES TO FIST
     forces_adiab = aom_env%forces_adiab

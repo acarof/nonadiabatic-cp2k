@@ -189,14 +189,14 @@ CONTAINS
      allocate(aom_env%adiab_nace_t(mat,mat))
 
 
-     IF (do_random) THEN
-        CALL section_vals_val_get(adiab_section,"SEED",i_val=input_seed)
-        initial_seed(:,:) = REAL(input_seed,KIND=dp)
-        CALL create_rng_stream(rng_stream=aom_env%rng_stream,&
+     !> INITIALIZE THE RANDOM GENERATOR
+     CALL section_vals_val_get(adiab_section,"SEED",i_val=input_seed)
+     initial_seed(:,:) = REAL(input_seed,KIND=dp)
+     CALL create_rng_stream(rng_stream=aom_env%rng_stream,&
                              name="aom fssh",&
                              distribution_type=UNIFORM, &
                              seed=initial_seed)
-     ENDIF
+
 
      !> READ THE AOM COEFFICIENT
      CALL section_vals_list_get(coupling_section,"_DEFAULT_KEYWORD_",list=listcoeff) !Read them in the input files
@@ -215,6 +215,7 @@ CONTAINS
           aom_env%scoeffs(i) = scoefftot(i)
      end do
 
+
      !> CONSTRUCT THE CONNLIST
      !we fill out the connlist arrays before calculating the nacv
      allocate(crds(3, c))
@@ -224,7 +225,6 @@ CONTAINS
      ALLOCATE(Atp(4,aom_atoms))
      Atp(2:4,1:aom_atoms) = crds(1:3,1:aom_atoms)
      call connect_list2(Atp(2:4,:), aom_env%atomlist, aom_env%connlist1, aom_env%connlist2, cutoff_connect)
-
   END SUBROUTINE create_aom_env
 
   SUBROUTINE propagate_aom_namd_first_step(nadiab, aom_atoms, norbitals, MDtimestep, &
@@ -391,6 +391,7 @@ CONTAINS
      allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
      neighbourlist = 0
 
+
      !READ THE COORDINATES, ENERGIES AND STATE
      IF (method_keyword.eq."FROZEN_HAMILTONIAN") THEN
         velocities_com_tp = 0.0D0
@@ -408,6 +409,7 @@ CONTAINS
         siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
      enddo
 
+
      !CALCULATE THE CENTER OF MASS
      !calculate CoMs at first timestep
      !coms(1 to 3,i) are the x, y and z coordinates of CoM of i
@@ -419,6 +421,7 @@ CONTAINS
                end do
           end do
      end do
+
 
      !CONSTRUCT NEIGHBOURS LIST
      do i=1,mol
@@ -440,6 +443,7 @@ CONTAINS
                end if                    
           end do
      end do
+
 
      !CALCULATE THE HAMILTONIAN AND THE NACV
      do i=1,mol
@@ -525,13 +529,16 @@ CONTAINS
                end do !loop over k 
      enddo !loop-over i
 
+
      !INITIALIZE NACE TO ZERO AT t=0
      aom_env%adiab_nace_tp = 0.0D0 
+
 
      !> CONVERT NACV AND CALCULATE EIGENPROPERTIES
      nacv = cbar*nacv
      CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
+
 
      !> PRINT 
      CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
@@ -540,6 +547,7 @@ CONTAINS
      sh_print_env%times = DBLE(itimes)
      CALL adiab_print_hamiltonian(adiab_section, -AIMAG(H_tp), nadiab,norbitals,itimes, deltatMD)
      CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, deltatMD)
+
 
      !> INITIALIZE  
      IF  (.NOT. my_test_keyword) THEN
@@ -595,6 +603,7 @@ active_state = 1
          IF ((new_state).EQ.0) new_state = mat
      ENDIF 
 
+
      !> CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE RESULT OF THE SURFACE
      !> HOP ROUTINE IS. 
      DO imol=1,mol
@@ -623,6 +632,7 @@ active_state = 1
      !                 atomic_kind_set, K_tot, aom_env%ext_pres)
      !print*, "ctin", sh_env%ctin
      !ctin=sh_env%ctin
+
 
      !> STORE THE COORDINATES IF NOT SUCCESSFUL RUN
      aom_env%forces_adiab=my_forces_adiab

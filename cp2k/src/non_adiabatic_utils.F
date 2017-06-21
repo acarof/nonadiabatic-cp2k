@@ -68,7 +68,7 @@ MODULE non_adiabatic_utils
 
 CONTAINS
  
-  SUBROUTINE decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
+  SUBROUTINE decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, &
                          deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                          atomic_kind_set, K_tot, ext_pres)
 
@@ -86,7 +86,6 @@ CONTAINS
 
         CHARACTER(LEN=default_string_length)           :: deco_keyword
         INTEGER, POINTER                               :: itimes
-        LOGICAL                                        ::  successful_hop
         INTEGER                                        :: mol
 
 !MODIFY
@@ -105,7 +104,7 @@ CONTAINS
         CASE("NO_DECO_CORR")
              PRINT *, 'NO DECOHERENCE CORRECTIONS'
         CASE("INSTANT_COLLAPSE")
-          CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes,successful_hop)
+          CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes)
         CASE("TRESH_ONLY_COLLAPSE")  
           CALL  wf_tresh_collaps(sh_print_env, sh_env, itimes)
         CASE("DAMPING")
@@ -120,7 +119,7 @@ CONTAINS
   END SUBROUTINE decohere_wf
 
 
-  SUBROUTINE wf_collapse_adiab_prop(aom_env,sh_print_env, sh_env, itimes, successful_hop)
+  SUBROUTINE wf_collapse_adiab_prop(aom_env,sh_print_env, sh_env, itimes)
     TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(aom_env_type)                             :: aom_env
     TYPE(sh_env_type)                              :: sh_env
@@ -129,12 +128,10 @@ CONTAINS
     routineP = moduleN//':'//routineN                                                                 
     
     INTEGER, POINTER                               :: itimes
-    LOGICAL                                        ::  successful_hop
 
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
          !Finally, collapse the wavefunction if called for                 
-         !if (successful_hop) aom_env%futur_decohere = .TRUE.               
 !         print*, "future", aom_env%futur_decohere, sh_env%decohere
          if (aom_env%futur_decohere .and. sh_env%decohere) then                                  
 !> Check if the surface_hop subroutine asks us to do the decoherence       
@@ -151,7 +148,7 @@ CONTAINS
   END SUBROUTINE wf_collapse_adiab_prop
 
 
-  SUBROUTINE wf_collapse(aom_env,sh_print_env, sh_env, itimes, successful_hop)
+  SUBROUTINE wf_collapse(aom_env,sh_print_env, sh_env, itimes)
     TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(aom_env_type)                             :: aom_env
     TYPE(sh_env_type)                              :: sh_env
@@ -160,12 +157,10 @@ CONTAINS
     routineP = moduleN//':'//routineN                                                                 
     
     INTEGER, POINTER                               :: itimes
-    LOGICAL                                        ::  successful_hop
 
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
          !Finally, collapse the wavefunction if called for                 
-         !if (successful_hop) aom_env%futur_decohere = .TRUE.               
 !         print*, "future", aom_env%futur_decohere, sh_env%decohere
          if (aom_env%futur_decohere .and. sh_env%decohere) then                                  
 !> Check if the surface_hop subroutine asks us to do the decoherence       
@@ -179,7 +174,6 @@ CONTAINS
   END SUBROUTINE wf_collapse 
 
 
- ! SUBROUTINE wf_ever_collaps(sh_print_env, sh_env, itimes, successful_hop)
   SUBROUTINE wf_tresh_collaps(sh_print_env, sh_env, itimes)
     TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(sh_env_type)                              :: sh_env
@@ -188,7 +182,6 @@ CONTAINS
     routineP = moduleN//':'//routineN                                                                 
     
     INTEGER, POINTER                               :: itimes
- !   LOGICAL                                        ::  successful_hop
 
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
