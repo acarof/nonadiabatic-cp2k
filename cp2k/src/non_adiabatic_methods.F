@@ -40,7 +40,6 @@ MODULE non_adiabatic_methods
                                              str2id
 
   USE aom_types,                       ONLY: aom_env_type 
-  USE non_adiabatic_types,             ONLY: sh_env_type
 
   USE aom_main,                        ONLY: construct_ham_X_SH
 
@@ -109,7 +108,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: coupling_section
     CHARACTER(LEN=default_string_length)     :: coupling_keyword
     TYPE(aom_env_type)                       :: aom_env
-    TYPE(sh_env_type)                        :: sh_env
     INTEGER, POINTER                         :: itimes
     REAL(KIND=dp)                            :: energy_adiabat
     LOGICAL                                  :: is_hop
@@ -162,7 +160,7 @@ CONTAINS
                                positions_tp, coupling_section, adiab_section, & 
                                aom_env)
            CALL propagate_aom_namd_first_step(nadiab, aom_atoms, norbitals, MDtimestep, &
-                     positions_tp, velocities_tp, energies_tp, aom_env, sh_env, itimes, &
+                     positions_tp, velocities_tp, energies_tp, aom_env, itimes, &
                      is_hop, global_forces, coupling_section, adiab_section,& 
                      my_bo_keyword, energy_adiabat, atomic_kinds, &
                      local_particles, my_test_keyword, method_keyword)
@@ -183,7 +181,7 @@ CONTAINS
            ELSE
               !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
               CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-                            positions_tp, energies_tp, aom_env, sh_env, itimes, &
+                            positions_tp, energies_tp, aom_env, itimes, &
                             is_hop, global_forces, coupling_section, adiab_section,& 
                             my_bo_keyword, energy_adiabat, atomic_kinds, &
                             local_particles, my_test_keyword)

@@ -231,7 +231,7 @@ CONTAINS
                                   positions_tp,  &
                                   velocities_tp,  &
                                   energies_tp,  &
-                                  aom_env, sh_env,itimes, &
+                                  aom_env, itimes, &
                                   attempt_hop, global_forces, coupling_section, &
                                   adiab_section, my_bo_keyword, energy_adiabat, &
                                   atomic_kinds, local_particles,                &
@@ -244,7 +244,6 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: velocities_tp
      REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_tp
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
-     TYPE(sh_env_type), INTENT(INOUT)               :: sh_env
      INTEGER, POINTER                               :: itimes
      LOGICAL, INTENT(OUT)                           :: attempt_hop
      TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
@@ -260,6 +259,7 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN ='propagate_aom_namd_first_step', &
      routineP = moduleN//':'//routineN
 
+     TYPE(sh_env_type)                              :: sh_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      integer :: coord, t2
      integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, active_state, mat, orb
@@ -340,14 +340,15 @@ CONTAINS
      ALLOCATE(sh_env%cttm(mat))
      ALLOCATE(sh_env%ctt(mat))
      ALLOCATE(sh_env%C_tp(mat,mat))
+     ALLOCATE(sh_env%E_tp(mat))
+     ALLOCATE(sh_env%E_t(mat))
+
      sh_print_env%adiab_section => adiab_section
      sh_print_env%nadiab = mat
      sh_print_env%norbitals = orb
      sh_print_env%deltatMD = deltatMD
      ALLOCATE(sh_print_env%adiab_energies_t(mat))
      ALLOCATE(E_tp(mat))
-     ALLOCATE(sh_env%E_tp(mat))
-     ALLOCATE(sh_env%E_t(mat))
      ALLOCATE(my_forces_adiab(3,natom))
      ALLOCATE(positions_com_tp(3, natom))
      ALLOCATE(velocities_com_tp(3, natom))
@@ -530,7 +531,8 @@ CONTAINS
      enddo !loop-over i
 
 
-     !INITIALIZE NACE TO ZERO AT t=0
+     !INITIALIZE NACE
+!ONLY FOR THE TEST 
      aom_env%adiab_nace_tp = 0.0D0 
 
 
@@ -569,6 +571,7 @@ active_state = 1
                  !> WARNING: THIS LINE HAS TO BE MODIFIED TO INCLUDE MORE ORBITAL PER MOLECULE
                  ctin(first_diabat) = CMPLX(1.0D0, 0.0D0,dp)  
              CASE("ADIABATIC_BASIS")
+!ONLY FOR THE TEST
                  ctin(:) = C_tp(first_diabat+2,:)
              CASE DEFAULT
                  CPABORT("Choose REPRESENTATION, only: DIABATIC_BASIS or ADIABATIC_BASIS")

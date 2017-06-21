@@ -124,7 +124,7 @@ CONTAINS
     SUBROUTINE construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
                                   positions_tp,  &
                                   energies_tp,  &
-                                  aom_env, sh_env,itimes, &
+                                  aom_env, itimes, &
                                   attempt_hop, global_forces, coupling_section, &
                                   adiab_section, my_bo_keyword, energy_adiabat, &
                                   atomic_kinds, local_particles,                &
@@ -137,7 +137,6 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_tp
      REAL(kind=dp), DIMENSION(:),  POINTER          :: energies_tp
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
-     TYPE(sh_env_type), INTENT(INOUT)               :: sh_env
      INTEGER, POINTER                               :: itimes
      LOGICAL, INTENT(OUT)                           :: attempt_hop
      TYPE(mixed_force_type), DIMENSION(:), POINTER  :: global_forces
@@ -157,6 +156,7 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
      routineP = moduleN//':'//routineN
 
+     TYPE(sh_env_type)                              :: sh_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab_new
      integer :: coord
@@ -238,10 +238,14 @@ CONTAINS
 
      sh_print_env = aom_env%sh_print_env
      
-     ALLOCATE(E_t(mat))
-     ALLOCATE(E_tp(mat))
      ALLOCATE(sh_env%E_tp(mat))
      ALLOCATE(sh_env%E_t(mat))
+     ALLOCATE(sh_env%cttm(mat))
+     ALLOCATE(sh_env%ctt(mat))
+     ALLOCATE(sh_env%ctin(mat))
+
+     ALLOCATE(E_t(mat))
+     ALLOCATE(E_tp(mat))
      ALLOCATE(my_forces_adiab(3,natom))
      ALLOCATE(my_forces_adiab_new(3,natom))
      ALLOCATE(positions_com_tp(3, natom))
@@ -314,8 +318,8 @@ CONTAINS
         Stmt  = aom_env%Stmt
         Stmtm = aom_env%Stmtm
      end if
-     active_state = aom_env%active_state
      Stt = aom_env%Stt
+     active_state = aom_env%active_state
      H_t = aom_env%H_t
      ctin(:) = aom_env%ctin(:)
      aom_env%adiab_nace_t = aom_env%adiab_nace_tp
@@ -543,9 +547,9 @@ CONTAINS
      nacv = cbar*nacv
      !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
      !It gives us back the eigenvalues and eigenvectors
-     CALL adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
      !initialize Adiabatic energies that will be used for trivial hopping and
      !decoherence corrections
+     CALL adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
      sh_env%E_t = E_t
      CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
@@ -557,8 +561,6 @@ CONTAINS
      !TEST
      CALL make_adiabX(mol, E_t, NACE_ad_t, X)
      !ENDTEST
-     ALLOCATE(sh_env%cttm(mat))
-     sh_env%cttm(:) = cmplx(0.0D0, 0.0D0,dp)
      sh_env%cttm(:) = ctin(:)
      CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
                                                   c_val=prop_wf_keyword)
@@ -578,8 +580,6 @@ CONTAINS
      CASE DEFAULT                                           
            CPABORT("There is no method to propagate the wavefunction.") 
      END SELECT                                             
-     ALLOCATE(sh_env%ctt(mat))
-     sh_env%ctt(:) = cmplx(0.0D0, 0.0D0,dp)
      sh_env%ctt(:) = ctin(:)
 
 
@@ -624,15 +624,12 @@ CONTAINS
 
      !> APPLY DECOHERENCE CORRECTION
      !> initialize derived type variables
-     ALLOCATE(sh_env%ctin(mat))
-     sh_env%E_tp=E_tp
      sh_env%ctin=ctin
      sh_env%active_state=active_state
      CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, &
                                     deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
                                     atomic_kind_set, K_tot, aom_env%ext_pres)
      ctin=sh_env%ctin
-     active_state=sh_env%active_state
 
 
      !> PRINT
