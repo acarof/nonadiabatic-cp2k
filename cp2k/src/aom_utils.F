@@ -786,7 +786,8 @@ subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, aom_en
         DT = (0.5D0/deltat)*(T2 - T1)
         DS = (0.5D0/deltat)*(Sttp - Sttm)
         DC = (1.0D0/deltat)*(C2 - C1)
-
+print*, "Sttp", Sttp
+print*, "Sttm", Sttm
 !print *, "Sttp", Sttp
 !print *, "Stt", Stt
 !print *, "Stptp", Stptp

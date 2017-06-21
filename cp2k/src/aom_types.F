@@ -116,7 +116,7 @@ IMPLICIT NONE
                                                          forces_adiab_new
 !> To store energies in the Jacob's Method
      REAL(KIND = dp), DIMENSION(:), POINTER :: energies_t   
-     REAL(KIND = dp), DIMENSION(:), POINTER :: adiab_energies_t   
+     REAL(KIND = dp), DIMENSION(:), POINTER :: adiab_energies_t 
      REAL(KIND = dp)                        :: kinetic_energy
      REAL(KIND = dp)                        :: delta_energy, scaling, cbar
 !> Old and new state number
@@ -158,6 +158,7 @@ IMPLICIT NONE
      TYPE(rng_stream_type), POINTER              :: rng_stream
      REAL(KIND=dp), DIMENSION(:,:), POINTER      :: pcoeffs
      REAL(KIND=dp), DIMENSION(:), POINTER         :: scoeffs
+     REAL(KIND = dp)                        :: energy_new
    END TYPE aom_env_type
 
    PUBLIC :: aom_env_type, &

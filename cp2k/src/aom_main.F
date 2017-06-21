@@ -158,6 +158,7 @@ CONTAINS
      routineP = moduleN//':'//routineN
 
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
+     REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab_new
      integer :: coord
      integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
      integer, dimension(:,:), allocatable :: NN,  aneighbour, bneighbour  
@@ -184,8 +185,6 @@ CONTAINS
      REAL(KIND=dp)                                :: decohere_criterion
      INTEGER                                      :: imol, iatom, natom
      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
-     REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t_prime
-     REAL(kind=dp), DIMENSION(:,:),POINTER        :: velocities_t
      LOGICAL                                      :: successful_hop, keyword_translate
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
@@ -244,10 +243,9 @@ CONTAINS
      ALLOCATE(sh_env%E_tp(mat))
      ALLOCATE(sh_env%E_t(mat))
      ALLOCATE(my_forces_adiab(3,natom))
+     ALLOCATE(my_forces_adiab_new(3,natom))
      ALLOCATE(positions_com_tp(3, natom))
      ALLOCATE(velocities_com_tp(3, natom))
-     ALLOCATE(velocities_t_prime(3,natom))
-     ALLOCATE(velocities_t(3,natom))
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
      ALLOCATE(PC_allrvecs(5,mol*atoms))
@@ -301,9 +299,8 @@ CONTAINS
      neighbourlist = 0
 
      !> OBTAIN COORDINATES, ENERGIES, STATES, etc. FROM PREVIOUS STEP
-     velocities_t = aom_env%velocities_t
      CALL translate_com(positions_tp, keyword_translate, positions_com_tp, local_particles, atomic_kinds = atomic_kinds)  
-     CALL translate_com(velocities_t, keyword_translate, velocities_com_tp, local_particles, atomic_kinds = atomic_kinds)  
+     CALL translate_com(aom_env%velocities_t, keyword_translate, velocities_com_tp, local_particles, atomic_kinds = atomic_kinds)  
      do coord=1,3
         crds(coord,:,1) = PACK(aom_env%rm_tm(coord,:), aom_env%ext_pres)
         crds(coord,:,2) = PACK(aom_env%rm_t(coord,:), aom_env%ext_pres)
@@ -320,8 +317,6 @@ CONTAINS
      Stt = aom_env%Stt
      H_t = aom_env%H_t
      ctin(:) = aom_env%ctin(:)
-     !NACE_ad_t = aom_env%adiab_nace_t
-     !aom_env%adiab_nace_t = 0.0D0
      aom_env%adiab_nace_t = aom_env%adiab_nace_tp
 
      !> CALCULATE THE CENTER OF MASS
@@ -360,6 +355,7 @@ CONTAINS
      !> CHECK IF WE ARE IN A POST-HOP RUN
      successful_hop = aom_env%successful_hop
 
+     if (.not.successful_hop) then
      !for each molecule
      do i=1,mol
                !create the array of all its atomic coordinates at t
@@ -540,7 +536,9 @@ CONTAINS
                   PC_allrvecs (3:5,((i-1)*atoms)+o) = PC_rvecs(:,o)
                end do
      end do !loop over i
+     endif 
 
+print*, "Sttp in main", Sttp
      !> CONVERT THE NACV WITH THE GOOD UNITS
      nacv = cbar*nacv
      !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
@@ -622,7 +620,7 @@ print*, "ctin", ctin
                            ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      IF (attempt_hop) THEN
          call calcforces(state=new_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
-                              scaling=scaling, cbar=cbar, Fin=F, forces_adiab=my_forces_adiab, &
+                              scaling=scaling, cbar=cbar, Fin=F, forces_adiab=my_forces_adiab_new, &
                               ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      ENDIF
 
@@ -672,7 +670,7 @@ print*, "ctin", ctin
          aom_env%Stmt  = Sttp
          aom_env%Stmtm = Stt
          IF (attempt_hop) THEN
-             aom_env%forces_adiab_new=my_forces_adiab
+             aom_env%forces_adiab_new = my_forces_adiab_new
              aom_env%active_state = active_state
              aom_env%NN = NN
              aom_env%Stptp = Stptp
@@ -680,19 +678,21 @@ print*, "ctin", ctin
              aom_env%diabatic_forces = F
              aom_env%scaling  = scaling
              aom_env%cbar     = cbar
+             aom_env%energy_new = E_tp(aom_env%new_state)
          ENDIF
+         energy_adiabat = E_tp(active_state)
      ELSE
+         aom_env%forces_adiab = aom_env%forces_adiab_new
+         aom_env%forces_adiab_new = 0.0D0
          aom_env%futur_decohere = .TRUE.
          aom_env%new_state = -1
          aom_env%old_state = -1
          aom_env%successful_hop = .FALSE.
+         energy_adiabat = aom_env%energy_new
      ENDIF
      aom_env%sh_print_env = sh_print_env
-     energy_adiabat = E_tp(active_state)
 
      !> DEALLOCATE
-     DEALLOCATE(velocities_t_prime)
-     DEALLOCATE(velocities_t) 
      deallocate(scoefftot, pcoefftot)
      deallocate(pcoeffsrun)
      deallocate(ctin)
