@@ -107,7 +107,8 @@ MODULE aom_initialization
 
      USE parallel_rng_types,           ONLY: UNIFORM,&
                                              create_rng_stream,&
-                                             delete_rng_stream
+                                             delete_rng_stream, &
+                                             rng_stream_type
 #include "./base/base_uses.f90"
 
      IMPLICIT NONE
@@ -149,6 +150,7 @@ CONTAINS
      LOGICAL    :: do_random
      REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
      INTEGER    :: input_seed
+     TYPE(rng_stream_type), POINTER           :: rng_stream
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_CONNECTIVITY",&
@@ -179,23 +181,26 @@ CONTAINS
      ALLOCATE(aom_env%diabatic_forces(3,natom, mat))
      ALLOCATE(aom_env%forces_adiab(3,natom))
      ALLOCATE(aom_env%forces_adiab_new(3,natom))
-     allocate(aom_env%adiab_nace_tp(mat,mat))
      ALLOCATE(aom_env%pcoeffs(aom_atoms,norbitals))
      ALLOCATE(aom_env%scoeffs(aom_atoms))
      allocate(aom_env%adiab_nace_t(mat,mat))
+     allocate(aom_env%adiab_nace_tp(mat,mat))
      ALLOCATE(aom_env%velocities_t(3, natom))
      aom_env%futur_decohere = .FALSE.
      allocate(aom_env%elements(c))
-     allocate(aom_env%adiab_nace_t(mat,mat))
+     !allocate(aom_env%adiab_nace_t(mat,mat))
 
 
      !> INITIALIZE THE RANDOM GENERATOR
      CALL section_vals_val_get(adiab_section,"SEED",i_val=input_seed)
      initial_seed(:,:) = REAL(input_seed,KIND=dp)
-     CALL create_rng_stream(rng_stream=aom_env%rng_stream,&
+     !CALL create_rng_stream(rng_stream=aom_env%rng_stream,&
+     CALL create_rng_stream(rng_stream=rng_stream,&
                              name="aom fssh",&
                              distribution_type=UNIFORM, &
                              seed=initial_seed)
+     ALLOCATE(aom_env%rng_stream)
+     aom_env%rng_stream = rng_stream
 
 
      !> READ THE AOM COEFFICIENT
@@ -562,7 +567,9 @@ CONTAINS
          CASE("DIABATIC")
              CALL section_vals_val_get(adiab_section,"FIRST_DIABAT", &
                                        i_val=first_diabat)
-             CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state, aom_env)
+             CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state, aom_env) 
+!an active state in needed for the nuclear propagation but the wafunction has to
+!start form an eigenvector of the hamiltonian in the diab_basis
 !ONLY FOR THE TEST
 active_state = 1 
             SELECT CASE(keyword_basis_repr)

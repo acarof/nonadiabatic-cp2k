@@ -153,6 +153,7 @@ IMPLICIT NONE
      LOGICAL                                     :: attempt_hop
      LOGICAL                                     :: successful_hop
 !> Adiabatic nace at time t and t-dt
+     !REAL(KIND=dp), dimension(:,:), POINTER      :: adiab_nace_tp, adiab_nace_t
      REAL(KIND=dp), dimension(:,:), POINTER      :: adiab_nace_tp, adiab_nace_t
      TYPE(sh_print_env_type)                     :: sh_print_env
      TYPE(rng_stream_type), POINTER              :: rng_stream

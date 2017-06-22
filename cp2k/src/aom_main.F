@@ -177,9 +177,10 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: X
-     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE_ad_t, NACE_ad_tp
+     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE_ad_t  !, NACE_ad_tp
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
-     LOGICAL                                      :: decohere, analytics
+    ! LOGICAL                                      :: decohere, analytics
+     LOGICAL                                      :: analytics
      INTEGER                                      :: new_state , ELsteps   
      REAL(KIND=dp)                                :: dR, times 
      REAL(KIND=dp)                                :: decohere_criterion
@@ -265,7 +266,7 @@ CONTAINS
      allocate(Stmtm(mat,mat))
      allocate(crds(3,c,3))
      allocate(NACE_ad_t(mat,mat))
-     allocate(NACE_ad_tp(mat,mat))
+     !allocate(NACE_ad_tp(mat,mat))
      !then the complex ones i.e. H matrices; combinations of H and S
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
      !For ease of calculation therefore, in this program,
@@ -557,7 +558,9 @@ CONTAINS
 
      !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
      CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, aom_env)
-     NACE_ad_tp = aom_env%adiab_nace_tp
+     !NACE_ad_tp = aom_env%adiab_nace_tp
+     NACE_ad_t = aom_env%adiab_nace_t
+     
      !TEST
      CALL make_adiabX(mol, E_t, NACE_ad_t, X)
      !ENDTEST
@@ -586,7 +589,7 @@ CONTAINS
      !The eigenvectors are needed to calculate the surface hopping probabilities
      !The surfacehop subroutine calculates these probabilites and decides on the
      !new (possibly unchanged) surface for simulation
-     decohere = .FALSE.
+     !decohere = .FALSE.
      sh_env%decohere = .FALSE.
      attempt_hop = .FALSE.
      IF (my_test_keyword) THEN   
