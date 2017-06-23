@@ -221,39 +221,14 @@ subroutine make_adiabX(mol, E_t, NACE_ad_t, X) !deltat, NACE)
         integer, intent(in) :: mol
         integer :: i, j
         REAL(KIND=dp), dimension(:,:), intent(in)     :: NACE_ad_t
-        !TYPE(aom_env_type), intent(in)             :: aom_env
         REAL(KIND=dp), DIMENSION(:), intent(in)     :: E_t
-        !REAL(KIND=dp), intent(in) :: deltat
-        !REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, Sttp, Sttm, Stptp, Stmtm
-        !REAL(KIND=dp), dimension(:,:), allocatable :: Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt
-        !REAL(KIND=dp), dimension(:,:), allocatable :: Sterm1, Sterm2, Splace1, Splace2
-        !COMPLEX(KIND=dp), dimension(:,:), intent(in) :: H
         COMPLEX(KIND=dp), dimension(:,:), allocatable, intent(out) :: X
-        !REAL(KIND=dp), dimension(:,:), intent(out), optional    :: NACE   
-        
         COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H
         REAL(KIND=dp), dimension(:,:), allocatable     :: my_NACE   
 
-        !allocate matrices
-        !allocate(Sttinvsqrt(mol,mol))
-        !allocate(Sttsqrt(mol,mol))
-        !allocate(Stptpinvsqrt(mol,mol))
-        !allocate(Stmtminvsqrt(mol,mol))
-        !allocate(Sterm1(mol,mol))
-        !allocate(Sterm2(mol,mol))
-        !allocate(Splace1(mol,mol))
-        !allocate(Splace2(mol,mol))
         allocate(H(mol,mol))
         allocate(my_NACE(mol,mol))
         allocate(X(mol,mol))
-
-
-        
-        !do i=1,mol
-        !    do j=1,mol
-        !        H(i,j) =  cmplx(0.0D0, 0.0D0, dp)
-        !    end do
-        !end do
 
         do i=1,mol
             do j=1,mol
@@ -267,24 +242,13 @@ subroutine make_adiabX(mol, E_t, NACE_ad_t, X) !deltat, NACE)
 
 print *, "ADIAB_HAMILTONIAN", H
 
-        !my_NACE = 0.0D0
-                    
 print *, "MY_NACE_NON_SIMM_NEWWW", NACE_ad_t
         my_NACE = (NACE_ad_t - TRANSPOSE(NACE_ad_t)) / 2
                 
 print *, "MY_NACE_SIMM_NEWWW", my_NACE
 
         X = H - my_NACE
-
 print *, "NEW_X_MATRIXX", X
-!> CHANGE_AC
-
-!        IF (PRESENT(NACE)) THEN
-!           NACE = my_NACE
-!print *, 'LOOK NACE=', NACE 
-!        ENDIF
-
-!        deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
 
 end subroutine make_adiabX
 
@@ -301,23 +265,17 @@ subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
        integer, intent(in) :: old_state
        REAL(KIND=dp), intent(in) :: deltat
-       !REAL(KIND=dp), dimension(:,:), allocatable :: dphi
-       !REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C1, C2
        INTEGER, INTENT(OUT)        :: new_state
        LOGICAL, INTENT(OUT)        :: attempt_hop
        TYPE(sh_print_env_type)     :: sh_print_env
        TYPE(sh_env_type)           :: sh_env
        TYPE(aom_env_type)          :: aom_env
-       !COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
-       !TYPE(aom_env_type)          :: aom_env
        
        CHARACTER(len=*), PARAMETER :: routineN ='surf_hop_type', &
                                routineP = moduleN//':'//routineN
 
        CHARACTER(LEN=default_string_length)           :: surfhop_keyword
-       !REAL(KIND=dp) :: triv_threshold
-
 
        CALL section_vals_val_get(adiab_section,"SURF_HOP_CHOICE", c_val=surfhop_keyword)
 
@@ -328,27 +286,16 @@ subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
 
        SELECT CASE(surfhop_keyword)
        CASE("TRIVIAL_HOP_CORRECT")
-
-       !CALL section_vals_val_get(adiab_section,"THRESHOLD_TRIVIAL_CROSS", r_val=triv_threshold)
-       !CALL modified_surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-       !                 sh_env, new_state, attempt_hop, decohere_criterion, &
-       !                sh_print_env) !triv_threshold)
-
-       CALL modified_surfacehop(Stt, C1, C2, deltat, old_state, &
+            CALL modified_surfacehop(Stt, C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
-              sh_print_env, aom_env) !triv_threshold)
+              sh_print_env, aom_env, adiab_section) !triv_threshold)
        CASE("UNMODIFIED_SURF_HOP")
-        
-       !CALL surfacehop(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
-       !                 sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
-       CALL  surfacehop(deltat, old_state, Stt, C2, &
-              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
-       
+            CALL  surfacehop(deltat, old_state, Stt, C2, &
+              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, &
+                                              aom_env, adiab_section)
        CASE DEFAULT
-         CPABORT("There is no method to add trivial crossing correction")
-       
+            CPABORT("There is no method to add trivial crossing correction")
        END SELECT
-
 END SUBROUTINE surf_hop_type
 
 
@@ -360,15 +307,17 @@ subroutine diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, C1, cttm_a
         integer, intent(in) :: old_state
         TYPE(sh_env_type) :: sh_env
         integer, intent(in) :: mol
-        COMPLEX(KIND=dp), dimension(:), allocatable , intent(out) :: ct
-        COMPLEX(KIND=dp), dimension(:), allocatable, optional, intent(out) ::  cttm_ad
+        !COMPLEX(KIND=dp), dimension(:), allocatable , intent(out) :: ct
+        COMPLEX(KIND=dp), dimension(:), intent(inout) :: ct
+        COMPLEX(KIND=dp), dimension(:), optional, intent(inout) ::  cttm_ad
+!        COMPLEX(KIND=dp), dimension(:), allocatable, optional, intent(out) ::  cttm_ad
         COMPLEX(KIND=dp), intent(out) :: cstate
         COMPLEX(KIND=dp), optional, intent(out) :: cstate_tm
 
         integer :: i, j!, mol!, k, l
 
-        allocate(ct(mol))
-        IF (PRESENT(cttm_ad)) allocate(cttm_ad(mol))
+!        allocate(ct(mol))
+!        IF (PRESENT(cttm_ad)) allocate(cttm_ad(mol))
 
 
         cstate = cmplx(0.0D0, 0.0D0, dp)
@@ -379,7 +328,6 @@ subroutine diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, C1, cttm_a
                      cstate_tm = cstate_tm + cmplx(C1(i,old_state),0.0D0,dp)*sh_env%cttm(i)
                 END IF
         end do
-!print *,  "CSTATE", cstate
         do i=1,mol
                 !calculate a and b
                 ct(i) = cmplx(0.0D0, 0.0D0,dp)
@@ -391,14 +339,14 @@ subroutine diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, C1, cttm_a
                         END IF
                 end do
         end do
-!print *, "Ctot", ct
+!print *, "CT_DIABTIC", ct
+print *, "CTM_1", cttm_ad
 
 end subroutine diab_to_adiab
 
 subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
-              sh_print_env, aom_env) !triv_threshold)
-
+              sh_print_env, aom_env, adiab_section) !triv_threshold)
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
 
@@ -407,29 +355,21 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         REAL(KIND=dp), INTENT(IN) :: decohere_criterion
         integer, intent(in) :: old_state
         REAL(KIND=dp), intent(in) :: deltat
-        !REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
         REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C1, C2
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type) :: sh_print_env
         TYPE(sh_env_type)       :: sh_env
         TYPE(aom_env_type), INTENT(IN)             :: aom_env
-        !TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
-        !TYPE(sh_env_type), INTENT(OUT) :: sh_env
-        !TYPE(aom_env_type)           :: aom_env
+        TYPE(section_vals_type), POINTER               :: adiab_section
+        CHARACTER(LEN=default_string_length)         :: wfpropag_keyword
 
-        LOGICAL        :: trivial_correction, correct_for_negative, adiabatic_prop
+        LOGICAL        :: trivial_correction, correct_for_negative 
         integer :: i, j, mol!, k, l
         REAL(KIND=dp) :: hop, sumg, ex_prob, min, g_exa, err
-        !REAL(KIND=dp) :: triv_threshold
-       ! REAL(KIND=dp), dimension(:,:), allocatable :: dphi
         REAL(KIND=dp), dimension(:), allocatable :: b, g
-        !REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
-       ! COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
         COMPLEX(KIND=dp), dimension(:), allocatable :: ct, cttm_ad
-        !COMPLEX(KIND=dp), dimension(:) :: ct, cttm_ad
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak, akttm
-        !COMPLEX(KIND=dp) :: cstate, cstate_tm
         COMPLEX(KIND=dp) :: cstate, cstate_tm
  
 
@@ -439,19 +379,10 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         allocate(ak(mol))
         allocate(b(mol))
         allocate(g(mol))
-       ! allocate(ct(mol))
-       ! allocate(cttm_ad(mol))
         allocate(akttm(mol))        
-
-      ! allocate(dphi(mol,mol))
-      ! allocate(T1(mol,mol))
-      ! allocate(T2(mol,mol))
-      ! allocate(DT(mol,mol))
-      ! allocate(TST(mol,mol))
-      ! allocate(TDT(mol,mol))
-      ! allocate(DS(mol,mol))
-      ! allocate(DC(mol,mol))
-       allocate(sh_env%enerdiff(mol)) 
+        allocate(sh_env%enerdiff(mol))
+        allocate(ct(mol))
+        allocate(cttm_ad(mol)) 
         
         ALLOCATE(sh_print_env%proba(mol))
 
@@ -490,82 +421,36 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
 
         sh_print_env%enermin = min
 
-
-!       !use the matinvsqrt subroutine to find T = S^(-1/2)
-!       T1 = Stmtm
-!       T2 = Stptp
-!       call matinvsqrt(mol, .TRUE., T1)
-!       call matinvsqrt(mol, .TRUE., T2)
-!
-!       !and do some straightforward first-order numerical derivatives
-!       DT = (0.5D0/deltat)*(T2 - T1)
-!       DS = (0.5D0/deltat)*(Sttp - Sttm)
-!       DC = (1.0D0/deltat)*(C2 - C1)
-!      
-!
-!rint *, "NACE_DIABATIC_FINITE_DIFFERENCE", DS 
-!       !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
-!       !by transforming from the diabatic overlaps
-!       do i=1,mol
-!               do j=1,mol
-!                       TST(i,j) = 0.0D0
-!                       TDT(i,j) = 0.0D0
-!                       do k=1,mol
-!                               do l=1,mol
-!                                       TST(i,j) = TST(i,j) + T1(k,i)*Stt(k,l)*DT(l,j)
-!                                       TDT(i,j) = TDT(i,j) + T1(k,i)*DS(k,l)*T1(l,j)
-!                               end do
-!                       end do
-!               end do
-!       end do
-!       do i=1,mol
-!               do j=1,mol
-!                       dphi(i,j) = 0.0D0
-!                       do k=1,mol
-!                               dphi(i,j) = dphi(i,j) + C2(k,i)*DC(k,j)
-!                               do l=1,mol
-!                                       dphi(i,j) = dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
-!rint *, "i,j coefficients", i, j
-!rint *, "NACE_ADIABATIC", dphi(i,j) 
-!                               end do
-!                       end do
-!               end do
-!       end do
-
-        !now also calculate the adiabatic electronic coefficients by transforming from the diabatic
-        !and fill out electronic density matrix elements a(i,j) for i = current adiabatic state
-!       cstate = cmplx(0.0D0, 0.0D0, dp)
-!       cstate_tm = cmplx(0.0D0, 0.0D0, dp)
-!       do i=1,mol
-!               cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
-!               cstate_tm = cstate_tm + cmplx(C1(i,old_state),0.0D0,dp)*sh_env%cttm(i)
-!       end do
-!rint *,  "CSTATE", cstate
-!       do i=1,mol
-!               !calculate a and b
-!               ct(i) = cmplx(0.0D0, 0.0D0,dp)
-!               cttm_ad(i) = cmplx(0.0D0, 0.0D0,dp)
-!               do j=1,mol
-!                       ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
-!                       cttm_ad(i) = cttm_ad(i) + cmplx(C1(j,i),0.0D0,dp)*sh_env%cttm(j)
-!               end do
-!       end do
-!rint *, "Ctot", ct
-!
-
 !if the propagation occurs in the diabatic basis, transfor diabatic coefficients
 !into adiabatic coefficients
-        adiabatic_prop = .TRUE.
-        if (adiabatic_prop) then 
+        CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
+                                                     c_val=wfpropag_keyword)
+        SELECT CASE(wfpropag_keyword)
+        CASE("DIABATIC_BASIS")
                CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, &
-                                                   C1, cttm_ad, cstate_tm) 
-        else
-!NOT YET READY FOR ADIAB PRPAGATION
+                                                   C1, cttm_ad, cstate_tm)
+print *, "CTM", cttm_ad 
+        CASE("ADIABATIC_BASIS")
                ct(:) = sh_env%ctt(:)
                cttm_ad(:) = sh_env%cttm(:)
                cstate = sh_env%ctt(old_state)
                cstate_tm = sh_env%cttm(old_state)
-        end if 
+print *, "CTM", cttm_ad 
+        CASE DEFAULT
+               CPABORT("There is no method to propagate the wavefunction.")
+        END SELECT
+
+!        adiabatic_prop = .TRUE.
+!        if (adiabatic_prop) then 
+!               CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, &
+!                                                   C1, cttm_ad, cstate_tm) 
+!        else
+!!NOT YET READY FOR ADIAB PRPAGATION
+!               ct(:) = sh_env%ctt(:)
+!               cttm_ad(:) = sh_env%cttm(:)
+!               cstate = sh_env%ctt(old_state)
+!               cstate_tm = sh_env%cttm(old_state)
+!        end if 
 
         do i=1,mol
                !construct state density for t present and t-deltat from the active state to
@@ -576,8 +461,6 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
 print *, "SINGLE_CICLE ak(i)", ak(i)
 print *, "SINGLE_CICLE akttm(i)", akttm(i)
 print *, "SINGLE_CICLE b(i)", b(i)
-
-!print*, "i b dphi", i, b(i), dphi(i, old_state)
         end do
 
 
@@ -586,10 +469,8 @@ print *, "SINGLE_CICLE b(i)", b(i)
         ex_prob = (abs(akttm(old_state))- abs(ak(old_state)))/abs(akttm(old_state))
         sh_print_env%exprob = ex_prob 
 
-
     ! calculate sumg that can also be negative because each individual probability
     ! (flux) could be negative 
-
         sumg = 0.0D0
         !calculate g and sum(g)
         do i=1,mol
@@ -597,11 +478,6 @@ print *, "SINGLE_CICLE b(i)", b(i)
               !g(i) is the probability to hop from the current state (old_state) to any other
               !state (i) 
                 g(i) = (deltat*b(i))/abs(ak(old_state))
-                
-               ! if (g(i) < 0.0D0) then
-               !         g(i) = 0.0D0
-               ! end if
-
                 if (i .ne. old_state) then
                         sumg = sumg + g(i)
                 end if
@@ -615,19 +491,10 @@ print *, "SINGLE_CICLE b(i)", b(i)
         
         err = abs(sumg - ex_prob)
         if (err >= 0.0D0) then      !WITHOUT THRESHOLD
-        !if (err >= triv_threshold) then !WITH THRESHOLD
                 trivial_correction = .TRUE.
                         if (trivial_correction) then  
                                 g_exa = ex_prob - sumg + g(sh_env%state_min)
-!                if (g_exa < 0.0D0) then
-!                        g_exa = 0.0D0
-!                end if
                                 g(sh_env%state_min) = g_exa
-!!                do i=1,mol
-!!                        if (i == sh_env%state_min) then
-!!                                g(i) = g_exa
-!!                        end if
-!!                end do 
                         end if
         end if
 
@@ -670,12 +537,7 @@ print *, "SINGLE_CICLE b(i)", b(i)
 !to move on in the trivial hopping correction we use rescaled g to avoid
 !unphysical number larger than 1. 
 
-        !call a random number
-        !call init_random_seed()
-        !call random_number(hop)
-        !CALL create_rng_stream(rng_stream, "fssh")
         hop = next_random_number(aom_env%rng_stream)
-        !CALL delete_rng_stream(rng_stream)
 
         sh_print_env%hop       = hop
         sh_print_env%old_state = old_state
@@ -726,18 +588,7 @@ print *, "SINGLE_CICLE b(i)", b(i)
         deallocate(ak)
         deallocate(b)
         deallocate(G)
-        !deallocate(ct)
         deallocate(akttm)
-        !deallocate(cttm_ad)
-
-       !deallocate(dphi)
-       !deallocate(T1)
-       !deallocate(T2)
-       !deallocate(DT)
-       !deallocate(TST)
-       !deallocate(TDT)
-       !deallocate(DS)
-       !deallocate(DC)
 
 end subroutine modified_surfacehop
 
@@ -750,13 +601,7 @@ subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, aom_en
 
         REAL(KIND=dp), intent(in) :: deltat
         REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
-        !REAL(KIND=dp), dimension(:,:), allocatable, intent(out) :: dphi
         TYPE(aom_env_type), INTENT(OUT) :: aom_env
-!        INTEGER, INTENT(OUT)        :: new_state
-!        LOGICAL, INTENT(OUT)        :: attempt_hop
-!        TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
-!        TYPE(sh_env_type), INTENT(OUT) :: sh_env
-!        TYPE(aom_env_type)           :: aom_env
 
         integer :: i, j, mol, k, l
         REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
@@ -765,7 +610,6 @@ subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, aom_en
         mol = size(Stt,1)
 
         !many allocations
-!        allocate(aom_env%adiab_nace_tp(mol,mol))
         allocate(T1(mol,mol))
         allocate(T2(mol,mol))
         allocate(DT(mol,mol))
@@ -788,16 +632,8 @@ subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, aom_en
         DC = (1.0D0/deltat)*(C2 - C1)
 print*, "Sttp", Sttp
 print*, "Sttm", Sttm
-!print *, "Sttp", Sttp
-!print *, "Stt", Stt
-!print *, "Stptp", Stptp
-!print *, "Sttm", Sttm
-!print *, " Stmtm", Stmtm
 print *, "C1", C1
 print *, "C2", C2
-
-
-!stop
 print *, "DT", DT
 print *, "DS", DS
 print *, "DC", DC
@@ -835,7 +671,6 @@ print *, "NACE_ADIABATIC", aom_env%adiab_nace_tp(i,j)
                 end do
         end do
 
-!        deallocate(aom_env%adiab_nace_tp)
         deallocate(T1)
         deallocate(T2)
         deallocate(DT)
@@ -847,7 +682,8 @@ print *, "NACE_ADIABATIC", aom_env%adiab_nace_tp(i,j)
 end subroutine calc_adiab_nace
 
 subroutine surfacehop(deltat, old_state, Stt, C2, &
-              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
+              sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, &
+                                                     aom_env, adiab_section)
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
@@ -857,21 +693,19 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         REAL(KIND=dp), INTENT(IN) :: decohere_criterion
         integer, intent(in) :: old_state
         REAL(KIND=dp), intent(in) :: deltat
-        !REAL(KIND=dp), dimension(:,:),  allocatable, intent(in) :: dphi
-        !REAL(KIND=dp), dimension(:,:) :: dphi
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
         TYPE(sh_env_type), INTENT(OUT) :: sh_env
         TYPE(aom_env_type), INTENT(IN)              :: aom_env
+        TYPE(section_vals_type), POINTER               :: adiab_section
 
-        logical :: adiabatic_prop
+        !logical :: adiabatic_prop
+        CHARACTER(LEN=default_string_length)         :: wfpropag_keyword
         REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C2
         integer :: i, j, mol !, k, l
         REAL(KIND=dp) :: hop, sumg
         REAL(KIND=dp), dimension(:), allocatable :: b, g
-        !REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
-        !COMPLEX(KIND=dp), dimension(:), intent(in) :: sh_env%ctt
         COMPLEX(KIND=dp), dimension(:), allocatable :: ct
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak
         COMPLEX(KIND=dp) :: cstate
@@ -882,91 +716,32 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         allocate(ak(mol))
         allocate(b(mol))
         allocate(g(mol))
-        !allocate(ct(mol))
-       ! allocate(dphi(mol,mol))
-       ! allocate(T1(mol,mol))
-       ! allocate(T2(mol,mol))
-       ! allocate(DT(mol,mol))
-        !allocate(TST(mol,mol))
-       ! allocate(TDT(mol,mol))
-        !allocate(DS(mol,mol))
-        !allocate(DC(mol,mol))
-
         ALLOCATE(sh_print_env%proba(mol))
+        allocate(ct(mol))
 
+        CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
+                                                     c_val=wfpropag_keyword)
 
-!       !use the matinvsqrt subroutine to find T = S^(-1/2)
-!       T1 = Stmtm
-!       T2 = Stptp
-!       call matinvsqrt(mol, .TRUE., T1)
-!       call matinvsqrt(mol, .TRUE., T2)
-!
-!       !and do some straightforward first-order numerical derivatives
-!       DT = (0.5D0/deltat)*(T2 - T1)
-!       DS = (0.5D0/deltat)*(Sttp - Sttm)
-!       DC = (1.0D0/deltat)*(C2 - C1)
-!       
-!       print *, "NACE_FINTE_DIFF", DS
-!
-!       !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
-!       !by transforming from the diabatic overlaps
-!       do i=1,mol
-!               do j=1,mol
-!                       TST(i,j) = 0.0D0
-!                       TDT(i,j) = 0.0D0
-!                       do k=1,mol
-!                               do l=1,mol
-!                                       TST(i,j) = TST(i,j) + T1(k,i)*Stt(k,l)*DT(l,j)
-!                                       TDT(i,j) = TDT(i,j) + T1(k,i)*DS(k,l)*T1(l,j)
-!                               end do
-!                       end do
-!               end do
-!       end do
-!       do i=1,mol
-!               do j=1,mol
-!                       dphi(i,j) = 0.0D0
-!                       do k=1,mol
-!                               dphi(i,j) = dphi(i,j) + C2(k,i)*DC(k,j)
-!                               do l=1,mol
-!                                       dphi(i,j) = dphi(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
-!rint *, "i,j coefficients", i, j
-!rint *, "NACE_ADIABATIC", dphi(i,j) 
-!                               end do
-!                       end do
-!               end do
-!       end do
+        SELECT CASE(wfpropag_keyword)
+        CASE("DIABATIC_BASIS")
+            CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct)
+        CASE("ADIABATIC_BASIS")
+            ct(:) = sh_env%ctt(:)
+            cstate = sh_env%ctt(old_state)
+        CASE DEFAULT
+           CPABORT("There is no method to propagate the wavefunction.")
+        END SELECT
 
+!       else
 
-
-
-        !now also calculate the adiabatic electronic coefficients by transforming from the diabatic
-        !and fill out electronic density matrix elements a(i,j) for i = current adiabatic state
-!       cstate = cmplx(0.0D0, 0.0D0, dp)
-!       do i=1,mol
-!               cstate = cstate + cmplx(C2(i,old_state), 0.0D0,dp)*sh_env%ctt(i)
-!       end do
-!       do i=1,mol
-!               !calculate a and b
-!               ct(i) = cmplx(0.0D0, 0.0D0,dp)
-!               do j=1,mol
-!                       ct(i) = ct(i) + cmplx(C2(j,i), 0.0D0,dp)*sh_env%ctt(j)
-!               end do
-!       end do
-        adiabatic_prop = .TRUE.
-        if (adiabatic_prop) then 
-               CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct) 
-               !CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, &
-                !                                   C1, cttm_ad, cstate_tm) 
-        else
 !NOT YET READY FOR ADIAB PRPAGATION
-               ct(:) = sh_env%ctt(:)
-               cstate = sh_env%ctt(old_state)
-        end if 
+!               ct(:) = sh_env%ctt(:)
+ !              cstate = sh_env%ctt(old_state)
+!        end if 
 
         do i=1,mol
                 ak(i) = ct(i)*conjg(cstate)
                 b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
-!print*, "i b dphi", i, b(i), dphi(i, old_state)
 print *, "SINGLE_CICLE ak(i)", ak(i)
 print *, "SINGLE_CICLE b(i)", b(i)
         end do
@@ -974,7 +749,6 @@ print *, "SINGLE_CICLE b(i)", b(i)
         sumg = 0.0D0
         !calculate g and sum(g)
         do i=1,mol
-!print*, "deltat b ak", i, deltat, b(i), abs(ak(old_state))
                 g(i) = (deltat*b(i))/abs(ak(old_state))
 print *, "Probability_INIT: ", i, g(i)
                 !as in Tully, set negative probabilities to 0
@@ -1009,12 +783,7 @@ print *, "Probability_RENORM: ", g
 !> CHANGE_AC
         sh_print_env%proba     = g
 
-        !call a random number
-        !call init_random_seed()
-        !call random_number(hop)
-        !CALL create_rng_stream(rng_stream, "fssh")
         hop = next_random_number(aom_env%rng_stream)
-        !CALL delete_rng_stream(rng_stream)
 
         sh_print_env%hop       = hop
         sh_print_env%old_state = old_state
@@ -1025,7 +794,6 @@ print *, "Probability_RENORM: ", g
                 if (hop <= sumg) then
                         if (i .ne. old_state) then
                                 new_state = i
-!                                write(24,*) i                        
                                ! decohere = .FALSE.
                                 sh_env%decohere = .FALSE.
                                 attempt_hop = .TRUE.
@@ -1069,15 +837,6 @@ print *, "Probability_RENORM: ", g
         deallocate(ak)
         deallocate(b)
         deallocate(G)
-!        deallocate(ct)
-!        deallocate(dphi)
-!        deallocate(T1)
-!        deallocate(T2)
-!        deallocate(DT)
-!        deallocate(TST)
-!        deallocate(TDT)
-!        deallocate(DS)
-!        deallocate(DC)
 end subroutine surfacehop
 
 subroutine init_random_seed()

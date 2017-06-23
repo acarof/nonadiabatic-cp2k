@@ -1,11 +1,14 @@
 #!/usr/bin/bash
 
+#you need to be inside the reg-test directory and run the script as:
+# ./scripts/do-regtest-trimer-bo-with-checkout.sh trimer-bo/(system) here(version)
+
 system=$1
 version=$2
 
-MAIN_PATH=/scratch/acarof/src/CP2K/flavoured-cptk
-MAIN_PATH=/scratch/grudorff/antoine/GIT/CP2K/flavoured-cptk/nonadiabatic
-#MAIN_PATH=/scratch/sgiannini/CODE_versions/adiab_propagation/flavoured-cptk/
+#MAIN_PATH=/scratch/acarof/src/CP2K/flavoured-cptk
+#MAIN_PATH=/scratch/grudorff/antoine/GIT/CP2K/flavoured-cptk/nonadiabatic
+MAIN_PATH=/scratch/sgiannini/CODE_versions/new_adiabatic_prop/flavoured-cptk
 
 # prepare build enviromnent
 source ${MAIN_PATH}/cp2k/tools/toolchain/install/setup
@@ -44,8 +47,10 @@ cd ..
 
 # check against baseline
 python scripts/reg_test_TRIMER.py $system current > new/reg_test_result.txt
+echo "okay"
 
 # store results
+mkdir ${system}/results
 var1=$(grep "git:" new/run.log | head -1 | awk '{ print $6 }')
 mv new ${system}/results/$(date '+%Y%m%d-%H%M-TRIMER-')$var1
 

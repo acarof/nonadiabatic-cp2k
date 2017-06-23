@@ -176,8 +176,8 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
-     COMPLEX(KIND=dp), dimension(:,:), allocatable :: X
-     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE_ad_t  !, NACE_ad_tp
+     !COMPLEX(KIND=dp), dimension(:,:), allocatable :: X
+     !REAL(KIND=dp), dimension(:,:), allocatable      :: NACE_ad_t  !, NACE_ad_tp
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
     ! LOGICAL                                      :: decohere, analytics
      LOGICAL                                      :: analytics
@@ -265,7 +265,7 @@ CONTAINS
      allocate(Sttm(mat,mat))
      allocate(Stmtm(mat,mat))
      allocate(crds(3,c,3))
-     allocate(NACE_ad_t(mat,mat))
+     !allocate(NACE_ad_t(mat,mat))
      !allocate(NACE_ad_tp(mat,mat))
      !then the complex ones i.e. H matrices; combinations of H and S
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
@@ -559,10 +559,10 @@ CONTAINS
      !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
      CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, aom_env)
      !NACE_ad_tp = aom_env%adiab_nace_tp
-     NACE_ad_t = aom_env%adiab_nace_t
+     !NACE_ad_t = aom_env%adiab_nace_t
      
      !TEST
-     CALL make_adiabX(mol, E_t, NACE_ad_t, X)
+     !CALL make_adiabX(mol, E_t, NACE_ad_t, X)
      !ENDTEST
      sh_env%cttm(:) = ctin(:)
      CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
