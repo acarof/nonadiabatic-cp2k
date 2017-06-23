@@ -50,7 +50,7 @@ python scripts/reg_test_TRIMER.py $system current > new/reg_test_result.txt
 echo "okay"
 
 # store results
-mkdir ${system}/results
+#mkdir ${system}/results to comment if it is already present 
 var1=$(grep "git:" new/run.log | head -1 | awk '{ print $6 }')
 mv new ${system}/results/$(date '+%Y%m%d-%H%M-TRIMER-')$var1
 
