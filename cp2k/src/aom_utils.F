@@ -996,9 +996,10 @@ subroutine adiabaticity(H, mol, C, E, print, sh_env)
 
 end subroutine adiabaticity
 
-SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symmetry, fast, &
+SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmetry, fast, &
                          exF_11, exF_1, exF_2, exF_3)
-        TYPE(force_env_type), POINTER                            :: force_env
+        !TYPE(aom_env_type), POINTER                            :: aom_env
+        TYPE(aom_env_type)                                       :: aom_env
         REAL(kind=dp), DIMENSION(:,:), INTENT(OUT), ALLOCATABLE  :: hop_nacv
         INTEGER, OPTIONAL                                        :: ext_old_state, ext_new_state
         CHARACTER(len=*), OPTIONAL                               :: symmetry
@@ -1027,10 +1028,10 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
         LOGICAL                                    :: my_fast
         REAL(KIND = dp)                            :: error_f1, error_f11, error_f2, error_f22, error_f3
 
-        mat    = SIZE(force_env%mixed_env%aom_env%Stptp, 1)
-        natom  = SIZE(force_env%mixed_env%aom_env%diabatic_forces, 2)
-        nadiab = SIZE(force_env%mixed_env%aom_env%diabatic_forces, 3)
-        atoms  = SIZE(force_env%mixed_env%aom_env%connlist1, 2)
+        mat    = SIZE(aom_env%Stptp, 1)
+        natom  = SIZE(aom_env%diabatic_forces, 2)
+        nadiab = SIZE(aom_env%diabatic_forces, 3)
+        atoms  = SIZE(aom_env%connlist1, 2)
 
         my_fast = .FALSE.
         IF (PRESENT(fast)) my_fast = fast
@@ -1058,27 +1059,27 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
         allocate(Fin(3,natom, mat))
         allocate(hop_nacv(3, natom)) 
 
-        scaling = force_env%mixed_env%aom_env%scaling
-        cbar = force_env%mixed_env%aom_env%cbar
-        NN = force_env%mixed_env%aom_env%NN
-        S = force_env%mixed_env%aom_env%Stptp
-        C = force_env%mixed_env%aom_env%eigenvector_matrix
+        scaling = aom_env%scaling
+        cbar = aom_env%cbar
+        NN = aom_env%NN
+        S = aom_env%Stptp
+        C = aom_env%eigenvector_matrix
         
-        nacv = force_env%mixed_env%aom_env%nacv
-        Fin = force_env%mixed_env%aom_env%diabatic_forces
-        ext_pres = force_env%mixed_env%aom_env%ext_pres       
+        nacv = aom_env%nacv
+        Fin = aom_env%diabatic_forces
+        ext_pres = aom_env%ext_pres       
         IF (PRESENT(ext_old_state)) THEN
            old_state = ext_old_state
         ELSE
-           old_state = force_env%mixed_env%aom_env%active_state
+           old_state = aom_env%active_state
         ENDIF
         IF (PRESENT(ext_new_state)) THEN
            new_state = ext_new_state 
         ELSE
-           new_state = force_env%mixed_env%aom_env%new_state
+           new_state = aom_env%new_state
         ENDIF
-        E_old_state = force_env%mixed_env%aom_env%adiab_energies_t(old_state)
-        E_new_state = force_env%mixed_env%aom_env%adiab_energies_t(new_state)
+        E_old_state = aom_env%adiab_energies_t(old_state)
+        E_new_state = aom_env%adiab_energies_t(new_state)
 
         IF (E_old_state.EQ.E_new_state) THEN
            diff_energy = 0.0D0
@@ -1874,10 +1875,11 @@ end subroutine calcTDT
               CASE("TEST")
                  old_state = force_env%mixed_env%aom_env%active_state
                  new_state = force_env%mixed_env%aom_env%new_state
-                 CALL calc_hop_nacv( force_env, hop_nacv_oldold, old_state, old_state, "OLDOLD")
-                 CALL calc_hop_nacv( force_env, hop_nacv_newnew, new_state, new_state, "NEWNEW")
-                 CALL calc_hop_nacv( force_env, hop_nacv_newold, new_state, old_state, "NEWOLD")
-                 CALL calc_hop_nacv( force_env, hop_nacv_oldnew, old_state, new_state, "OLDNEW")
+                 !aom_env=force_env%mixed_env%aom_env
+                 CALL calc_hop_nacv( force_env%mixed_env%aom_env, hop_nacv_oldold, old_state, old_state, "OLDOLD")
+                 CALL calc_hop_nacv( force_env%mixed_env%aom_env, hop_nacv_newnew, new_state, new_state, "NEWNEW")
+                 CALL calc_hop_nacv( force_env%mixed_env%aom_env, hop_nacv_newold, new_state, old_state, "NEWOLD")
+                 CALL calc_hop_nacv( force_env%mixed_env%aom_env, hop_nacv_oldnew, old_state, new_state, "OLDNEW")
                  CALL adiab_print_hop_nacv(sh_print_env, hop_nacv_oldold, &
                                   hop_nacv_newnew, hop_nacv_newold, hop_nacv_oldnew) 
                  print*, "ERRORASYM = ", SUM( (hop_nacv_oldnew + hop_nacv_newold ) **2 )
@@ -1887,7 +1889,7 @@ end subroutine calcTDT
                                              SUM(hop_nacv_oldnew(2,:) - hop_nacv_newold(2,:)) / 2,  &
                                              SUM(hop_nacv_oldnew(3,:) - hop_nacv_newold(3,:)) / 2
               CASE("CONTRIBUTION")
-                 CALL calc_hop_nacv( force_env, hop_nacv, exF_11 = F_11, exF_1 = F_1, exF_2 = F_2, exF_3 =F_3)
+                 CALL calc_hop_nacv( force_env%mixed_env%aom_env, hop_nacv, exF_11 = F_11, exF_1 = F_1, exF_2 = F_2, exF_3 =F_3)
                  print*, "totalnacv =" , SUM(hop_nacv(1,:)),  SUM(hop_nacv(2,:)), SUM(hop_nacv(3,:))
                  print*, "totalnacvF1 =" , SUM(F_1(1,:)),  SUM(F_1(2,:)), SUM(F_1(3,:))
                  print*, "totalnacvFF1 =" , SUM(F_1(1,:) + F_11(1,:)), &
@@ -1913,10 +1915,10 @@ ELSE
 ENDIF
      
               CASE("TOTAL")
-                 CALL calc_hop_nacv( force_env, hop_nacv)
+                 CALL calc_hop_nacv( force_env%mixed_env%aom_env, hop_nacv)
                  CALL adiab_print_hop_nacv(sh_print_env, hop_nacv) 
               CASE("FAST")
-                 CALL calc_hop_nacv( force_env, hop_nacv, fast=.TRUE.)
+                 CALL calc_hop_nacv( force_env%mixed_env%aom_env, hop_nacv, fast=.TRUE.)
                  CALL adiab_print_hop_nacv(sh_print_env, hop_nacv) 
               CASE DEFAULT
                 CPABORT("There is no method to calculate the NACV.")

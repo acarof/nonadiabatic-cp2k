@@ -453,6 +453,7 @@ CONTAINS
 !> CHANGE_AC
     INTEGER                                  :: mixing_type
     TYPE(section_vals_type), POINTER         :: mixed_section, force_env_section
+    !TYPE(aom_env_type), POINTER              :: aom_env
 !    TYPE(md_ener_type), POINTER              :: md_ener
 !> END
 
