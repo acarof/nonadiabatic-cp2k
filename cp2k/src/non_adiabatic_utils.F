@@ -85,6 +85,7 @@ CONTAINS
                                        routineP = moduleN//':'//routineN
 
         CHARACTER(LEN=default_string_length)           :: deco_keyword
+        CHARACTER(LEN=default_string_length)           :: wfprop_keyword
         INTEGER, POINTER                               :: itimes
         INTEGER                                        :: mol
 
@@ -98,24 +99,52 @@ CONTAINS
 
         REAL(kind=dp), INTENT(OUT)                         :: K_tot
 
+        CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
+                                                     c_val=wfprop_keyword)
         CALL section_vals_val_get(adiab_section,"DECOHERENCE_CORRECTIONS",c_val=deco_keyword)
         
-        SELECT CASE(deco_keyword)                                                          
-        CASE("NO_DECO_CORR")
-             PRINT *, 'NO DECOHERENCE CORRECTIONS'
-        CASE("INSTANT_COLLAPSE")
-          CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes)
-        CASE("TRESH_ONLY_COLLAPSE")  
-          CALL  wf_tresh_collaps(sh_print_env, sh_env, itimes)
-        CASE("DAMPING")
-          CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
-          CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
-          CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
-                                nparticle_kind, atomic_kind_set, K_tot, ext_pres)
-          CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)
-        CASE DEFAULT                                           
-          CPABORT("There is no method to add the decoherence.") 
-        END SELECT                                             
+        SELECT CASE(wfprop_keyword)
+        CASE("DIABATIC_BASIS")   
+            SELECT CASE(deco_keyword)                                                          
+            CASE("NO_DECO_CORR")
+                 PRINT *, 'NO DECOHERENCE CORRECTIONS'
+            CASE("INSTANT_COLLAPSE")
+              CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes)
+            CASE("TRESH_ONLY_COLLAPSE")  
+              CALL  wf_tresh_collaps(sh_print_env, sh_env, itimes)
+            CASE("DAMPING")
+              CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
+              CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
+              CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
+                                    nparticle_kind, atomic_kind_set, K_tot, ext_pres)
+              CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)
+            CASE DEFAULT                                           
+              CPABORT("There is no method to add the decoherence.") 
+            END SELECT
+        CASE("ADIABATIC_BASIS")
+            SELECT CASE(deco_keyword)                                                          
+            CASE("NO_DECO_CORR")
+                 PRINT *, 'NO DECOHERENCE CORRECTIONS'
+            CASE("INSTANT_COLLAPSE")
+              !CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes)
+              CALL wf_collapse_adiab_prop(aom_env,sh_print_env, sh_env, itimes)
+            CASE("TRESH_ONLY_COLLAPSE")  
+              print *, "NOT IMPLEMENTED"
+            CASE("DAMPING")
+              CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
+              CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
+              CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
+                                    nparticle_kind, atomic_kind_set, K_tot, ext_pres)
+              !CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)
+              CALL wf_damping_adiab_prop(C_param, E_0_param, sh_env, mol, deltatMD, & 
+                                                              K_tot, sh_print_env)
+            CASE DEFAULT                                           
+              CPABORT("There is no method to add the decoherence.") 
+            END SELECT
+        CASE DEFAULT
+           CPABORT("Choose REPRESENTATION, only: DIABATIC_BASIS or ADIABATIC_BASIS")
+        END SELECT
+
   END SUBROUTINE decohere_wf
 
 
@@ -239,12 +268,12 @@ CONTAINS
                 !end do
 
 !Damp the coefficients of the states different from the active state    
-               pop(i) = sh_env%ctin(i)*conjg(sh_env%ctin(i))
+               !pop(i) = sh_env%ctin(i)*conjg(sh_env%ctin(i))
     
                 !ct(i) = ct(i)
                 sh_env%ctin(i) = sh_env%ctin(i)*exp(-(deltatMD/tau(i)))
     
-                pop(i) = sh_env%ctin(i)*conjg(sh_env%ctin(i))
+                !pop(i) = sh_env%ctin(i)*conjg(sh_env%ctin(i))
     
                 sum = sum + abs(sh_env%ctin(i))*abs(sh_env%ctin(i))
            else
@@ -254,14 +283,14 @@ CONTAINS
 
     sh_print_env%tau_deco = tau
 !transfor the active diabatic state into the active adiabatic state
-    pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
+    !pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
    ! ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
     !do i=1,mol                                                       
      !      ct(sh_env%active_state) = ct(sh_env%active_state) + &
       !       cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
     !end do  
     
-    pop(sh_env%active_state) = sh_env%ctin(sh_env%active_state)*conjg(sh_env%ctin(sh_env%active_state))
+   ! pop(sh_env%active_state) = sh_env%ctin(sh_env%active_state)*conjg(sh_env%ctin(sh_env%active_state))
     
 !transfer population to the active state for keeping the detailed balance   
     if (sh_env%ctin(sh_env%active_state)== 0) then

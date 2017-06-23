@@ -696,7 +696,7 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
-        TYPE(sh_env_type), INTENT(OUT) :: sh_env
+        TYPE(sh_env_type)          :: sh_env
         TYPE(aom_env_type), INTENT(IN)              :: aom_env
         TYPE(section_vals_type), POINTER               :: adiab_section
 
