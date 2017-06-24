@@ -134,7 +134,8 @@ IMPLICIT NONE
 !             translate_com
              translate_com,       &
              surf_hop_type,    &
-             calc_adiab_nace
+             calc_adiab_nace, &
+             calc_hop_nacv
 
 CONTAINS
   
@@ -183,12 +184,12 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         Splace1 = Stptpinvsqrt - Stmtminvsqrt
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttsqrt, mol, Splace1, mol, 0.0D0, Sterm1, mol)
 
-print *, "TERM1_TST", Sterm1
+!print *, "TERM1_TST", Sterm1
         !second term: Sttinvsqrt*(Sttp - Sttm)*Sttinvsqrt
         Splace1 = Sttp - Sttm
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Splace1, mol, Sttinvsqrt, mol, 0.0D0, Splace2, mol)
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
-print *, "TERM2_TDT", Sterm1
+!print *, "TERM2_TDT", Sterm1
 !ADD: SYMMETRIZE NACE
         my_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2)
 
@@ -203,7 +204,7 @@ print *, "MY_NACE_SIMM", my_NACE
 
         IF (PRESENT(NACE)) THEN
            NACE = my_NACE
-print *, 'LOOK NACE=', NACE 
+!print *, 'LOOK NACE=', NACE 
         ENDIF
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
@@ -652,9 +653,9 @@ print *, "DC", DC
                         end do
                 end do
         end do
-print *, "TERM1_TST", TST
-print *, "TERM2_TDT", TDT
-print *, "DIAB_NACE", (TST + TDT)
+!print *, "TERM1_TST", TST
+!print *, "TERM2_TDT", TDT
+!print *, "DIAB_NACE", (TST + TDT)
         do i=1,mol
                 do j=1,mol
                         aom_env%adiab_nace_tp(i,j) = 0.0D0
@@ -664,8 +665,8 @@ print *, "DIAB_NACE", (TST + TDT)
                                 do l=1,mol
                                         aom_env%adiab_nace_tp(i,j) = & 
                           aom_env%adiab_nace_tp(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
-print *, "i,j coefficients", i, j
-print *, "NACE_ADIABATIC", aom_env%adiab_nace_tp(i,j) 
+!print *, "i,j coefficients", i, j
+!print *, "NACE_ADIABATIC", aom_env%adiab_nace_tp(i,j) 
                                 end do
                         end do
                 end do
@@ -1060,13 +1061,20 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
         allocate(hop_nacv(3, natom)) 
 
         scaling = aom_env%scaling
+print *, "scaling", scaling
         cbar = aom_env%cbar
+print *, "cbar", cbar
         NN = aom_env%NN
+print *, "NN", NN
         S = aom_env%Stptp
+print *, "SMATRIX", aom_env%Stptp
         C = aom_env%eigenvector_matrix
+print *, "aom_env%eigenvector_matrix", aom_env%eigenvector_matrix
         
         nacv = aom_env%nacv
+!print *, "aom_env%nacv", aom_env%nacv
         Fin = aom_env%diabatic_forces
+!print *, "aom_env%diabatic_forces", aom_env%diabatic_forces
         ext_pres = aom_env%ext_pres       
         IF (PRESENT(ext_old_state)) THEN
            old_state = ext_old_state
@@ -1079,8 +1087,9 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
            new_state = aom_env%new_state
         ENDIF
         E_old_state = aom_env%adiab_energies_t(old_state)
+print *, "E_old_state(i)", E_old_state
         E_new_state = aom_env%adiab_energies_t(new_state)
-
+print *, "E_new_state(j)", E_new_state
         IF (E_old_state.EQ.E_new_state) THEN
            diff_energy = 0.0D0
         ELSE
@@ -1752,6 +1761,17 @@ end subroutine calcTDT
     kinetic_energy_prime = 0.5*kinetic_energy_prime
 
    END SUBROUTINE calc_velocities_prime
+
+
+
+  !SUBROUTINE adiab_nace_from_nacv(velocities_com_tp, )
+  !      REAL(kind=dp), DIMENSION(:,:)        :: velocities_com_tp
+        
+
+
+  !END SUBROUTINE adiab_nace_from_nacv
+
+
 
 
    SUBROUTINE check_hop_attempt(velocities, atomic_kind_set, nparticle_kind, local_particles, &

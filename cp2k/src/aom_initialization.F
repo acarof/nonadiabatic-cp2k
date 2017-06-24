@@ -58,7 +58,8 @@ MODULE aom_initialization
                                              choose_firstadiabat, &
                                              simple_vel_rescaling, &
                                              translate_com, &
-                                             calc_adiab_nace
+                                             calc_adiab_nace, &
+                                              calc_hop_nacv
 
      USE aom_types,                    ONLY: aom_env_type, &
                                                 sh_print_env_type
@@ -264,6 +265,8 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN ='propagate_aom_namd_first_step', &
      routineP = moduleN//':'//routineN
 
+     REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
+     INTEGER                                        :: iparticle 
      TYPE(sh_env_type)                              :: sh_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      integer :: coord, t2
@@ -283,7 +286,7 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp
-     REAL(KIND=dp), dimension(:,:), allocatable   :: NACE_ad_tp
+     !REAL(KIND=dp), dimension(:,:), allocatable   :: NACE_ad_tp
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_tp
      LOGICAL                                      :: decohere, analytics
      INTEGER                                      :: new_state , ELsteps   
@@ -365,7 +368,7 @@ CONTAINS
      !first the real, S-related ones
      allocate(Stptp(mat,mat))
      allocate(crds(3,c,3))
-     allocate(NACE_ad_tp(mat,mat))
+     !allocate(NACE_ad_tp(mat,mat))
      !then the complex ones i.e. H matrices; combinations of H and S
      !Note that in the solution to the Schroedinger equation, the H term is -i*H
      !For ease of calculation therefore, in this program,
@@ -536,16 +539,35 @@ CONTAINS
      enddo !loop-over i
 
 
-     !INITIALIZE NACE
-!ONLY FOR THE TEST 
-     aom_env%adiab_nace_tp = 0.0D0 
+ 
 
 
-     !> CONVERT NACV AND CALCULATE EIGENPROPERTIES
+     !> CONVERT NACV AND CALCULATE EIGENPROPERTIES 
+     !> THESE ASSOCIATIONS ARE NEEDED FOR THE NACV CALC
      nacv = cbar*nacv
      CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
+     aom_env%adiab_energies_t = E_tp
+print *, "EIGENVALUES", E_tp
+     aom_env%eigenvector_matrix = C_tp
+     aom_env%Stptp = Stptp
+     aom_env%scaling  = scaling
+     aom_env%cbar     = cbar
+     aom_env%nacv = nacv
+     aom_env%NN = NN
+     
+     
+     
+     !> first part: CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE RESULT OF THE SURFACE
+     !> HOP ROUTINE IS. 
+     DO imol=1,mol
+        DO iatom=1, natom
+           F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
+        ENDDO
+     ENDDO
 
+     aom_env%diabatic_forces = F
+!print *, "FOCES_DIAB", F
 
      !> PRINT 
      CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
@@ -570,8 +592,10 @@ CONTAINS
              CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state, aom_env) 
 !an active state in needed for the nuclear propagation but the wafunction has to
 !start form an eigenvector of the hamiltonian in the diab_basis
+
 !ONLY FOR THE TEST
-active_state = 1 
+active_state = 1
+ 
             SELECT CASE(keyword_basis_repr)
              CASE("DIABATIC_BASIS")
                  ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
@@ -613,14 +637,89 @@ active_state = 1
          IF ((new_state).EQ.0) new_state = mat
      ENDIF 
 
+     !INITIALIZE NACE
+!!ONLY FOR THE TEST 
+!    aom_env%adiab_nace_tp = 0.0D0
+!    !B = aom_env%adiab_nace_tp
+!    do i =1, mat
+!        do j = 1, mat
+!             if (j .gt. i) then
+!                 CALL calc_hop_nacv(aom_env, hop_nacv, i, j, fast=.TRUE.)
+!print *, "NACV_PRINTED", hop_nacv(1,5)
+!print *, "VELOCITIES_COM", velocities_com_tp(1,5) 
+!                 do iparticle=1,natom
+!                      do coord = 1,3
+!                           aom_env%adiab_nace_tp(i,j) = aom_env%adiab_nace_tp(i,j) + &
+!                                                   velocities_com_tp(coord, iparticle)* & 
+!                                                           hop_nacv(coord, iparticle)
+!                      end do
+!                 end do
+!             else if (i .gt. j) then
+!                 aom_env%adiab_nace_tp(i,j)= -aom_env%adiab_nace_tp(j,i)
+!             else 
+!                 aom_env%adiab_nace_tp(i,j) = 0.0D0
+!             end if 
+!        end do
+!    end do
+!
+!    aom_env%adiab_nace_tp = -aom_env%adiab_nace_tp
 
-     !> CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE RESULT OF THE SURFACE
-     !> HOP ROUTINE IS. 
-     DO imol=1,mol
-        DO iatom=1, natom
-           F(:,iatom,imol) =  global_forces(imol)%forces(:,iatom)
-        ENDDO
-     ENDDO
+ 
+     aom_env%adiab_nace_tp = 0.0D0
+     !B = aom_env%adiab_nace_tp
+     do i =1, mat
+         do j = 1, mat
+              if (j .ge. i) then
+                  CALL calc_hop_nacv(aom_env, hop_nacv, i, j, fast=.TRUE.)
+print *, "NACV_PRINTED", hop_nacv(1,5)
+print *, "VELOCITIES_COM", velocities_com_tp(1,5) 
+                  do iparticle=1,natom
+                       do coord = 1,3
+                            aom_env%adiab_nace_tp(i,j) = aom_env%adiab_nace_tp(i,j) + &
+                                                    velocities_com_tp(coord, iparticle)* & 
+                                                            hop_nacv(coord, iparticle)
+                       end do
+                  end do
+              else
+                  aom_env%adiab_nace_tp(i,j)= -aom_env%adiab_nace_tp(j,i)
+              !else 
+               !   aom_env%adiab_nace_tp(i,j) = 0.0D0
+              end if 
+         end do
+     end do
+
+     aom_env%adiab_nace_tp = -aom_env%adiab_nace_tp 
+
+print *, "NACE_MATRIXXX", aom_env%adiab_nace_tp
+
+!     do i =1,mat
+!        do j = 1, mat
+!           if (i .gt. j) then
+!                B(i,j) = -B(j,i)
+!           end if 
+!        end do
+!     end do
+     
+!     CALL calc_hop_nacv(aom_env, hop_nacv, i, j, fast=.TRUE.)
+
+!           B = 0
+!           DO iparticle_kind=1,nparticle_kind
+!              atomic_kind => atomic_kind_set(iparticle_kind)
+!              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+!              nparticle_local = local_particles%n_el(iparticle_kind)
+!              DO iparticle_local=1,nparticle_local
+!                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+!                 DO coord = 1, 3
+!                    B = B + velocities(coord, iparticle) * hop_nacv(coord, iparticle)
+!                 ENDDO
+!              END DO
+!           END DO
+
+
+
+
+     !> second part CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE
+     !RESULT OF THE SURFACE HOP ROUTINE IS.
      print*, "ACTIVE STATE = ", active_state
      call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
                      scaling=scaling, cbar=cbar, Fin=F, forces_adiab=my_forces_adiab, &
