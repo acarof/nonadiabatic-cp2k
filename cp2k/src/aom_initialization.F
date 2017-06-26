@@ -690,6 +690,9 @@ print *, "VELOCITIES_COM", velocities_com_tp(1,5)
 
      aom_env%adiab_nace_tp = -aom_env%adiab_nace_tp 
 
+!TEST
+!aom_env%adiab_nace_tp = 0.0D0
+
 print *, "NACE_MATRIXXX", aom_env%adiab_nace_tp
 
 !     do i =1,mat

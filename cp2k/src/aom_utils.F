@@ -193,9 +193,9 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
 !ADD: SYMMETRIZE NACE
         my_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2)
 
-print *, "MY_NACE_NON_SIMM", my_NACE
+print *, "MY_DIAB_NACE_NONSIMM", my_NACE
         my_NACE = (my_NACE - TRANSPOSE(my_NACE)) / 2
-print *, "MY_NACE_SIMM", my_NACE
+print *, "MY_DIAB_NACE_SIMM", my_NACE
         !X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
         X = H - my_NACE
 
@@ -243,10 +243,10 @@ subroutine make_adiabX(mol, E_t, NACE_ad_t, X) !deltat, NACE)
 
 print *, "ADIAB_HAMILTONIAN", H
 
-print *, "MY_NACE_NON_SIMM_NEWWW", NACE_ad_t
+print *, "MY_NACE_NON_SIMM_ADIAB", NACE_ad_t
         my_NACE = (NACE_ad_t - TRANSPOSE(NACE_ad_t)) / 2
                 
-print *, "MY_NACE_SIMM_NEWWW", my_NACE
+print *, "MY_NACE_SIMM_ADIAB", my_NACE
 
         X = H - my_NACE
 print *, "NEW_X_MATRIXX", X
