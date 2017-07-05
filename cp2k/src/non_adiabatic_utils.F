@@ -573,7 +573,7 @@ print *, 'K_tot =', K_tot
              H_0  = H_t
              H_2 = H_tp
 
-!Assignment internal variables used in the RK
+!Assignment internal variabls used in the RK
              
              Stt_int = Stt 
              Sttp_int = Sttp
@@ -849,6 +849,7 @@ print *, 'K_tot =', K_tot
                          ctcomp = ctcomp + ctotal(i)
                     end do
                     ctmag = abs(ctcomp)
+print *, "CT_BEFORE_RENORM", ctmag
                     !rescale to conserve norm = 1
                     do i=1,mat
                          ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)

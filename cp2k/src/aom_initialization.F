@@ -550,6 +550,7 @@ CONTAINS
      aom_env%adiab_energies_t = E_tp
 print *, "EIGENVALUES", E_tp
      aom_env%eigenvector_matrix = C_tp
+print *, "EIGENVECTORS", C_tp
      aom_env%Stptp = Stptp
      aom_env%scaling  = scaling
      aom_env%cbar     = cbar
@@ -603,7 +604,8 @@ active_state = 1
                  ctin(first_diabat) = CMPLX(1.0D0, 0.0D0,dp)  
              CASE("ADIABATIC_BASIS")
 !ONLY FOR THE TEST
-                 ctin(:) = C_tp(first_diabat+2,:)
+                 ctin(:) = C_tp(first_diabat,:)
+print *, "CTIN_ADIAB_BASIS", ctin
              CASE DEFAULT
                  CPABORT("Choose REPRESENTATION, only: DIABATIC_BASIS or ADIABATIC_BASIS")
              END SELECT

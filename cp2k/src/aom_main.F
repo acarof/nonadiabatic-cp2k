@@ -555,6 +555,10 @@ CONTAINS
      CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
 
+print *, "EIGENVALUES", E_tp
+print *, "EIGENVECTORS_tp", C_tp
+print *, "EIGENVECTORS_t", C_t
+print *, "EIGENVECTORS_tp", C_tp
 
      !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
      CALL calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C_t, C_tp, deltatMD, aom_env)
