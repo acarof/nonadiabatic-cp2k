@@ -117,6 +117,9 @@ IMPLICIT NONE
 !> To store energies in the Jacob's Method
      REAL(KIND = dp), DIMENSION(:), POINTER :: energies_t   
      REAL(KIND = dp), DIMENSION(:), POINTER :: adiab_energies_t 
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: F
+     REAL(KIND=dp), dimension(:,:), POINTER :: At, Atm, Atp, Bt, Btm, & 
+                                                         Btp, siteenergies
      REAL(KIND = dp)                        :: kinetic_energy
      REAL(KIND = dp)                        :: delta_energy, scaling, cbar
 !> Old and new state number

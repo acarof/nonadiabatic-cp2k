@@ -138,7 +138,7 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN ='create_aom_env', &
      routineP = moduleN//':'//routineN
 
-     integer :: i, j, mat, c, coord, mol
+     integer :: i, j, mat, c, coord, mol, atoms
      REAL(KIND=dp) :: cutoff_connect
      REAL(KIND=dp), dimension(:,:), allocatable :: crds
      REAL(KIND=dp), dimension(:,:), allocatable :: Atp
@@ -154,6 +154,8 @@ CONTAINS
 
      !> Number of sites
      mol = nadiab ! CHANGE_AC
+     !> Number of atoms per site
+     atoms = aom_atoms ! CHANGE_AC
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_CONNECTIVITY",&
@@ -164,8 +166,16 @@ CONTAINS
      c = nadiab*aom_atoms !> Numbers of active atoms
 
      allocate(aom_env%dist(mol,mol))
+     allocate(aom_env%F(3,natom,mol)) !array of diagonal atomic forces
      allocate(aom_env%crds(3,c,3))
      allocate(aom_env%coms(3,mol))
+     allocate(aom_env%At(4,atoms))
+     allocate(aom_env%Atp(4,atoms))
+     allocate(aom_env%Atm(4,atoms))
+     allocate(aom_env%Bt(4,atoms))
+     allocate(aom_env%Btp(4,atoms))
+     allocate(aom_env%Btm(4,atoms))
+     allocate(aom_env%siteenergies(3,mat))
      ALLOCATE(aom_env%population(mat))
      ALLOCATE(aom_env%ctin(mat))
      ALLOCATE(aom_env%H_t(mat,mat))
