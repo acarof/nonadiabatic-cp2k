@@ -108,7 +108,6 @@ MODULE aom_initialization
 
      USE parallel_rng_types,           ONLY: UNIFORM,&
                                              create_rng_stream,&
-                                             delete_rng_stream, &
                                              rng_stream_type
 #include "./base/base_uses.f90"
 
@@ -139,7 +138,7 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN ='create_aom_env', &
      routineP = moduleN//':'//routineN
 
-     integer :: i, j, mat, c, coord
+     integer :: i, j, mat, c, coord, mol
      REAL(KIND=dp) :: cutoff_connect
      REAL(KIND=dp), dimension(:,:), allocatable :: crds
      REAL(KIND=dp), dimension(:,:), allocatable :: Atp
@@ -153,6 +152,9 @@ CONTAINS
      INTEGER    :: input_seed
      TYPE(rng_stream_type), POINTER           :: rng_stream
 
+     !> Number of sites
+     mol = nadiab ! CHANGE_AC
+
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_CONNECTIVITY",&
              r_val=cutoff_connect)
@@ -161,6 +163,9 @@ CONTAINS
      mat = norbitals*nadiab !> Size of the vectorial space where the wavefunctions are projected
      c = nadiab*aom_atoms !> Numbers of active atoms
 
+     allocate(aom_env%dist(mol,mol))
+     allocate(aom_env%crds(3,c,3))
+     allocate(aom_env%coms(3,mol))
      ALLOCATE(aom_env%population(mat))
      ALLOCATE(aom_env%ctin(mat))
      ALLOCATE(aom_env%H_t(mat,mat))
@@ -192,14 +197,18 @@ CONTAINS
      !allocate(aom_env%adiab_nace_t(mat,mat))
 
 
+
      !> INITIALIZE THE RANDOM GENERATOR
      CALL section_vals_val_get(adiab_section,"SEED",i_val=input_seed)
      initial_seed(:,:) = REAL(input_seed,KIND=dp)
      !CALL create_rng_stream(rng_stream=aom_env%rng_stream,&
+     NULLIFY(rng_stream)
      CALL create_rng_stream(rng_stream=rng_stream,&
                              name="aom fssh",&
                              distribution_type=UNIFORM, &
                              seed=initial_seed)
+     !print*, "HERE"
+     !stop
      ALLOCATE(aom_env%rng_stream)
      aom_env%rng_stream = rng_stream
 

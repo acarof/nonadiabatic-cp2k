@@ -124,6 +124,9 @@ IMPLICIT NONE
      INTEGER                                :: active_state
      INTEGER                                :: old_state
 !     LOGICAL                                :: inrun
+     REAL(KIND=dp), dimension(:,:), POINTER :: coms
+     REAL(KIND=dp), dimension(:,:,:), POINTER :: crds
+     REAL(KIND=dp), dimension(:,:), POINTER :: dist
 !> To store the previous overlap matrix
      REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Stmt, Sttm, Stmtm, Stptp
 !> To store some connectivity information

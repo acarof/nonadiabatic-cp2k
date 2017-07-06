@@ -162,17 +162,20 @@ CONTAINS
      integer :: coord
      integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
      integer, dimension(:,:), allocatable :: NN,  aneighbour, bneighbour  
+     !integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
      integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
      REAL(KIND=dp)    :: cbar, minao
      REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
-     REAL(KIND=dp), dimension(:,:,:), allocatable :: crds, pcoeffsrun
+     !REAL(KIND=dp), dimension(:,:,:), allocatable :: crds, pcoeffsrun
+     REAL(KIND=dp), dimension(:,:,:), allocatable :: pcoeffsrun
      REAL(KIND=dp), dimension(:,:), allocatable :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
-     REAL(KIND=dp), dimension(:,:), allocatable :: dist
+     !REAL(KIND=dp), dimension(:,:), allocatable :: dist
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_t, H_tp
-     REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
+     !REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
+     REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, siteenergies
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
@@ -264,7 +267,7 @@ CONTAINS
      allocate(Stmt(mat,mat))
      allocate(Sttm(mat,mat))
      allocate(Stmtm(mat,mat))
-     allocate(crds(3,c,3))
+     !allocate(aom_env%crds(3,c,3))
      !allocate(NACE_ad_t(mat,mat))
      !allocate(NACE_ad_tp(mat,mat))
      !then the complex ones i.e. H matrices; combinations of H and S
@@ -280,9 +283,10 @@ CONTAINS
      allocate(pcoeffsrun(atoms,mat,3)) !pcoeffsrun exists because the p-coefficients need to be renormalised for each structure
      allocate(pcoefftot(c))
      allocate(scoefftot(c))
-     allocate(coms(3,mol))
+     !allocate(coms(3,mol))
+     !allocate(aom_env%coms(3,mol))
      allocate(NN(mat,mat))
-     allocate(dist(mol,mol))
+     !allocate(aom_env%dist(mol,mol))
      !allocate the arrays that will contain atomic coordinates for the overlap routine
      !first column is now atomic number of atom (e.g. 6 for carbon)
      !Naming convention: At = A(t), Atp = A(t+1), Atm = A(t-1), etc
@@ -308,9 +312,9 @@ CONTAINS
      CALL translate_com(positions_tp, keyword_translate, positions_com_tp, local_particles, atomic_kinds = atomic_kinds)  
      CALL translate_com(aom_env%velocities_t, keyword_translate, velocities_com_tp, local_particles, atomic_kinds = atomic_kinds)  
      do coord=1,3
-        crds(coord,:,1) = PACK(aom_env%rm_tm(coord,:), aom_env%ext_pres)
-        crds(coord,:,2) = PACK(aom_env%rm_t(coord,:), aom_env%ext_pres)
-        crds(coord,:,3) = PACK(positions_com_tp(coord,:), aom_env%ext_pres)
+        aom_env%crds(coord,:,1) = PACK(aom_env%rm_tm(coord,:), aom_env%ext_pres)
+        aom_env%crds(coord,:,2) = PACK(aom_env%rm_t(coord,:), aom_env%ext_pres)
+        aom_env%crds(coord,:,3) = PACK(positions_com_tp(coord,:), aom_env%ext_pres)
         siteenergies(2,:) = aom_env%energies_t(:) ! CHANGE_AC
         siteenergies(3,:) = energies_tp(:) ! CHANGE_AC
      enddo
@@ -327,13 +331,20 @@ CONTAINS
 
 
      !> CALCULATE THE CENTER OF MASS
+     !> CONSTRUCT NEIGHBOURS LIST
+
+
+!subroutine calc_coms_and_nlist()
+
+!END SUBROUTINE surf_hop_type
+
      !calculate CoMs at first timestep
      !coms(1 to 3,i) are the x, y and z coordinates of CoM of i
-     coms = 0
+     aom_env%coms = 0
      do i=1,mol
           do m=1,atoms
                do d=1,3
-                    coms(d,i) = coms(d,i) + (crds(d,(i-1)*atoms + m,3))/atoms
+                    aom_env%coms(d,i) = aom_env%coms(d,i) + (aom_env%crds(d,(i-1)*atoms + m,3))/atoms
                end do
           end do
      end do
@@ -342,9 +353,11 @@ CONTAINS
      !> CONSTRUCT NEIGHBOURS LIST
      do i=1,mol
           do j=1,mol
-               dist(i,j) = ((coms(1,i) - coms(1,j))*(coms(1,i) - coms(1,j)) + (coms(2,i) - coms(2,j))*&
-               &(coms(2,i) - coms(2,j)) + (coms(3,i) - coms(3,j))*(coms(3,i) - coms(3,j)))
-               if (dist(i,j) < cutoff_sites*cutoff_sites) then
+               aom_env%dist(i,j) = ((aom_env%coms(1,i) - aom_env%coms(1,j))*(aom_env%coms(1,i) - &
+                                 aom_env%coms(1,j)) + (aom_env%coms(2,i) - aom_env%coms(2,j))*&
+                      (aom_env%coms(2,i) - aom_env%coms(2,j)) + (aom_env%coms(3,i) - &
+                          aom_env%coms(3,j))*(aom_env%coms(3,i) - aom_env%coms(3,j)))
+               if (aom_env%dist(i,j) < cutoff_sites*cutoff_sites) then
                     do d=1,orb
                          do m=1,orb
                               NN(orb*(i-1)+d,orb*(j-1)+m) = 1
@@ -372,9 +385,9 @@ CONTAINS
                     Atm(1,j) = dble(aom_env%elements(j))
                     do d=2,4
                          !> CHANGE_AC : already coordonates in atomic units
-                         Atm(d,j) = crds(d-1,(i-1)*atoms+j,1)
-                         At(d,j)  = crds(d-1,(i-1)*atoms+j,2)
-                         Atp(d,j) = crds(d-1,(i-1)*atoms+j,3)
+                         Atm(d,j) = aom_env%crds(d-1,(i-1)*atoms+j,1)
+                         At(d,j)  = aom_env%crds(d-1,(i-1)*atoms+j,2)
+                         Atp(d,j) = aom_env%crds(d-1,(i-1)*atoms+j,3)
                     end do
                end do
                
@@ -387,9 +400,9 @@ CONTAINS
                          Btm(1,l) = dble(aom_env%elements(l))
                          do d=2,4
                               !> CHANGE_AC : already coordonates in atomic units
-                              Btm(d,l) = crds(d-1,(k-1)*atoms+l,1)
-                              Bt(d,l)  = crds(d-1,(k-1)*atoms+l,2)
-                              Btp(d,l) = crds(d-1,(k-1)*atoms+l,3)
+                              Btm(d,l) = aom_env%crds(d-1,(k-1)*atoms+l,1)
+                              Bt(d,l)  = aom_env%crds(d-1,(k-1)*atoms+l,2)
+                              Btp(d,l) = aom_env%crds(d-1,(k-1)*atoms+l,3)
                          end do
                     end do
                     if (i == 1) then
@@ -689,8 +702,8 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      deallocate(pcoeffsrun)
      deallocate(ctin)
      deallocate(siteenergies)
-     deallocate(crds)
-     deallocate(coms)
+     !deallocate(crds)
+     !deallocate(coms)
      deallocate(NN)
      deallocate(At)
      deallocate(Atm)
@@ -700,7 +713,8 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      deallocate(Btp)
      deallocate(H_t, H_tp)
      deallocate(Stt, Stptp, Stmtm, Sttp, Sttm, Stpt, Stmt)
-     deallocate(nacv, dist)
+     !deallocate(nacv, dist)
+     deallocate(nacv)
      deallocate(exact_forces)
      deallocate(F)
     END SUBROUTINE construct_ham_X_SH
