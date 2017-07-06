@@ -161,8 +161,8 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab_new
      integer :: coord
      integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
-     integer, dimension(:,:), allocatable :: NN,  aneighbour, bneighbour  
-     !integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
+     !integer, dimension(:,:), allocatable :: NN,  aneighbour, bneighbour  
+     integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
      integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
@@ -285,7 +285,7 @@ CONTAINS
      allocate(scoefftot(c))
      !allocate(coms(3,mol))
      !allocate(aom_env%coms(3,mol))
-     allocate(NN(mat,mat))
+     !allocate(NN(mat,mat))
      !allocate(aom_env%dist(mol,mol))
      !allocate the arrays that will contain atomic coordinates for the overlap routine
      !first column is now atomic number of atom (e.g. 6 for carbon)
@@ -332,46 +332,7 @@ CONTAINS
 
      !> CALCULATE THE CENTER OF MASS
      !> CONSTRUCT NEIGHBOURS LIST
-
-
-!subroutine calc_coms_and_nlist()
-
-!END SUBROUTINE surf_hop_type
-
-     !calculate CoMs at first timestep
-     !coms(1 to 3,i) are the x, y and z coordinates of CoM of i
-     aom_env%coms = 0
-     do i=1,mol
-          do m=1,atoms
-               do d=1,3
-                    aom_env%coms(d,i) = aom_env%coms(d,i) + (aom_env%crds(d,(i-1)*atoms + m,3))/atoms
-               end do
-          end do
-     end do
-
-
-     !> CONSTRUCT NEIGHBOURS LIST
-     do i=1,mol
-          do j=1,mol
-               aom_env%dist(i,j) = ((aom_env%coms(1,i) - aom_env%coms(1,j))*(aom_env%coms(1,i) - &
-                                 aom_env%coms(1,j)) + (aom_env%coms(2,i) - aom_env%coms(2,j))*&
-                      (aom_env%coms(2,i) - aom_env%coms(2,j)) + (aom_env%coms(3,i) - &
-                          aom_env%coms(3,j))*(aom_env%coms(3,i) - aom_env%coms(3,j)))
-               if (aom_env%dist(i,j) < cutoff_sites*cutoff_sites) then
-                    do d=1,orb
-                         do m=1,orb
-                              NN(orb*(i-1)+d,orb*(j-1)+m) = 1
-                         end do
-                    end do
-               else
-                    do d=1,orb
-                         do m=1,orb
-                              NN(orb*(i-1)+d,orb*(j-1)+m) = 0
-                         end do
-                    end do
-               end if                    
-          end do
-     end do
+     CALL calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
 
 
      !> CALCULATE THE HAMILTONIAN, THE STTP MATRIX AND THE NACV
@@ -419,7 +380,7 @@ CONTAINS
                     end if
                     neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
                     !only call overlap if neighbours list says so
-                    if (NN(i,k) == 1) then
+                    if (aom_env%NN(i,k) == 1) then
                          !first the diagonals
                          if (i == k) then
                               do d=1,orb
@@ -633,11 +594,11 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
         ENDDO
      ENDDO
      print*, "ACTIVE STATE = ", active_state
-     call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
+     call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=aom_env%NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=F, forces_adiab=my_forces_adiab, &
                            ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      IF (attempt_hop) THEN
-         call calcforces(state=new_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=NN, atoms=atoms, & 
+         call calcforces(state=new_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=aom_env%NN, atoms=atoms, & 
                               scaling=scaling, cbar=cbar, Fin=F, forces_adiab=my_forces_adiab_new, &
                               ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      ENDIF
@@ -685,7 +646,7 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      IF (attempt_hop) THEN
          aom_env%forces_adiab_new = my_forces_adiab_new
          aom_env%active_state = active_state
-         aom_env%NN = NN
+         !aom_env%NN = NN
          aom_env%Stptp = Stptp
          aom_env%eigenvector_matrix = C_tp
          aom_env%diabatic_forces = F
@@ -704,7 +665,7 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      deallocate(siteenergies)
      !deallocate(crds)
      !deallocate(coms)
-     deallocate(NN)
+     !deallocate(NN)
      deallocate(At)
      deallocate(Atm)
      deallocate(Atp)
@@ -718,5 +679,53 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      deallocate(exact_forces)
      deallocate(F)
     END SUBROUTINE construct_ham_X_SH
+
+
+SUBROUTINE calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
+     
+     TYPE(aom_env_type), INTENT(INOUT)     :: aom_env
+     REAL(KIND=dp), intent (IN)            :: cutoff_sites
+     integer                               :: mol, i, j, m, d, atoms, orb
+
+    
+     !> CALCULATE THE CENTER OF MASS
+     !calculate CoMs at first timestep
+     !coms(1 to 3,i) are the x, y and z coordinates of CoM of i
+     aom_env%coms = 0
+     do i=1,mol
+          do m=1,atoms
+               do d=1,3
+                    aom_env%coms(d,i) = aom_env%coms(d,i) + (aom_env%crds(d,(i-1)*atoms + m,3))/atoms
+               end do
+          end do
+     end do
+
+
+     !> CONSTRUCT NEIGHBOURS LIST
+     do i=1,mol
+          do j=1,mol
+               aom_env%dist(i,j) = ((aom_env%coms(1,i) - aom_env%coms(1,j))*(aom_env%coms(1,i) - &
+                                 aom_env%coms(1,j)) + (aom_env%coms(2,i) - aom_env%coms(2,j))*&
+                      (aom_env%coms(2,i) - aom_env%coms(2,j)) + (aom_env%coms(3,i) - &
+                          aom_env%coms(3,j))*(aom_env%coms(3,i) - aom_env%coms(3,j)))
+               if (aom_env%dist(i,j) < cutoff_sites*cutoff_sites) then
+                    do d=1,orb
+                         do m=1,orb
+                              aom_env%NN(orb*(i-1)+d,orb*(j-1)+m) = 1
+                         end do
+                    end do
+               else
+                    do d=1,orb
+                         do m=1,orb
+                              aom_env%NN(orb*(i-1)+d,orb*(j-1)+m) = 0
+                         end do
+                    end do
+               end if                    
+          end do
+     end do
+     
+
+END SUBROUTINE calc_coms_and_nlist
+
 
 END MODULE aom_main
