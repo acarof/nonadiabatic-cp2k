@@ -963,10 +963,8 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
         REAL(KIND=dp), dimension(:), allocatable ::   Sdiag
         REAL(KIND=dp), dimension(:,:), allocatable :: S, C, T, X, LL, Y
         LOGICAL, dimension(:), allocatable         :: ext_pres
-        REAL(KIND=dp)                              :: contribf1, contribf11, contribf2, contribf3
-        REAL(KIND=dp)                              :: normf1, normf2, normf22, normf3, normf11, normnacv
         LOGICAL                                    :: my_fast
-        REAL(KIND = dp)                            :: error_f1, error_f11, error_f2, error_f22, error_f3
+        REAL(KIND=dp) :: total_norm, error
 
         mat    = SIZE(force_env%mixed_env%aom_env%Stptp, 1)
         natom  = SIZE(force_env%mixed_env%aom_env%diabatic_forces, 2)
@@ -1168,69 +1166,28 @@ SUBROUTINE calc_hop_nacv(force_env, hop_nacv, ext_old_state, ext_new_state, symm
            IF (PRESENT(exF_3))  exF_3  = F_3
            IF (PRESENT(exF_1)) THEN
               F_22 = F_2 + F_3
-              DO j=1, natom
-                 normf1 = 0
-                 normf11 = 0
-                 normf22 = 0
-                 normnacv = 0
-                 contribf1 = 0
-                 contribf11 = 0
-                 contribf2 = 0
-                 contribf3 = 0
-                 DO d=1,3
-                    IF ( mod(j,3).eq.1 ) THEN
-                    print*, "NACVTOTCARBON = ", d, j, hop_nacv(d,j)
-                    print*, "NACVF1CARBON   = ", d, j, F_1(d,j)
-                    print*, "NACVFF1CARBON   = ", d, j, F_1(d,j) + F_11(d,j)
-print*, "ERRORF1CARBON", SQRT( ( hop_nacv(d,j) - F_1(d,j) )**2 / hop_nacv(d,j)**2 )
-print*, "ERRORFF1CARBON", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / hop_nacv(d,j)**2 )
-                    ELSE 
-                    print*, "NACVTOTHYDROGEN = ", d, j, hop_nacv(d,j)
-                    print*, "NACVF1HYDROGEN   = ", d, j, F_1(d,j)
-                    print*, "NACVFF1HYDROGEN   = ", d, j, F_1(d,j) + F_11(d,j)
-print*, "ERRORF1HYRDOGEN", SQRT( ( hop_nacv(d,j) - F_1(d,j) )**2 /  hop_nacv(d,j)**2 )
-print*, "ERRORFF1HYDROGEN", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / hop_nacv(d,j)**2 )
-                    ENDIF 
-                    !print*, "NACVF11  = ", d, j, F_11(d,j), symmetry
-                    !print*, "NACVF2   = ", d, j, F_2(d,j), symmetry
-                    !print*, "NACVF3   = ", d, j, F_3(d,j), symmetry
-                    !print*, "NACVFtot = ", d, j, hop_nacv(d,j), symmetry
-                    contribf1 = contribf1 + F_1(d,j) * hop_nacv(d,j)
-                    normf1 = normf1 + F_1(d,j)*F_1(d,j)
-                    contribf11 = contribf11 + F_11(d,j) * hop_nacv(d,j)
-                    normf11 = normf11 + F_11(d,j)*F_11(d,j)
-                    contribf2 = contribf2 + F_2(d,j) * hop_nacv(d,j)
-                    normf2 = normf2 + F_2(d,j)*F_2(d,j)
-                    normf22 = normf22 + F_22(d,j)*F_22(d,j)
-                    contribf3 = contribf3 + F_3(d,j) * hop_nacv(d,j)
-                    normf3 = normf3 + F_3(d,j)*F_3(d,j)
-                    normnacv = normnacv + hop_nacv(d,j)*hop_nacv(d,j)
+              total_norm = 0.0D0
+              error = 0.0D0
+              DO j=1, 12
+                 !DO d=1,3
+                 DO d=1, 3
+                       error = error + ( hop_nacv(d,j) - (F_1(d,j) + F_11(d,j)))**2 
+                       total_norm = total_norm +  (hop_nacv(d,j))**2
+                       print*, "hop_nacv", hop_nacv(d,j)
+                       print*, "d_1_term", F_1(d,j) + F_11(d,j)
+                       print*, "total_norm = ", total_norm
+                       print*, "error = ", error
                  ENDDO
-                 normnacv = SQRT(normnacv)
-                 normf1 = SQRT(normf1)
-                 normf11 = SQRT(normf11)
-                 normf2 = SQRT(normf2)
-                 normf22 = SQRT(normf22)
-                 normf3 = SQRT(normf3)
-                 error_f1 = SUM((hop_nacv(:,j)/normnacv - F_1(:,j)/normf1)**2) / 3
-                 !print*, "ERRORF1 ATOM", j, error_f1
-                 error_f1 = SUM((hop_nacv(:,j) - F_1(:,j))**2) / 3
-                 !print*, "ERRORTOTF1 ATOM", j, error_f1
-                 error_f1 = SUM((hop_nacv(:,j) - (F_1(:,j) + F_11(:,j)))**2) / 3
-                 !print*, "ERRORTOTFF1 ATOM", j, error_f1
-                 error_f11 = SUM((hop_nacv(:,j)/normnacv - F_11(:,j)/normf11)**2)  /3
-                 error_f22 = SUM((hop_nacv(:,j)/normnacv - F_22(:,j)/normf22)**2)  /3
-                 error_f2 = SUM((hop_nacv(:,j)/normnacv - F_2(:,j)/normf2)**2)     /3
-                 error_f3 = SUM((hop_nacv(:,j)/normnacv - F_3(:,j)/normf3)**2)     /3
-                 !print*, "ERRORF11 ATOM", j, error_f11
-                 !print*, "ERRORF22 ATOM", j, error_f22
-                 !print*, "ERRORF2 ATOM", j, error_f2
-                 !print*, "ERRORF3 ATOM", j, error_f3
-                 !print*, "CONTRIBF1 = ", contribf1 / normnacv,  "ATOM", j
-                 !print*, "CONTRIBF11 = ", contribf11 / normnacv, "ATOM", j
-                 !print*, "CONTRIBF2 = ", contribf2 / normnacv, "ATOM", j
-                 !print*, "CONTRIBF3 = ", contribf3 / normnacv, "ATOM", j
+                 IF (( mod(j,3).eq.1 ).AND. (j < 12)) THEN
+                       print*, "NACVTOTCARBON = ", j, NORM2(hop_nacv(:,j))
+                       print*, "NACVFF1CARBON   = ", j, NORM2(F_1(:,j) + F_11(:,j))
+                 ELSE 
+                       print*, "NACVTOTHYDROGEN = ", j, NORM2(hop_nacv(:,j))
+                       print*, "NACVFF1HYDROGEN   = ", j, NORM2(F_1(:,j) + F_11(:,j))
+                 ENDIF 
               ENDDO
+              print*, "TOTALNORM = ", sqrt(total_norm)
+              print*, "ERROR =  ", sqrt(error/total_norm)
            ENDIF
         ELSE
            do d=1,3
@@ -1254,6 +1211,19 @@ print*, "ERRORFF1HYDROGEN", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / 
         deallocate(F_22)
         deallocate(F_3)
 END SUBROUTINE calc_hop_nacv
+
+FUNCTION NORM2(array) RESULT(norm)
+         REAL(kind=dp), dimension(:), INTENT(IN) :: array
+        
+         INTEGER       :: i
+         REAL(KIND=dp) :: norm
+ 
+         norm = 0
+         DO i=1, SIZE(array)
+            norm = norm + array(i)*array(i)
+         ENDDO
+         norm = SQRT(norm)
+END FUNCTION NORM2
 
 subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, S, forces_adiab, & 
                   ext_pres, analytics,  exact_forces,ctin)
@@ -1795,7 +1765,7 @@ end subroutine calcTDT
 
         CASE("NACV")
            CALL section_vals_val_get(coupling_section,"METHOD_ADIABATIC_NACV",c_val=nacv_keyword)
-           CALL cal_delta_energy(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
+           CALL cal_delta_ene_QSYS(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                                  local_particles, delta_energy, kinetic_energy_prime)
            sh_print_env%kinetic_energy   = kinetic_energy_prime
            sh_print_env%old_state        = force_env%mixed_env%aom_env%active_state
@@ -2310,7 +2280,6 @@ ENDIF
               IF ((PRESENT(nparticle_kind)).AND.(PRESENT(atomic_kind_set))) THEN
                  my_nparticle_kind = nparticle_kind
                  my_atomic_kind_set => atomic_kind_set
-print*, "HERE"
               ENDIF
            ENDIF
            sum_array = 0.0D0
