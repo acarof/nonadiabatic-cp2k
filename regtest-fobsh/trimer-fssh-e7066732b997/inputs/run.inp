@@ -10,7 +10,7 @@
 &MOTION
 	&MD
      		ENSEMBLE      NVE
-     		STEPS         20
+     		STEPS         500
    		TIMESTEP      0.5
      		TEMPERATURE   298
                 &THERMOSTAT
