@@ -165,6 +165,12 @@ CONTAINS
      mat = norbitals*nadiab !> Size of the vectorial space where the wavefunctions are projected
      c = nadiab*aom_atoms !> Numbers of active atoms
 
+     !allocate the arrays that will contain atomic coordinates for the overlap
+     !routine
+     !first column is now atomic number of atom (e.g. 6 for carbon)
+     !Naming convention: At = A(t), Atp = A(t+1), Atm = A(t-1), etc
+
+
      allocate(aom_env%dist(mol,mol))
      allocate(aom_env%F(3,natom,mol)) !array of diagonal atomic forces
      allocate(aom_env%crds(3,c,3))
@@ -178,7 +184,10 @@ CONTAINS
      allocate(aom_env%siteenergies(3,mat))
      ALLOCATE(aom_env%population(mat))
      ALLOCATE(aom_env%ctin(mat))
+
      ALLOCATE(aom_env%H_t(mat,mat))
+     ALLOCATE(aom_env%H_tp(mat,mat))
+
      ALLOCATE(aom_env%eigenvector_matrix(mat,mat))
      ALLOCATE(aom_env%connlist1(4,aom_atoms))
      ALLOCATE(aom_env%neighbourlist(nadiab, nadiab,0:aom_atoms,0:aom_atoms))

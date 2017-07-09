@@ -144,7 +144,7 @@ IMPLICIT NONE
 !> To store some connectivity information
      INTEGER, DIMENSION(:,:,:,:), POINTER                  :: neighbourlist
 !> To print the Hamiltonian
-     COMPLEX(KIND=dp), DIMENSION(:,:), POINTER              :: H_t
+     COMPLEX(KIND=dp), DIMENSION(:,:), POINTER              :: H_t, H_tp
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: eigenvector_matrix
      INTEGER, DIMENSION(:,:), POINTER                    :: NN
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER            :: diabatic_forces

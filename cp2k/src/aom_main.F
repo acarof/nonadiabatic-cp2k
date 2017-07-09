@@ -173,7 +173,7 @@ CONTAINS
      !REAL(KIND=dp), dimension(:,:), allocatable :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
      !REAL(KIND=dp), dimension(:,:), allocatable :: dist
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
-     COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_t, H_tp
+     !COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_t, H_tp
      !REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, coms, siteenergies
      !REAL(KIND=dp), dimension(:,:), allocatable :: At, Atm, Atp, Bt, Btm, Btp, siteenergies
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
@@ -275,8 +275,8 @@ CONTAINS
      !For ease of calculation therefore, in this program,
      !H_t etc are always -i*H.
      !This is why they're complex variables
-     allocate(H_t(mat,mat))
-     allocate(H_tp(mat,mat))
+     !allocate(H_t(mat,mat))
+     !allocate(H_tp(mat,mat))
      allocate(nacv(3,mat,mat,mat*atoms))      !non-adiabatic coupling vectors
      nacv = 0.0D0
      !allocate(siteenergies(3,mat))      !diagonals of the Hamiltonian
@@ -287,9 +287,12 @@ CONTAINS
      !allocate(aom_env%coms(3,mol))
      !allocate(NN(mat,mat))
      !allocate(aom_env%dist(mol,mol))
+
      !allocate the arrays that will contain atomic coordinates for the overlap routine
      !first column is now atomic number of atom (e.g. 6 for carbon)
      !Naming convention: At = A(t), Atp = A(t+1), Atm = A(t-1), etc
+
+
      !allocate(At(4,atoms))
      !allocate(Atp(4,atoms))
      !allocate(Atm(4,atoms))
@@ -325,7 +328,7 @@ CONTAINS
    !  end if
      !Stt = aom_env%Stt
      active_state = aom_env%active_state
-     H_t = aom_env%H_t
+     !H_t = aom_env%H_t
      ctin(:) = aom_env%ctin(:)
      aom_env%adiab_nace_t = aom_env%adiab_nace_tp
 
@@ -402,7 +405,7 @@ print *, "orb", orb
                                         aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
 !print *, "aom_env%Stpt", aom_env%Stpt
                                         !H_t(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(2,k)), dp)
-                                        H_tp(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, &
+                                        aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, &
                                                                   (-aom_env%siteenergies(3,k)),dp)
                                    end do
                               end do
@@ -433,7 +436,7 @@ print *, "orb", orb
                                    do m=1,orb
                                         do d=1,orb
                                              !H_t(orb*(i-1)+d,orb*(k-1)+m)   = H_t(orb*(k-1)+m,orb*(i-1)+d)
-                                             H_tp(orb*(i-1)+d,orb*(k-1)+m)  = H_tp(orb*(k-1)+m,orb*(i-1)+d)
+                                             aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+m)  = aom_env%H_tp(orb*(k-1)+m,orb*(i-1)+d)
                                              aom_env%Stt(orb*(i-1)+d,orb*(k-1)+m)   = &
                                                                       aom_env%Stt(orb*(k-1)+m,orb*(i-1)+d)
                                              aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = &
@@ -463,7 +466,7 @@ print *, "orb", orb
                                               S, aom_env%Btp, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3),& 
                                               print_rvecs='yes', molA_index=i, molB_index=k)
                                              aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
-                                             H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
+                                             aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
                                              !Calcul of the NACV
                                              call calc_dRSab(aom_env%Atp, aom_env%atomlist, aom_env%connlist1, &
@@ -526,7 +529,7 @@ print *, "orb", orb
                               do m=1,orb
                                    !fill in elements of non-overlapping pairs with 0
                                    !H_t(orb*(i-1)+d,orb*(k-1)+m)   = cmplx(0.0D0, 0.0D0,dp)
-                                   H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, 0.0D0,dp)
+                                   aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, 0.0D0,dp)
                                    aom_env%Stt(orb*(i-1)+d,orb*(k-1)+m)   = 0.0D0
                                    aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m)  = 0.0D0
                                    aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
@@ -564,9 +567,9 @@ print *, "aom_env%Stmt", aom_env%Stmt
      !It gives us back the eigenvalues and eigenvectors
      !initialize Adiabatic energies that will be used for trivial hopping and
      !decoherence corrections
-     CALL adiabaticity(-AIMAG(H_t), mat, C_t, E_t, .false.)
+     CALL adiabaticity(-AIMAG(aom_env%H_t), mat, C_t, E_t, .false.)
      sh_env%E_t = E_t
-     CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
+     CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
 
 print *, "EIGENVALUES", E_tp
@@ -589,7 +592,8 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
                                                   c_val=prop_wf_keyword)
      SELECT CASE(prop_wf_keyword)                                 
      CASE("DIABATIC_BASIS")
-           CALL propagate_wf(H_t, H_tp,  aom_env%Stt, aom_env%Sttp, aom_env%Stptp, &
+           CALL propagate_wf(aom_env%H_t, aom_env%H_tp,  aom_env%Stt, &
+                                        aom_env%Sttp, aom_env%Stptp, &
                                     aom_env%Stpt, aom_env%Stmt, & 
                              aom_env%Sttm, aom_env%Stmtm,    &
                              ctin, aom_env, nadiab,  norbitals, ELsteps, &
@@ -636,11 +640,11 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
         ENDDO
      ENDDO
      print*, "ACTIVE STATE = ", active_state
-     call calcforces(state=active_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=aom_env%NN, atoms=atoms, & 
+     call calcforces(state=active_state,Hin=-AIMAG(aom_env%H_tp), C=C_tp, nacv=nacv, NN=aom_env%NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=aom_env%F, forces_adiab=my_forces_adiab, &
                            ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      IF (attempt_hop) THEN
-         call calcforces(state=new_state,Hin=-AIMAG(H_tp), C=C_tp, nacv=nacv, NN=aom_env%NN, atoms=atoms, & 
+         call calcforces(state=new_state,Hin=-AIMAG(aom_env%H_tp), C=C_tp, nacv=nacv, NN=aom_env%NN, atoms=atoms, & 
                               scaling=scaling, cbar=cbar, Fin=aom_env%F, forces_adiab=my_forces_adiab_new, &
                               ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      ENDIF
@@ -657,7 +661,7 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
 
 
      !> PRINT
-     CALL adiab_print_hamiltonian(adiab_section, -AIMAG(H_tp), nadiab,norbitals,itimes, deltatMD)
+     CALL adiab_print_hamiltonian(adiab_section, -AIMAG(aom_env%H_tp), nadiab,norbitals,itimes, deltatMD)
      CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, deltatMD)
      CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
      CALL adiab_print_pvecs(adiab_section, PC_allrvecs, itimes, deltatMD, times, atoms, nadiab)
@@ -677,7 +681,7 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      aom_env%adiab_energies_t = E_t
      aom_env%ctin        = ctin
      aom_env%attempt_hop  = attempt_hop
-     aom_env%H_t = H_tp
+     aom_env%H_t = aom_env%H_tp
      aom_env%nacv        = nacv
      aom_env%new_state = new_state
      aom_env%active_state = active_state
@@ -725,7 +729,7 @@ print *, "aom_env%Stmt", aom_env%Stmt
      !deallocate(Bt)
      !deallocate(Btm)
      !deallocate(Btp)
-     deallocate(H_t, H_tp)
+     !deallocate(H_t, H_tp)
      !deallocate(Stt, Stptp, Stmtm, Sttp, Sttm, Stpt, Stmt)
      !deallocate(nacv, dist)
      deallocate(nacv)
