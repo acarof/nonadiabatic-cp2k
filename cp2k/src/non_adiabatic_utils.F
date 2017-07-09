@@ -473,13 +473,16 @@ CONTAINS
 print *, 'K_tot =', K_tot
    END SUBROUTINE calc_kinetic_tot
  
-  SUBROUTINE propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,     &
-                          ctin, aom_env, nadiab,  norbitals, ELsteps, &
+  !SUBROUTINE propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,     &
+  !                       ctin, aom_env, nadiab,  norbitals, ELsteps, &
+  !                         itimes, adiab_section, deltatMD, deltatE , times,      &
+  !                          mat)
+  SUBROUTINE propagate_wf(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,      &
                             mat)
 
-     COMPLEX(KIND=dp), dimension(:,:), INTENT(IN)    :: H_t, H_tp
-     REAL(KIND=dp), dimension(:,:), INTENT(IN)       :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
+     !COMPLEX(KIND=dp), dimension(:,:), INTENT(IN)    :: H_t, H_tp
+     !REAL(KIND=dp), dimension(:,:), INTENT(IN)       :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
      COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)   :: ctin
      INTEGER, INTENT(IN)                             :: nadiab,  norbitals 
 
@@ -564,27 +567,27 @@ print *, 'K_tot =', K_tot
      zgemm_type = 'N'
 
 
-             Hdiff = (deltatE/deltatMD)*(H_tp - H_t)
-             Sttdiff = (deltatE/deltatMD)*(Stptp - Stt)
-             Sttpdiff = (deltatE/deltatMD)*(Sttp - Stmt)
-             Sttmdiff = (deltatE/deltatMD)*(Stpt - Sttm)
+             Hdiff = (deltatE/deltatMD)*(aom_env%H_tp - aom_env%H_t)
+             Sttdiff = (deltatE/deltatMD)*(aom_env%Stptp - aom_env%Stt)
+             Sttpdiff = (deltatE/deltatMD)*(aom_env%Sttp - aom_env%Stmt)
+             Sttmdiff = (deltatE/deltatMD)*(aom_env%Stpt - aom_env%Sttm)
              Stptpdiff = Sttdiff
-             Stmtmdiff = (deltatE/deltatMD)*(Stt - Stmtm)
-             H_0  = H_t
-             H_2 = H_tp
+             Stmtmdiff = (deltatE/deltatMD)*(aom_env%Stt - aom_env%Stmtm)
+             H_0  = aom_env%H_t
+             H_2 = aom_env%H_tp
 
 !Assignment internal variabls used in the RK
              
-             Stt_int = Stt 
-             Sttp_int = Sttp
-             Stptp_int = Stptp
+             Stt_int = aom_env%Stt 
+             Sttp_int = aom_env%Sttp
+             Stptp_int = aom_env%Stptp
              !Stpt_int = Stpt!
              !Stmt_int = Stmt!
-             Sttm_int = Sttm
-             Stmtm_int = Stmtm
+             Sttm_int = aom_env%Sttm
+             Stmtm_int = aom_env%Stmtm
 
              do t2=1,int(deltatMD/deltatE)
-                    call makeX(mat, H_t, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
+                    call makeX(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
                                              Stmtm_int, X1, deltatMD)
 
 

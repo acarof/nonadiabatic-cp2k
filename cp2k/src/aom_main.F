@@ -593,11 +593,14 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
                                                   c_val=prop_wf_keyword)
      SELECT CASE(prop_wf_keyword)                                 
      CASE("DIABATIC_BASIS")
-           CALL propagate_wf(aom_env%H_t, aom_env%H_tp,  aom_env%Stt, &
-                                        aom_env%Sttp, aom_env%Stptp, &
-                                    aom_env%Stpt, aom_env%Stmt, & 
-                             aom_env%Sttm, aom_env%Stmtm,    &
-                             ctin, aom_env, nadiab,  norbitals, ELsteps, &
+           !CALL propagate_wf(aom_env%H_t, aom_env%H_tp,  aom_env%Stt, &
+           !                             aom_env%Sttp, aom_env%Stptp, &
+           !                         aom_env%Stpt, aom_env%Stmt, & 
+           !                  aom_env%Sttm, aom_env%Stmtm,    &
+           !                  ctin, aom_env, nadiab,  norbitals, ELsteps, &
+           !                  itimes, adiab_section, deltatMD, deltatE , times,    &
+           !                  mat)
+           CALL propagate_wf(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                              itimes, adiab_section, deltatMD, deltatE , times,    &
                              mat)
      CASE("ADIABATIC_BASIS")
