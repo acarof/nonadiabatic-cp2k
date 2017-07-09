@@ -578,8 +578,9 @@ print *, "EIGENVECTORS_t", C_t
 print *, "EIGENVECTORS_tp", C_tp
 
      !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
-     CALL calc_adiab_nace(aom_env%Sttp, aom_env%Stt, aom_env%Stptp, aom_env%Sttm, &
-                           aom_env%Stmtm, C_t, C_tp, deltatMD, aom_env)
+    ! CALL calc_adiab_nace(aom_env%Sttp, aom_env%Stt, aom_env%Stptp, aom_env%Sttm, &
+     !                      aom_env%Stmtm, C_t, C_tp, deltatMD, aom_env)
+     CALL calc_adiab_nace(C_t, C_tp, deltatMD, aom_env)
 print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      !NACE_ad_tp = aom_env%adiab_nace_tp
      !NACE_ad_t = aom_env%adiab_nace_t

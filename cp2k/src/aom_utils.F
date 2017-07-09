@@ -594,21 +594,23 @@ print *, "SINGLE_CICLE b(i)", b(i)
 end subroutine modified_surfacehop
 
 
-subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, aom_env)
+!subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, aom_env)
+subroutine calc_adiab_nace(C1, C2, deltat, aom_env)
 
         !this subroutine calculates the adiabatic nace used in the calculation
         !of the hopping probability and also in the RK adiabatic propagation 
         implicit none
 
         REAL(KIND=dp), intent(in) :: deltat
-        REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
-        TYPE(aom_env_type), INTENT(OUT) :: aom_env
+        !REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
+        REAL(KIND=dp), dimension(:,:), intent(in) :: C1, C2
+        TYPE(aom_env_type)        :: aom_env
 
         integer :: i, j, mol, k, l
         REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
 
 
-        mol = size(Stt,1)
+        mol = size(aom_env%Stt,1)
 
         !many allocations
         allocate(T1(mol,mol))
@@ -622,17 +624,17 @@ subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, aom_en
 
 
         !use the matinvsqrt subroutine to find T = S^(-1/2)
-        T1 = Stmtm
-        T2 = Stptp
+        T1 = aom_env%Stmtm
+        T2 = aom_env%Stptp
         call matinvsqrt(mol, .TRUE., T1)
         call matinvsqrt(mol, .TRUE., T2)
 
         !and do some straightforward first-order numerical derivatives
         DT = (0.5D0/deltat)*(T2 - T1)
-        DS = (0.5D0/deltat)*(Sttp - Sttm)
+        DS = (0.5D0/deltat)*(aom_env%Sttp - aom_env%Sttm)
         DC = (1.0D0/deltat)*(C2 - C1)
-print*, "Sttp", Sttp
-print*, "Sttm", Sttm
+print*, "Sttp", aom_env%Sttp
+print*, "Sttm", aom_env%Sttm
 print *, "C1", C1
 print *, "C2", C2
 print *, "DT", DT
@@ -647,7 +649,7 @@ print *, "DC", DC
                         TDT(i,j) = 0.0D0
                         do k=1,mol
                                 do l=1,mol
-                                        TST(i,j) = TST(i,j) + T1(k,i)*Stt(k,l)*DT(l,j)
+                                        TST(i,j) = TST(i,j) + T1(k,i)*aom_env%Stt(k,l)*DT(l,j)
                                         TDT(i,j) = TDT(i,j) + T1(k,i)*DS(k,l)*T1(l,j)
                                 end do
                         end do
