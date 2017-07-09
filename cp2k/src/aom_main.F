@@ -334,35 +334,7 @@ print *, "orb", orb
 
                          !first the diagonals
                          if (i == k) then
-
-!SUBROUTINE diagonal_elem(i,k,orb,siteenergies, itimes,  aom_env)
-
-                              do d=1,orb
-                                   do m=1,orb
-                                        !These diagonals are 1 by definition
-                                        !A bit of math to be convinced for Sttp,
-                                        !Stpt: dSii/dt = 0
-                                        aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
-                                        aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
-                                        aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
-                                        aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, &
-                                                                  (-aom_env%siteenergies(3,k)),dp)
-                                   end do
-                              end do
-                              if (itimes.eq.1) then
-                                   do d=1,orb
-                                        do m=1,orb
-                                        !These diagonals are 1 by definition
-                                        !A bit of math to be convinced for Sttp,
-                                        !Stpt: dSii/dt = 0
-                                             aom_env%Stt(orb*(i-1)+d,orb*(k-1)+m)   = 1.0D0
-                                             aom_env%Stmt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
-                                             aom_env%Sttm(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
-                                             aom_env%Stmtm(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
-                                        end do
-                                   end do     
-                              end if ! (.not.inrun)
-!END SUBROUTINE diagonal_elem
+                              CALL diagonal_elem(i,k,orb,itimes,aom_env)
 
 
 
@@ -455,7 +427,7 @@ print *, "orb", orb
 
                                    end if ! (.not.inrun)
                               end if ! ( k < i)
-!END SUBROUTINE diagonal_elem
+!END SUBROUTINE off_diagonal_elem
 
                          end if !(i==k)
                     else !(NN(i,k) == 1
@@ -696,5 +668,41 @@ SUBROUTINE calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
 
 END SUBROUTINE calc_coms_and_nlist
 
+
+SUBROUTINE diagonal_elem(i,k,orb,itimes,aom_env)
+
+     TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
+     INTEGER, POINTER                               :: itimes
+     integer, intent(IN) :: i, k,orb
+
+     integer ::  m, d
+
+
+                              do d=1,orb
+                                   do m=1,orb
+                                        !These diagonals are 1 by definition
+                                        !A bit of math to be convinced for Sttp,
+                                        !Stpt: dSii/dt = 0
+                                        aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
+                                        aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
+                                        aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
+                                        aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, &
+                                                                  (-aom_env%siteenergies(3,k)),dp)
+                                   end do
+                              end do
+                              if (itimes.eq.1) then
+                                   do d=1,orb
+                                        do m=1,orb
+                                        !These diagonals are 1 by definition
+                                        !A bit of math to be convinced for Sttp,
+                                        !Stpt: dSii/dt = 0
+                                             aom_env%Stt(orb*(i-1)+d,orb*(k-1)+m)   = 1.0D0
+                                             aom_env%Stmt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
+                                             aom_env%Sttm(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
+                                             aom_env%Stmtm(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
+                                        end do
+                                   end do     
+                              end if ! (.not.inrun)
+END SUBROUTINE diagonal_elem
 
 END MODULE aom_main
