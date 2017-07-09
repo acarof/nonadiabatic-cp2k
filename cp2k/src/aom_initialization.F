@@ -183,6 +183,8 @@ CONTAINS
      ALLOCATE(aom_env%connlist1(4,aom_atoms))
      ALLOCATE(aom_env%neighbourlist(nadiab, nadiab,0:aom_atoms,0:aom_atoms))
      ALLOCATE(aom_env%Stt(mat,mat))
+     ALLOCATE(aom_env%Sttp(mat,mat))
+     ALLOCATE(aom_env%Stpt(mat,mat))
      ALLOCATE(aom_env%Stptp(mat,mat))
      ALLOCATE(aom_env%Stmt(mat,mat))
      ALLOCATE(aom_env%Sttm(mat,mat))

@@ -131,7 +131,10 @@ IMPLICIT NONE
      REAL(KIND=dp), dimension(:,:,:), POINTER :: crds
      REAL(KIND=dp), dimension(:,:), POINTER :: dist
 !> To store the previous overlap matrix
-     REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Stmt, Sttm, Stmtm, Stptp
+     REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Stmt, Sttm, Stmtm, &
+                                             Stptp, Sttp, Stpt
+!     REAL(KIND=dp), dimension(:,:), POINTER :: Stt, Sttp, Stptp, Stpt, Stmt,
+!Sttm, Stmtm
 !> To store some connectivity information
      integer, dimension(:,:), POINTER       :: connlist1, connlist2, bneighbour
 !> To store the previous coefficients
