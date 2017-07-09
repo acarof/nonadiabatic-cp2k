@@ -160,7 +160,8 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab_new
      integer :: coord
-     integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
+     !integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
+     integer :: mol, atoms, c, active_state, mat, orb
      integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
      !integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
@@ -182,9 +183,9 @@ CONTAINS
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
      CHARACTER(LEN=default_string_length)           :: deco_keyword, prop_wf_keyword 
-      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
-      real(kind=dp), allocatable :: PC_rvecs(:,:)
-      integer :: o
+     real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
+      !real(kind=dp), allocatable :: PC_rvecs(:,:)
+      !integer :: o
       LOGICAL    :: do_random
 
      !> cutoff to define the neighborough list
@@ -245,8 +246,8 @@ CONTAINS
      ALLOCATE(velocities_com_tp(3, natom))
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
-     ALLOCATE(PC_allrvecs(5,mol*atoms))
-     ALLOCATE(PC_rvecs(3,atoms))
+     !ALLOCATE(PC_allrvecs(5,mol*atoms))
+     !ALLOCATE(PC_rvecs(3,atoms))
      allocate(pcoefftot(c))
      allocate(scoefftot(c))
      !these arrays are data for the non-adiabatic coupling calculation
@@ -275,97 +276,16 @@ CONTAINS
      aom_env%adiab_nace_t = aom_env%adiab_nace_tp
 
 print *, "BEFORE_________ENTER"
+
      !> CALCULATE THE CENTER OF MASS
      !> CONSTRUCT NEIGHBOURS LIST
      CALL calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
+print *, "orb", orb
 
-
-print *, "orb", orb 
      !> CALCULATE THE HAMILTONIAN, THE STTP MATRIX AND THE NACV
-     !for each molecule i
-     do i=1,mol
-               !create the array of all its atomic coordinates at t
-               !numerical factor converts from Angstroms into Bohr radii
-               do j=1,atoms
-                    aom_env%At(1,j)  = dble(aom_env%elements(j))
-                    aom_env%Atp(1,j) = dble(aom_env%elements(j))
-                    aom_env%Atm(1,j) = dble(aom_env%elements(j))
-                    do d=2,4
-                         !> CHANGE_AC : already coordonates in atomic units
-                         aom_env%Atm(d,j) = aom_env%crds(d-1,(i-1)*atoms+j,1)
-                         aom_env%At(d,j)  = aom_env%crds(d-1,(i-1)*atoms+j,2)
-                         aom_env%Atp(d,j) = aom_env%crds(d-1,(i-1)*atoms+j,3)
-                    end do
-               end do
-               
-               !then for each other molecule
-               do k=1,mol
-                    !create the array of its atomic coordinates at both t and t+dt
-                    do l=1,atoms
-                         aom_env%Bt(1,l)  = dble(aom_env%elements(l))
-                         aom_env%Btp(1,l) = dble(aom_env%elements(l))
-                         aom_env%Btm(1,l) = dble(aom_env%elements(l))
-                         do d=2,4
-                              !> CHANGE_AC : already coordonates in atomic units
-                              aom_env%Btm(d,l) = aom_env%crds(d-1,(k-1)*atoms+l,1)
-                              aom_env%Bt(d,l)  = aom_env%crds(d-1,(k-1)*atoms+l,2)
-                              aom_env%Btp(d,l) = aom_env%crds(d-1,(k-1)*atoms+l,3)
-                         end do
-                    end do
-                    if (i == 1) then
-                         do d=1,orb
-                              aom_env%pcoeffsrun(:,orb*(k-1)+d,1) = aom_env%pcoeffs(:,d)
-                              call calc_sab(aom_env%Btm, aom_env%connlist2, &
-                                                 aom_env%pcoeffsrun(:,orb*(k-1)+d,1))
+     CALL calc_Xmatrix_elements(aom_env,atoms, mol, dR, do_random, cbar, &
+                      scaling, S, PC_allrvecs)
 
-                              aom_env%pcoeffsrun(:,orb*(k-1)+d,2) = aom_env%pcoeffs(:,d)
-                              call calc_sab(aom_env%Bt, aom_env%connlist2, &
-                                                 aom_env%pcoeffsrun(:,orb*(k-1)+d,2))
-
-                              aom_env%pcoeffsrun(:,orb*(k-1)+d,3) = aom_env%pcoeffs(:,d)
-                              call calc_sab(aom_env%Btp, aom_env%connlist2, & 
-                                               aom_env%pcoeffsrun(:,orb*(k-1)+d,3))
-                         end do
-                    end if
-                    !neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
-                    !only call overlap if neighbours list says so
-                    if (aom_env%NN(i,k) == 1) then
-
-                         !first the diagonals
-                         if (i == k) then
-                              CALL diagonal_elem(i,k,orb,itimes,aom_env)
-
-                         !now the off-diagonals                         
-                         else ! ( i == k)
-                              CALL off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
-                                   dR, S, do_random, cbar, scaling)
-
-                         end if !(i==k)
-                    else !(NN(i,k) == 1
-                         do d=1,orb
-                              do m=1,orb
-                                   !fill in elements of non-overlapping pairs with 0
-                                   aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, 0.0D0,dp)
-                                   aom_env%Stt(orb*(i-1)+d,orb*(k-1)+m)   = 0.0D0
-                                   aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m)  = 0.0D0
-                                   aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
-                                   aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
-                                   aom_env%Sttm(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
-                                   aom_env%Stmtm(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
-                                   aom_env%Stmt(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
-                              end do
-                         end do
-                    end if !(NN(i,k) == 1
-
-
-               end do !loop over k
-               call calc_sab_pete(aom_env%Atp, aom_env%connlist2, PC_rvecs)
-               do o=1, size(PC_rvecs,2)
-                  PC_allrvecs(1,((i-1)*atoms)+o) = i
-                  PC_allrvecs(2,((i-1)*atoms)+o) = o
-                  PC_allrvecs (3:5,((i-1)*atoms)+o) = PC_rvecs(:,o)
-               end do
-     end do !loop over i
 
 print *, "aom_env%Stt", aom_env%Stt
 print *, "aom_env%Stptp", aom_env%Stptp
@@ -582,6 +502,118 @@ SUBROUTINE calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
 END SUBROUTINE calc_coms_and_nlist
 
 
+SUBROUTINE calc_Xmatrix_elements(aom_env, atoms, mol, dR, do_random, cbar, &
+                      scaling, S, PC_allrvecs)
+
+
+     TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
+     INTEGER, POINTER                               :: itimes
+     integer, intent(in) :: mol
+     integer, intent(IN) :: atoms
+     REAL(KIND=dp), intent(in)                   :: dR  
+     LOGICAL, intent(in)                         :: do_random
+     REAL(KIND=dp), intent(in)                   :: cbar
+     REAL(KIND=dp), intent(in) :: scaling
+     !real(kind=dp), INTENT(IN) :: PC_rvecs
+     !real(kind=dp), DIMENSION(:,:), intent(inout) :: PC_allrvecs
+     !real(kind=dp), DIMENSION(:,:), intent(inout) :: PC_rvecs
+     REAL(KIND=dp), intent(inout)                  :: S
+
+     integer :: i, j, k, l, m, d, orb, o
+     real(kind=dp), DIMENSION(:,:), allocatable, intent(out) :: PC_allrvecs
+     real(kind=dp), allocatable :: PC_rvecs(:,:)
+
+     
+     ALLOCATE(PC_allrvecs(5,mol*atoms))
+     ALLOCATE(PC_rvecs(3,atoms))
+
+     !for each molecule i
+     do i=1,mol
+               !create the array of all its atomic coordinates at t
+               !numerical factor converts from Angstroms into Bohr radii
+               do j=1,atoms
+                    aom_env%At(1,j)  = dble(aom_env%elements(j))
+                    aom_env%Atp(1,j) = dble(aom_env%elements(j))
+                    aom_env%Atm(1,j) = dble(aom_env%elements(j))
+                    do d=2,4
+                         !> CHANGE_AC : already coordonates in atomic units
+                         aom_env%Atm(d,j) = aom_env%crds(d-1,(i-1)*atoms+j,1)
+                         aom_env%At(d,j)  = aom_env%crds(d-1,(i-1)*atoms+j,2)
+                         aom_env%Atp(d,j) = aom_env%crds(d-1,(i-1)*atoms+j,3)
+                    end do
+               end do
+               
+               !then for each other molecule
+               do k=1,mol
+                    !create the array of its atomic coordinates at both t and t+dt
+                    do l=1,atoms
+                         aom_env%Bt(1,l)  = dble(aom_env%elements(l))
+                         aom_env%Btp(1,l) = dble(aom_env%elements(l))
+                         aom_env%Btm(1,l) = dble(aom_env%elements(l))
+                         do d=2,4
+                              !> CHANGE_AC : already coordonates in atomic units
+                              aom_env%Btm(d,l) = aom_env%crds(d-1,(k-1)*atoms+l,1)
+                              aom_env%Bt(d,l)  = aom_env%crds(d-1,(k-1)*atoms+l,2)
+                              aom_env%Btp(d,l) = aom_env%crds(d-1,(k-1)*atoms+l,3)
+                         end do
+                    end do
+                    if (i == 1) then
+                         do d=1,orb
+                              aom_env%pcoeffsrun(:,orb*(k-1)+d,1) = aom_env%pcoeffs(:,d)
+                              call calc_sab(aom_env%Btm, aom_env%connlist2, &
+                                                 aom_env%pcoeffsrun(:,orb*(k-1)+d,1))
+
+                              aom_env%pcoeffsrun(:,orb*(k-1)+d,2) = aom_env%pcoeffs(:,d)
+                              call calc_sab(aom_env%Bt, aom_env%connlist2, &
+                                                 aom_env%pcoeffsrun(:,orb*(k-1)+d,2))
+
+                              aom_env%pcoeffsrun(:,orb*(k-1)+d,3) = aom_env%pcoeffs(:,d)
+                              call calc_sab(aom_env%Btp, aom_env%connlist2, & 
+                                               aom_env%pcoeffsrun(:,orb*(k-1)+d,3))
+                         end do
+                    end if
+                    !neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
+                    !only call overlap if neighbours list says so
+                    if (aom_env%NN(i,k) == 1) then
+
+                         !first the diagonals
+                         if (i == k) then
+                              CALL diagonal_elem(i,k,orb,itimes,aom_env)
+
+                         !now the off-diagonals                         
+                         else ! ( i == k)
+                              CALL off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
+                                   dR, S, do_random, cbar, scaling)
+
+                         end if !(i==k)
+                    else !(NN(i,k) == 1
+                         do d=1,orb
+                              do m=1,orb
+                                   !fill in elements of non-overlapping pairs with 0
+                                   aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+m)  = cmplx(0.0D0, 0.0D0,dp)
+                                   aom_env%Stt(orb*(i-1)+d,orb*(k-1)+m)   = 0.0D0
+                                   aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m)  = 0.0D0
+                                   aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
+                                   aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
+                                   aom_env%Sttm(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
+                                   aom_env%Stmtm(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
+                                   aom_env%Stmt(orb*(i-1)+d,orb*(k-1)+m) = 0.0D0
+                              end do
+                         end do
+                    end if !(NN(i,k) == 1
+
+
+               end do !loop over k
+               call calc_sab_pete(aom_env%Atp, aom_env%connlist2, PC_rvecs)
+               do o=1, size(PC_rvecs,2)
+                  PC_allrvecs(1,((i-1)*atoms)+o) = i
+                  PC_allrvecs(2,((i-1)*atoms)+o) = o
+                  PC_allrvecs (3:5,((i-1)*atoms)+o) = PC_rvecs(:,o)
+               end do
+     end do !loop over i
+
+END SUBROUTINE calc_Xmatrix_elements
+
 SUBROUTINE diagonal_elem(i,k,orb,itimes,aom_env)
 
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
@@ -632,8 +664,6 @@ SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
      REAL(KIND=dp), intent(in) :: scaling
      !REAL(KIND=dp), dimension(:,:,:,:), intent(out) :: nacv
      REAL(KIND=dp), intent(out)                  :: S
-
-     !integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
 
      integer ::  m, d
      !symmetric matrices
