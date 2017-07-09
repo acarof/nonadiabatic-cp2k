@@ -162,12 +162,12 @@ CONTAINS
      integer :: coord
      integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
      integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
-     integer, dimension(:,:,:,:), allocatable :: neighbourlist
+     !integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
      REAL(KIND=dp)    :: cbar, minao
-     REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
-     REAL(KIND=dp), dimension(:,:,:), allocatable :: pcoeffsrun
+     !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
+     !REAL(KIND=dp), dimension(:,:,:), allocatable :: pcoeffsrun
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
@@ -247,10 +247,6 @@ CONTAINS
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
      ALLOCATE(PC_allrvecs(5,mol*atoms))
      ALLOCATE(PC_rvecs(3,atoms))
-     allocate(nacv(3,mat,mat,mat*atoms))      !non-adiabatic coupling vectors
-     nacv = 0.0D0
-     !allocate(siteenergies(3,mat))      !diagonals of the Hamiltonian
-     allocate(pcoeffsrun(atoms,mat,3)) !pcoeffsrun exists because the p-coefficients need to be renormalised for each structure
      allocate(pcoefftot(c))
      allocate(scoefftot(c))
      !these arrays are data for the non-adiabatic coupling calculation
@@ -260,8 +256,8 @@ CONTAINS
      allocate(bneighbour(0:atoms,0:atoms))
      aneighbour = 0
      bneighbour = 0
-     allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
-     neighbourlist = 0
+     !allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
+     !neighbourlist = 0
 
 
      !> OBTAIN COORDINATES, ENERGIES, STATES, etc. FROM PREVIOUS STEP
@@ -318,17 +314,20 @@ print *, "orb", orb
                     end do
                     if (i == 1) then
                          do d=1,orb
-                              pcoeffsrun(:,orb*(k-1)+d,1) = aom_env%pcoeffs(:,d)
-                              call calc_sab(aom_env%Btm, aom_env%connlist2, pcoeffsrun(:,orb*(k-1)+d,1))
+                              aom_env%pcoeffsrun(:,orb*(k-1)+d,1) = aom_env%pcoeffs(:,d)
+                              call calc_sab(aom_env%Btm, aom_env%connlist2, &
+                                                 aom_env%pcoeffsrun(:,orb*(k-1)+d,1))
 
-                              pcoeffsrun(:,orb*(k-1)+d,2) = aom_env%pcoeffs(:,d)
-                              call calc_sab(aom_env%Bt, aom_env%connlist2, pcoeffsrun(:,orb*(k-1)+d,2))
+                              aom_env%pcoeffsrun(:,orb*(k-1)+d,2) = aom_env%pcoeffs(:,d)
+                              call calc_sab(aom_env%Bt, aom_env%connlist2, &
+                                                 aom_env%pcoeffsrun(:,orb*(k-1)+d,2))
 
-                              pcoeffsrun(:,orb*(k-1)+d,3) = aom_env%pcoeffs(:,d)
-                              call calc_sab(aom_env%Btp, aom_env%connlist2, pcoeffsrun(:,orb*(k-1)+d,3))
+                              aom_env%pcoeffsrun(:,orb*(k-1)+d,3) = aom_env%pcoeffs(:,d)
+                              call calc_sab(aom_env%Btp, aom_env%connlist2, & 
+                                               aom_env%pcoeffsrun(:,orb*(k-1)+d,3))
                          end do
                     end if
-                    neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
+                    !neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
                     !only call overlap if neighbours list says so
                     if (aom_env%NN(i,k) == 1) then
 
@@ -338,8 +337,8 @@ print *, "orb", orb
 
                          !now the off-diagonals                         
                          else ! ( i == k)
-                              CALL off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, pcoeffsrun, &
-                                   dR, nacv, S, do_random, cbar, neighbourlist,scaling)
+                              CALL off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
+                                   dR, S, do_random, cbar, scaling)
 
                          end if !(i==k)
                     else !(NN(i,k) == 1
@@ -379,7 +378,7 @@ print *, "aom_env%Stmt", aom_env%Stmt
 
 
      !> CONVERT THE NACV WITH THE GOOD UNITS
-     nacv = cbar*nacv
+     aom_env%nacv = cbar*aom_env%nacv
      !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
      !It gives us back the eigenvalues and eigenvectors
      !initialize Adiabatic energies that will be used for trivial hopping and
@@ -450,11 +449,13 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
         ENDDO
      ENDDO
      print*, "ACTIVE STATE = ", active_state
-     call calcforces(state=active_state,Hin=-AIMAG(aom_env%H_tp), C=C_tp, nacv=nacv, NN=aom_env%NN, atoms=atoms, & 
+     call calcforces(state=active_state,Hin=-AIMAG(aom_env%H_tp), C=C_tp, nacv=aom_env%nacv, &
+                            NN=aom_env%NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=aom_env%F, forces_adiab=my_forces_adiab, &
                            ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      IF (attempt_hop) THEN
-         call calcforces(state=new_state,Hin=-AIMAG(aom_env%H_tp), C=C_tp, nacv=nacv, NN=aom_env%NN, atoms=atoms, & 
+         call calcforces(state=new_state,Hin=-AIMAG(aom_env%H_tp), C=C_tp, nacv=aom_env%nacv, &
+                               NN=aom_env%NN, atoms=atoms, & 
                               scaling=scaling, cbar=cbar, Fin=aom_env%F, forces_adiab=my_forces_adiab_new, &
                               ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      ENDIF
@@ -472,7 +473,7 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
 
      !> PRINT
      CALL adiab_print_hamiltonian(adiab_section, -AIMAG(aom_env%H_tp), nadiab,norbitals,itimes, deltatMD)
-     CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, deltatMD)
+     CALL adiab_print_nacv(adiab_section, aom_env%nacv, nadiab, norbitals, aom_atoms,itimes, deltatMD)
      CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
      CALL adiab_print_pvecs(adiab_section, PC_allrvecs, itimes, deltatMD, times, atoms, nadiab)
                          sh_print_env%times = times
@@ -492,7 +493,7 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      aom_env%ctin        = ctin
      aom_env%attempt_hop  = attempt_hop
      aom_env%H_t = aom_env%H_tp
-     aom_env%nacv        = nacv
+     !aom_env%nacv        = nacv
      aom_env%new_state = new_state
      aom_env%active_state = active_state
 !!!!
@@ -527,9 +528,9 @@ print *, "aom_env%Stmt", aom_env%Stmt
 !stop
      !> DEALLOCATE
      deallocate(scoefftot, pcoefftot)
-     deallocate(pcoeffsrun)
+     !deallocate(pcoeffsrun)
      deallocate(ctin)
-     deallocate(nacv)
+     !deallocate(nacv)
      deallocate(exact_forces)
     END SUBROUTINE construct_ham_X_SH
 
@@ -590,136 +591,142 @@ SUBROUTINE diagonal_elem(i,k,orb,itimes,aom_env)
      integer ::  m, d
 
 
-                              do d=1,orb
-                                   do m=1,orb
-                                        !These diagonals are 1 by definition
-                                        !A bit of math to be convinced for Sttp,
-                                        !Stpt: dSii/dt = 0
-                                        aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
-                                        aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
-                                        aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
-                                        aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, &
-                                                                  (-aom_env%siteenergies(3,k)),dp)
-                                   end do
-                              end do
-                              if (itimes.eq.1) then
-                                   do d=1,orb
-                                        do m=1,orb
-                                        !These diagonals are 1 by definition
-                                        !A bit of math to be convinced for Sttp,
-                                        !Stpt: dSii/dt = 0
-                                             aom_env%Stt(orb*(i-1)+d,orb*(k-1)+m)   = 1.0D0
-                                             aom_env%Stmt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
-                                             aom_env%Sttm(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
-                                             aom_env%Stmtm(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
-                                        end do
-                                   end do     
-                              end if ! (.not.inrun)
+     do d=1,orb
+          do m=1,orb
+               !These diagonals are 1 by definition
+               !A bit of math to be convinced for Sttp,
+               !Stpt: dSii/dt = 0
+               aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
+               aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
+               aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
+               aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, &
+                                         (-aom_env%siteenergies(3,k)),dp)
+          end do
+     end do
+     if (itimes.eq.1) then
+          do d=1,orb
+               do m=1,orb
+               !These diagonals are 1 by definition
+               !A bit of math to be convinced for Sttp,
+               !Stpt: dSii/dt = 0
+                    aom_env%Stt(orb*(i-1)+d,orb*(k-1)+m)   = 1.0D0
+                    aom_env%Stmt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
+                    aom_env%Sttm(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
+                    aom_env%Stmtm(orb*(i-1)+d,orb*(k-1)+m) = 1.0D0
+               end do
+          end do     
+     end if ! (.not.inrun)
 END SUBROUTINE diagonal_elem
 
-SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, pcoeffsrun, &
-                                   dR, nacv, S, do_random, cbar, neighbourlist,scaling)
+SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
+                                   dR, S, do_random, cbar, scaling)
 
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
      INTEGER, POINTER                               :: itimes
      integer, intent(IN) :: i, k,orb, atoms
-     REAL(KIND=dp), dimension(:,:,:), intent(inout) :: pcoeffsrun
+     !REAL(KIND=dp), dimension(:,:,:), intent(inout) :: pcoeffsrun
      REAL(KIND=dp), intent(in)                   :: dR  
      LOGICAL, intent(in)                         :: do_random
      REAL(KIND=dp), intent(in)                   :: cbar
-     integer, dimension(:,:,:,:), intent(in) :: neighbourlist
+     !integer, dimension(:,:,:,:), intent(in) :: neighbourlist
      REAL(KIND=dp), intent(in) :: scaling
-     REAL(KIND=dp), dimension(:,:,:,:), intent(out) :: nacv
+     !REAL(KIND=dp), dimension(:,:,:,:), intent(out) :: nacv
      REAL(KIND=dp), intent(out)                  :: S
 
      !integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
 
      integer ::  m, d
-                              !symmetric matrices
-                              !no sense calling calc_sab twice as often as you need to
-                              if (k < i) then
-                                   do m=1,orb
-                                        do d=1,orb
-                                             aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+m)  = aom_env%H_tp(orb*(k-1)+m,orb*(i-1)+d)
-                                             aom_env%Stt(orb*(i-1)+d,orb*(k-1)+m)   = &
-                                                                      aom_env%Stt(orb*(k-1)+m,orb*(i-1)+d)
-                                             aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = &
-                                                                     aom_env%Stptp(orb*(k-1)+m,orb*(i-1)+d)
-                                             aom_env%Stmtm(orb*(i-1)+d,orb*(k-1)+m) = &
-                                                                      aom_env%Stmtm(orb*(k-1)+m,orb*(i-1)+d)
-                                             !A cross symmetry for Sttp, Stpt,
-                                             !Sttm, Stmt
-                                             aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m)  = &
-                                                                      aom_env%Stpt(orb*(k-1)+m,orb*(i-1)+d)
-                                             aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m)  = & 
-                                                                       aom_env%Sttp(orb*(k-1)+m,orb*(i-1)+d)
-                                             IF (itimes.eq.1) THEN
-                                                aom_env%Sttm(orb*(i-1)+d,orb*(k-1)+m)  = &
-                                                                       aom_env%Stmt(orb*(k-1)+m,orb*(i-1)+d)
-                                                aom_env%Stmt(orb*(i-1)+d,orb*(k-1)+m)  = &
-                                                                       aom_env%Sttm(orb*(k-1)+m,orb*(i-1)+d)
-                                             ENDIF
-                                        end do
-                                   end do
-                              else
-                                   do d=1,orb
-                                        do m=1,orb
-                                        !PC added print_rvecs =yes so p vectors and coords would be printed 
-                                             call calc_sab(aom_env%Atp, aom_env%connlist2, &
-                                                 pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
-                                              S, aom_env%Btp, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3),& 
-                                              print_rvecs='yes', molA_index=i, molB_index=k)
-                                             aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
-                                             aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
+     !symmetric matrices
+     !no sense calling calc_sab twice as often as you need to
+     if (k < i) then
+          do m=1,orb
+               do d=1,orb
+                    aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+m)  = aom_env%H_tp(orb*(k-1)+m,orb*(i-1)+d)
+                    aom_env%Stt(orb*(i-1)+d,orb*(k-1)+m)   = &
+                                             aom_env%Stt(orb*(k-1)+m,orb*(i-1)+d)
+                    aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = &
+                                            aom_env%Stptp(orb*(k-1)+m,orb*(i-1)+d)
+                    aom_env%Stmtm(orb*(i-1)+d,orb*(k-1)+m) = &
+                                             aom_env%Stmtm(orb*(k-1)+m,orb*(i-1)+d)
+                    !A cross symmetry for Sttp, Stpt,
+                    !Sttm, Stmt
+                    aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m)  = &
+                                             aom_env%Stpt(orb*(k-1)+m,orb*(i-1)+d)
+                    aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m)  = & 
+                                              aom_env%Sttp(orb*(k-1)+m,orb*(i-1)+d)
+                    IF (itimes.eq.1) THEN
+                       aom_env%Sttm(orb*(i-1)+d,orb*(k-1)+m)  = &
+                                              aom_env%Stmt(orb*(k-1)+m,orb*(i-1)+d)
+                       aom_env%Stmt(orb*(i-1)+d,orb*(k-1)+m)  = &
+                                              aom_env%Sttm(orb*(k-1)+m,orb*(i-1)+d)
+                    ENDIF
+               end do
+          end do
+     else
+          do d=1,orb
+               do m=1,orb
+               !PC added print_rvecs =yes so p vectors and coords would be printed 
+                    call calc_sab(aom_env%Atp, aom_env%connlist2, &
+                        aom_env%pcoeffsrun(1:atoms,orb*(i-1)+d,3),&
+                     S, aom_env%Btp, aom_env%connlist2, &
+                               aom_env%pcoeffsrun(1:atoms,orb*(k-1)+m,3),& 
+                     print_rvecs='yes', molA_index=i, molB_index=k)
+                    aom_env%Stptp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+                    aom_env%H_tp(orb*(i-1)+d,orb*(k-1)+m) = cmplx(0.0D0, -scaling*S,dp)
 
-                                             !Calcul of the NACV
-                                             call calc_dRSab(aom_env%Atp, aom_env%atomlist, aom_env%connlist1, &
-                                             pcoeffsrun(1:atoms,orb*(i-1)+d,2), aom_env%scoeffs, &
-                                             nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
-                                             nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
-                                             aom_env%Btp, aom_env%atomlist, aom_env%connlist1, &
-                                             pcoeffsrun(1:atoms,orb*(k-1)+m,2), &
-                                              aom_env%scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, &
-                                              do_random, aom_env)
-                                        end do
-                                   end do
-                                   do d=1,orb
-                                        do m=1,orb
-                                             call calc_sab(aom_env%At, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, &
-                                              aom_env%Btp,&
-                                             & aom_env%connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,3))
-                                             aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+                    !Calcul of the NACV
+                    call calc_dRSab(aom_env%Atp, aom_env%atomlist, aom_env%connlist1, &
+                    aom_env%pcoeffsrun(1:atoms,orb*(i-1)+d,2), aom_env%scoeffs, &
+                    aom_env%nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
+                    aom_env%nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
+                    aom_env%Btp, aom_env%atomlist, aom_env%connlist1, &
+                    aom_env%pcoeffsrun(1:atoms,orb*(k-1)+m,2), &
+                     aom_env%scoeffs, aom_env%neighbourlist(k,i,:,:), aom_env%neighbourlist(i,k,:,:), dR, &
+                     do_random, aom_env)
+               end do
+          end do
+          do d=1,orb
+               do m=1,orb
+                    call calc_sab(aom_env%At, aom_env%connlist2, &
+                     aom_env%pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, &
+                     aom_env%Btp,&
+                    & aom_env%connlist2, aom_env%pcoeffsrun(1:atoms,orb*(k-1)+m,3))
+                    aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
 
-                                             call calc_sab(aom_env%Atp, aom_env%connlist2, pcoeffsrun(1:atoms,orb*(i-1)+d,3), S,& 
-                                              aom_env%Bt,&
-                                             & aom_env%connlist2, pcoeffsrun(1:atoms,orb*(k-1)+m,2))
-                                             aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
-                                        end do
-                                   end do
-                                   if (itimes.eq.1) then
-                                        do d=1,orb
-                                             do m=1,orb
+                    call calc_sab(aom_env%Atp, aom_env%connlist2, &
+                         aom_env%pcoeffsrun(1:atoms,orb*(i-1)+d,3), S,& 
+                     aom_env%Bt,&
+                    & aom_env%connlist2, aom_env%pcoeffsrun(1:atoms,orb*(k-1)+m,2))
+                    aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+               end do
+          end do
+          if (itimes.eq.1) then
+               do d=1,orb
+                    do m=1,orb
 
-                                                  call calc_sab(aom_env%Atm, aom_env%connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, aom_env%Btm, aom_env%connlist2,&
-                                                  &pcoeffsrun(1:atoms,orb*(k-1)+m,1))
-                                                  aom_env%Stmtm(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+                         call calc_sab(aom_env%Atm, aom_env%connlist2, &
+                         &aom_env%pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, &
+                             aom_env%Btm, aom_env%connlist2,&
+                         &aom_env%pcoeffsrun(1:atoms,orb*(k-1)+m,1))
+                         aom_env%Stmtm(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
 
 
-                                                  call calc_sab(aom_env%At, aom_env%connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, aom_env%Btm, aom_env%connlist2,&
-                                                  &pcoeffsrun(1:atoms,orb*(k-1)+m,1))
-                                                  aom_env%Sttm(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+                         call calc_sab(aom_env%At, aom_env%connlist2, &
+                         &aom_env%pcoeffsrun(1:atoms,orb*(i-1)+d,2), S, &
+                                    aom_env%Btm, aom_env%connlist2,&
+                         &aom_env%pcoeffsrun(1:atoms,orb*(k-1)+m,1))
+                         aom_env%Sttm(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
 
-                                                  call calc_sab(aom_env%Atm, aom_env%connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, aom_env%Bt, aom_env%connlist2, &
-                                                  &pcoeffsrun(1:atoms,orb*(k-1)+m,2))
-                                                  aom_env%Stmt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
-                                             end do
-                                        end do
+                         call calc_sab(aom_env%Atm, aom_env%connlist2, &
+                         &aom_env%pcoeffsrun(1:atoms,orb*(i-1)+d,1), S, &
+                           aom_env%Bt, aom_env%connlist2, &
+                         &aom_env%pcoeffsrun(1:atoms,orb*(k-1)+m,2))
+                         aom_env%Stmt(orb*(i-1)+d,orb*(k-1)+m) = cbar*S
+                    end do
+               end do
 
-                                   end if ! (.not.inrun)
-                              end if ! ( k < i)
+          end if ! (.not.inrun)
+     end if ! ( k < i)
 END SUBROUTINE off_diagonal_elem
 
 END MODULE aom_main

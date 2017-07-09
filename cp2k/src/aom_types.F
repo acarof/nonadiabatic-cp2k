@@ -143,6 +143,7 @@ IMPLICIT NONE
      REAL(KIND=dp), DIMENSION(:), POINTER                :: population
 !> To store some connectivity information
      INTEGER, DIMENSION(:,:,:,:), POINTER                  :: neighbourlist
+     REAL(KIND=dp), dimension(:,:,:), allocatable          :: pcoeffsrun
 !> To print the Hamiltonian
      COMPLEX(KIND=dp), DIMENSION(:,:), POINTER              :: H_t, H_tp
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: eigenvector_matrix

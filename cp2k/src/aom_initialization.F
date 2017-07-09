@@ -187,13 +187,13 @@ CONTAINS
 
      ALLOCATE(aom_env%H_t(mat,mat))
      ALLOCATE(aom_env%H_tp(mat,mat))
-
+     allocate(aom_env%pcoeffsrun(atoms,mat,3)) !pcoeffsrun exists because the p-coefficients
+                                        !need to be renormalised for each structure
      ALLOCATE(aom_env%eigenvector_matrix(mat,mat))
      ALLOCATE(aom_env%connlist1(4,aom_atoms))
      ALLOCATE(aom_env%neighbourlist(nadiab, nadiab,0:aom_atoms,0:aom_atoms))
      !need to allocate these square matrices
      !first the real, S-related ones
-
      ALLOCATE(aom_env%Stt(mat,mat))
      ALLOCATE(aom_env%Sttp(mat,mat))
      ALLOCATE(aom_env%Stpt(mat,mat))
