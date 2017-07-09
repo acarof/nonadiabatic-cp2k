@@ -398,7 +398,7 @@ print *, "orb", orb
 !print *, "m", m
 !print *, "d", d
 !print *, "aom_env%Stptp", aom_env%Stptp
-                                        aom_env%Sttp(orb*(i-2)+d,orb*(k-1)+m)  = 1.0D0
+                                        aom_env%Sttp(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
                                         aom_env%Stpt(orb*(i-1)+d,orb*(k-1)+m)  = 1.0D0
 !print *, "aom_env%Stpt", aom_env%Stpt
                                         !H_t(orb*(i-1)+d,orb*(k-1)+d) = cmplx(0.0D0, (-siteenergies(2,k)), dp)
@@ -708,7 +708,7 @@ print *, "aom_env%Stmt", aom_env%Stmt
      ENDIF
      energy_adiabat = E_tp(active_state)
      aom_env%sh_print_env = sh_print_env
-
+     
 
 !stop
      !> DEALLOCATE
