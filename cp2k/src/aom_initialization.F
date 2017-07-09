@@ -298,8 +298,8 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN ='propagate_aom_namd_first_step', &
      routineP = moduleN//':'//routineN
 
-     REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
-     INTEGER                                        :: iparticle 
+     !REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
+     !INTEGER                                        :: iparticle 
      TYPE(sh_env_type)                              :: sh_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      integer :: coord, t2
@@ -671,90 +671,15 @@ print *, "CTIN_ADIAB_BASIS", ctin
          new_state = mod(active_state + 1, mat) 
          IF ((new_state).EQ.0) new_state = mat
      ENDIF 
+    
+     !> CALCULATE NACV FOR ADIAB PROPAGATION AT t=0
+     CALL nacv_first_ts(aom_env, natom, mat, velocities_com_tp) 
 
-     !INITIALIZE NACE
-!!ONLY FOR THE TEST 
-!    aom_env%adiab_nace_tp = 0.0D0
-!    !B = aom_env%adiab_nace_tp
-!    do i =1, mat
-!        do j = 1, mat
-!             if (j .gt. i) then
-!                 CALL calc_hop_nacv(aom_env, hop_nacv, i, j, fast=.TRUE.)
-!print *, "NACV_PRINTED", hop_nacv(1,5)
-!print *, "VELOCITIES_COM", velocities_com_tp(1,5) 
-!                 do iparticle=1,natom
-!                      do coord = 1,3
-!                           aom_env%adiab_nace_tp(i,j) = aom_env%adiab_nace_tp(i,j) + &
-!                                                   velocities_com_tp(coord, iparticle)* & 
-!                                                           hop_nacv(coord, iparticle)
-!                      end do
-!                 end do
-!             else if (i .gt. j) then
-!                 aom_env%adiab_nace_tp(i,j)= -aom_env%adiab_nace_tp(j,i)
-!             else 
-!                 aom_env%adiab_nace_tp(i,j) = 0.0D0
-!             end if 
-!        end do
-!    end do
-!
-!    aom_env%adiab_nace_tp = -aom_env%adiab_nace_tp
-
- 
-     aom_env%adiab_nace_tp = 0.0D0
-     !B = aom_env%adiab_nace_tp
-     do i =1, mat
-         do j = 1, mat
-              if (j .ge. i) then
-                  CALL calc_hop_nacv(aom_env, hop_nacv, i, j, fast=.TRUE.)
-print *, "NACV_PRINTED", hop_nacv(1,5)
-print *, "VELOCITIES_COM", velocities_com_tp(1,5) 
-                  do iparticle=1,natom
-                       do coord = 1,3
-                            aom_env%adiab_nace_tp(i,j) = aom_env%adiab_nace_tp(i,j) + &
-                                                    velocities_com_tp(coord, iparticle)* & 
-                                                            hop_nacv(coord, iparticle)
-                       end do
-                  end do
-              else
-                  aom_env%adiab_nace_tp(i,j)= -aom_env%adiab_nace_tp(j,i)
-              !else 
-               !   aom_env%adiab_nace_tp(i,j) = 0.0D0
-              end if 
-         end do
-     end do
-
-     aom_env%adiab_nace_tp = -aom_env%adiab_nace_tp 
 
 !TEST
 !aom_env%adiab_nace_tp = 0.0D0
 
 print *, "NACE_MATRIXXX", aom_env%adiab_nace_tp
-
-!     do i =1,mat
-!        do j = 1, mat
-!           if (i .gt. j) then
-!                B(i,j) = -B(j,i)
-!           end if 
-!        end do
-!     end do
-     
-!     CALL calc_hop_nacv(aom_env, hop_nacv, i, j, fast=.TRUE.)
-
-!           B = 0
-!           DO iparticle_kind=1,nparticle_kind
-!              atomic_kind => atomic_kind_set(iparticle_kind)
-!              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!              nparticle_local = local_particles%n_el(iparticle_kind)
-!              DO iparticle_local=1,nparticle_local
-!                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-!                 DO coord = 1, 3
-!                    B = B + velocities(coord, iparticle) * hop_nacv(coord, iparticle)
-!                 ENDDO
-!              END DO
-!           END DO
-
-
-
 
      !> second part CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE
      !RESULT OF THE SURFACE HOP ROUTINE IS.
@@ -814,5 +739,40 @@ print *, "NACE_MATRIXXX", aom_env%adiab_nace_tp
     deallocate(exact_forces)
     deallocate(F)
   END SUBROUTINE propagate_aom_namd_first_step
+
+  SUBROUTINE nacv_first_ts(aom_env, natom, mat, velocities_com_tp)
+
+     TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
+     !integer :: mol, atoms, c, active_state, mat, orb
+     integer, intent(in)                            :: mat
+     INTEGER, intent(in)                            :: natom
+     REAL(kind=dp), DIMENSION(:,:), INTENT(IN)      :: velocities_com_tp
+
+     integer             :: i,j, iparticle, coord
+     REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
+
+     aom_env%adiab_nace_tp = 0.0D0
+     !B = aom_env%adiab_nace_tp
+     do i =1, mat
+         do j = 1, mat
+              if (j .ge. i) then
+                  CALL calc_hop_nacv(aom_env, hop_nacv, i, j, fast=.TRUE.)
+print *, "NACV_PRINTED", hop_nacv(1,5)
+print *, "VELOCITIES_COM", velocities_com_tp(1,5) 
+                  do iparticle=1,natom
+                       do coord = 1,3
+                            aom_env%adiab_nace_tp(i,j) = aom_env%adiab_nace_tp(i,j) + &
+                                                    velocities_com_tp(coord, iparticle)* & 
+                                                            hop_nacv(coord, iparticle)
+                       end do
+                  end do
+              else
+                  aom_env%adiab_nace_tp(i,j)= -aom_env%adiab_nace_tp(j,i)
+              end if 
+         end do
+     end do
+     aom_env%adiab_nace_tp = -aom_env%adiab_nace_tp 
+
+  END SUBROUTINE nacv_first_ts
 
 END MODULE aom_initialization
