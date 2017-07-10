@@ -441,18 +441,6 @@ print *, "CTM", cttm_ad
                CPABORT("There is no method to propagate the wavefunction.")
         END SELECT
 
-!        adiabatic_prop = .TRUE.
-!        if (adiabatic_prop) then 
-!               CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, &
-!                                                   C1, cttm_ad, cstate_tm) 
-!        else
-!!NOT YET READY FOR ADIAB PRPAGATION
-!               ct(:) = sh_env%ctt(:)
-!               cttm_ad(:) = sh_env%cttm(:)
-!               cstate = sh_env%ctt(old_state)
-!               cstate_tm = sh_env%cttm(old_state)
-!        end if 
-
         do i=1,mol
                !construct state density for t present and t-deltat from the active state to
                !other state
@@ -1918,7 +1906,8 @@ end subroutine calcTDT
                                             SUM(F_1(2,:) + F_11(2,:)), &
                                             SUM(F_1(3,:) + F_11(3,:))
                  CALL adiab_print_hop_nacv(sh_print_env, hop_nacv, F_11, F_1, F_2, F_3) 
-                 CALL cal_delta_energy_nacv(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
+                 CALL cal_delta_energy_nacv(nparticle_kind, velocities_com, force_env%mixed_env%aom_env, &
+                                              atomic_kind_set, &
                                             local_particles, F_1 + F_11, delta_energy, A, B) 
 print*, "DELTAFF1 = ", delta_energy
 IF ((delta_energy).lt.0) THEN
@@ -1927,7 +1916,8 @@ ELSE
      print*, "LOGFF1 = ", 1
 ENDIF
      
-                 CALL cal_delta_energy_nacv(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
+                 CALL cal_delta_energy_nacv(nparticle_kind, velocities_com, force_env%mixed_env%aom_env, &
+                                            atomic_kind_set, &
                                             local_particles, F_1, delta_energy, A, B) 
 print*, "DELTAF1 = ", delta_energy
 IF ((delta_energy).lt.0) THEN
@@ -1945,7 +1935,8 @@ ENDIF
               CASE DEFAULT
                 CPABORT("There is no method to calculate the NACV.")
               END SELECT 
-              CALL cal_delta_energy_nacv(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
+              CALL cal_delta_energy_nacv(nparticle_kind, velocities_com, force_env%mixed_env%aom_env, &
+                                          atomic_kind_set, &
                                           local_particles, hop_nacv, delta_energy, A, B) 
 IF ((delta_energy).lt.0) THEN
      print*, "LOGNACV = ", 0
@@ -2132,11 +2123,65 @@ ENDIF
         END DO
    END SUBROUTINE hop_nacv_vel_rescaling
 
-   SUBROUTINE cal_delta_energy_nacv(nparticle_kind, velocities, force_env, atomic_kind_set, &
-                                    local_particles, hop_nacv, delta_energy, A, B) 
+!  SUBROUTINE cal_delta_energy_nacv(nparticle_kind, velocities, aom_env, atomic_kind_set, &
+!                                   local_particles, hop_nacv, delta_energy, A, B) 
+!       INTEGER, INTENT(IN)                      :: nparticle_kind
+!       REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
+!       TYPE(aom_env_type)                       :: aom_env
+!       TYPE(distribution_1d_type), POINTER      :: local_particles
+!       TYPE(atomic_kind_type), DIMENSION(:), &
+!            POINTER                                :: atomic_kind_set
+!       REAL(kind=dp), DIMENSION(:,:), INTENT(IN)   :: hop_nacv
+!       REAL(kind=dp), INTENT(OUT)                  :: delta_energy
+!       REAL(kind=dp), INTENT(OUT)                  :: A, B
+!
+!       CHARACTER(len=*), PARAMETER :: routineN = 'cal_delta_energy_nacv', &
+!       routineP = moduleN//':'//routineN
+!
+!       REAL(kind=dp)                            :: mass
+!       INTEGER                                  :: iparticle_kind, new_state, old_state
+!       INTEGER                                  :: nparticle_local, coord
+!       INTEGER                                  :: iparticle_local, iparticle
+!       TYPE(atomic_kind_type), POINTER          :: atomic_kind
+!
+!!From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular dynamics using semiempirical methods. 
+!!     Chem Phys 2008, 349:334–347.
+!       
+!          A = 0
+!          B = 0
+!          DO iparticle_kind=1,nparticle_kind
+!             atomic_kind => atomic_kind_set(iparticle_kind)
+!             CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+!             nparticle_local = local_particles%n_el(iparticle_kind)
+!             DO iparticle_local=1,nparticle_local
+!                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+!                DO coord = 1, 3
+!                   IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
+!                      velocities(3, iparticle)**2 ).NE.0.0d0) THEN
+!                      A = A + hop_nacv(coord, iparticle)**2 / mass
+!                   ELSE IF ( SUM(velocities).EQ.0) THEN
+!                      A = A + hop_nacv(coord, iparticle)**2 / mass
+!                   ENDIF
+!                   B = B + velocities(coord, iparticle) * hop_nacv(coord, iparticle)
+!                ENDDO
+!             END DO
+!          END DO
+!          A = 0.5*A
+!
+!          new_state = aom_env%new_state
+!          old_state = aom_env%active_state
+!          delta_energy = B**2 - 4 * A * (  &
+!                    aom_env%adiab_energies_t(new_state) - &
+!                    aom_env%adiab_energies_t(old_state))
+!  END SUBROUTINE cal_delta_energy_nacv
+
+
+   SUBROUTINE cal_delta_energy_nacv(nparticle_kind, velocities, aom_env, atomic_kind_set, &
+                                    local_particles, hop_nacv, delta_energy, A, B, i, j) 
         INTEGER, INTENT(IN)                      :: nparticle_kind
+        INTEGER, OPTIONAL, INTENT(IN)            :: i, j
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
-        TYPE(force_env_type), POINTER            :: force_env
+        TYPE(aom_env_type)                       :: aom_env
         TYPE(distribution_1d_type), POINTER      :: local_particles
         TYPE(atomic_kind_type), DIMENSION(:), &
              POINTER                                :: atomic_kind_set
@@ -2144,7 +2189,7 @@ ENDIF
         REAL(kind=dp), INTENT(OUT)                  :: delta_energy
         REAL(kind=dp), INTENT(OUT)                  :: A, B
 
-        CHARACTER(len=*), PARAMETER :: routineN = 'cal_delta_energy_nacv', &
+        CHARACTER(len=*), PARAMETER :: routineN = 'adiab_nacv_evaluation', &
         routineP = moduleN//':'//routineN
 
         REAL(kind=dp)                            :: mass
@@ -2177,12 +2222,23 @@ ENDIF
            END DO
            A = 0.5*A
 
-           new_state = force_env%mixed_env%aom_env%new_state
-           old_state = force_env%mixed_env%aom_env%active_state
-           delta_energy = B**2 - 4 * A * (                                     &
-                     force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
-                     force_env%mixed_env%aom_env%adiab_energies_t(old_state))
+           IF (PRESENT(j)) THEN
+              new_state = j
+           ELSE    
+              new_state = aom_env%new_state
+           ENDIF
+           IF (PRESENT(i)) THEN
+              old_state = i
+           ELSE
+              old_state = aom_env%active_state
+           ENDIF
+
+           delta_energy = B**2 - 4 * A * (  &
+                     aom_env%adiab_energies_t(new_state) - &
+                     aom_env%adiab_energies_t(old_state))
    END SUBROUTINE cal_delta_energy_nacv
+
+
          
    SUBROUTINE cal_delta_energy(nparticle_kind, velocities, force_env, atomic_kind_set, &
                                local_particles, delta_energy, kinetic_energy_prime) 

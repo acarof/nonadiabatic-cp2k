@@ -59,7 +59,8 @@ MODULE aom_main
                                              choose_firstadiabat, &
                                              simple_vel_rescaling, &
                                              translate_com, &
-                                             calc_adiab_nace
+                                             calc_adiab_nace, &
+                                             calc_hop_nacv
 
      USE aom_types,                    ONLY: aom_env_type, &
                                                 sh_print_env_type
@@ -159,7 +160,7 @@ CONTAINS
      TYPE(sh_env_type)                              :: sh_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab_new
-     integer :: coord
+     integer :: coord, j
      !integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
      integer :: mol, atoms, c, active_state, mat, orb
      integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
@@ -169,6 +170,7 @@ CONTAINS
      REAL(KIND=dp)    :: cbar, minao
      !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      !REAL(KIND=dp), dimension(:,:,:), allocatable :: pcoeffsrun
+     REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
@@ -275,30 +277,27 @@ CONTAINS
      ctin(:) = aom_env%ctin(:)
      aom_env%adiab_nace_t = aom_env%adiab_nace_tp
 
-print *, "BEFORE_________ENTER"
 
      !> CALCULATE THE CENTER OF MASS
      !> CONSTRUCT NEIGHBOURS LIST
      CALL calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
-print *, "orb", orb
 
      !> CALCULATE THE HAMILTONIAN, THE STTP MATRIX AND THE NACV
      CALL calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cbar, &
                       scaling, PC_allrvecs, orb)
 
+!print *, "aom_env%Stt", aom_env%Stt
+!print *, "aom_env%Stptp", aom_env%Stptp
+!print *, "aom_env%Stpt", aom_env%Stpt
+!print *, "aom_env%Sttp", aom_env%Sttp
+!print *, "aom_env%Stmtm", aom_env%Stmtm
+!print *, "aom_env%Sttm", aom_env%Sttm
+!print *, "aom_env%Stmt", aom_env%Stmt
 
-print *, "aom_env%Stt", aom_env%Stt
-print *, "aom_env%Stptp", aom_env%Stptp
-print *, "aom_env%Stpt", aom_env%Stpt
-print *, "aom_env%Sttp", aom_env%Sttp
-print *, "aom_env%Stmtm", aom_env%Stmtm
-print *, "aom_env%Sttm", aom_env%Sttm
-print *, "aom_env%Stmt", aom_env%Stmt
-
-
-
-     !> CONVERT THE NACV WITH THE GOOD UNITS
+     !> CONVERT THE diabatic NACV WITH THE GOOD UNITS
      aom_env%nacv = cbar*aom_env%nacv
+
+     !> HAMILTONIAN DIAGONALIZATION
      !The adiabaticity subroutine diagonalises the diabatic Hamiltonian
      !It gives us back the eigenvalues and eigenvectors
      !initialize Adiabatic energies that will be used for trivial hopping and
@@ -308,18 +307,35 @@ print *, "aom_env%Stmt", aom_env%Stmt
      CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
 
-print *, "EIGENVALUES", E_tp
-print *, "EIGENVECTORS_tp", C_tp
-print *, "EIGENVECTORS_t", C_t
-print *, "EIGENVECTORS_tp", C_tp
+!print *, "EIGENVALUES", E_tp
+!print *, "EIGENVECTORS_tp", C_tp
+!print *, "EIGENVECTORS_t", C_t
+!print *, "EIGENVECTORS_tp", C_tp
 
-     !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
+     !> ADIABATIC NACE CALCULATION
      CALL calc_adiab_nace(C_t, C_tp, deltatMD, aom_env)
-print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
+!print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      
      !TEST
      !CALL make_adiabX(mol, E_t, NACE_ad_t, X)
      !ENDTEST
+      
+     !> ADIABATIC NACV EVALUATION FOR HS CORRECTION
+     do j=1, mat
+           if (j .ne. active_state) then
+               CALL calc_hop_nacv(aom_env, hop_nacv, active_state, j, fast=.TRUE.)
+print *, "ENERGY_ACTIVE", E_tp(active_state)
+print *, "ENERGY_TO_J", E_tp(j)
+
+
+print *, "ACTIVE_STATE_NAC", active_state
+print *, "TO_STATE_j", j
+print *, "HOP_NACV", hop_nacv
+           end if
+     end do
+
+
+     !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
      sh_env%cttm(:) = ctin(:)
      CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
                                                   c_val=prop_wf_keyword)
@@ -339,11 +355,10 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      END SELECT                                             
      sh_env%ctt(:) = ctin(:)
 
-
+     !> SURFACE HOPPING TEST
      !The eigenvectors are needed to calculate the surface hopping probabilities
      !The surfacehop subroutine calculates these probabilites and decides on the
      !new (possibly unchanged) surface for simulation
-     !decohere = .FALSE.
      sh_env%decohere = .FALSE.
      attempt_hop = .FALSE.
      IF (my_test_keyword) THEN   
@@ -413,10 +428,8 @@ print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      aom_env%ctin        = ctin
      aom_env%attempt_hop  = attempt_hop
      aom_env%H_t = aom_env%H_tp
-     !aom_env%nacv        = nacv
      aom_env%new_state = new_state
      aom_env%active_state = active_state
-!!!!
      aom_env%Stmtm = aom_env%Stt
      aom_env%Stt   = aom_env%Stptp
      aom_env%Sttm  = aom_env%Stpt
@@ -445,12 +458,9 @@ print *, "aom_env%Stmt", aom_env%Stmt
      aom_env%sh_print_env = sh_print_env
      
 
-!stop
      !> DEALLOCATE
      deallocate(scoefftot, pcoefftot)
-     !deallocate(pcoeffsrun)
      deallocate(ctin)
-     !deallocate(nacv)
      deallocate(exact_forces)
     END SUBROUTINE construct_ham_X_SH
 
