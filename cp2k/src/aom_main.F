@@ -60,7 +60,8 @@ MODULE aom_main
                                              simple_vel_rescaling, &
                                              translate_com, &
                                              calc_adiab_nace, &
-                                             calc_hop_nacv
+                                             calc_hop_nacv, &
+                                             cal_delta_energy_nacv
 
      USE aom_types,                    ONLY: aom_env_type, &
                                                 sh_print_env_type
@@ -171,6 +172,8 @@ CONTAINS
      !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      !REAL(KIND=dp), dimension(:,:,:), allocatable :: pcoeffsrun
      REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
+     REAL(kind=dp)                              :: delta_energy
+     REAL(kind=dp)                              :: A, B
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
@@ -324,10 +327,15 @@ CONTAINS
      do j=1, mat
            if (j .ne. active_state) then
                CALL calc_hop_nacv(aom_env, hop_nacv, active_state, j, fast=.TRUE.)
-print *, "ENERGY_ACTIVE", E_tp(active_state)
-print *, "ENERGY_TO_J", E_tp(j)
-
-
+print *, "HOP_NACV", hop_nacv
+print *, "ENERGY_ACTIVE_t", E_t(active_state)
+print *, "ENERGY_TO_J_t", E_t(j)
+print *, "ENERGY_ACTIVE_tp", E_tp(active_state)
+print *, "ENERGY_TO_J_tp", E_tp(j)
+print *, "velocities_com_tp", velocities_com_tp
+              CALL cal_delta_energy_nacv(nparticle_kind, &
+               velocities_com_tp, aom_env, atomic_kind_set, &
+                local_particles, hop_nacv, delta_energy, A, B, active_state, j)
 print *, "ACTIVE_STATE_NAC", active_state
 print *, "TO_STATE_j", j
 print *, "HOP_NACV", hop_nacv

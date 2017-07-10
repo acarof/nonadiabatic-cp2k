@@ -135,7 +135,8 @@ IMPLICIT NONE
              translate_com,       &
              surf_hop_type,    &
              calc_adiab_nace, &
-             calc_hop_nacv
+             calc_hop_nacv, &
+             cal_delta_energy_nacv
 
 CONTAINS
   
@@ -2200,18 +2201,28 @@ ENDIF
 
 !From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular dynamics using semiempirical methods. 
 !     Chem Phys 2008, 349:334–347.
-        
+
+print *, "HOP_NACV_INSIDE_DELT", hop_nacv
+print *, "VELOCITIES_INSIDE", velocities
            A = 0
            B = 0
            DO iparticle_kind=1,nparticle_kind
+print *, "nparticle_kind", nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
+!print *, "atomic_kind", atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
+print *, "nparticle_local", nparticle_local
+print *, "MASS", mass
+stop
               DO iparticle_local=1,nparticle_local
                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+print *, "iparticle", iparticle
+!stop
                  DO coord = 1, 3
                     IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
                        velocities(3, iparticle)**2 ).NE.0.0d0) THEN
+print *, "VELOCITIES_INSIDE_1_2", velocities(1,1)
                        A = A + hop_nacv(coord, iparticle)**2 / mass
                     ELSE IF ( SUM(velocities).EQ.0) THEN
                        A = A + hop_nacv(coord, iparticle)**2 / mass
@@ -2232,6 +2243,9 @@ ENDIF
            ELSE
               old_state = aom_env%active_state
            ENDIF
+print *, "ENERGY_ACTIVE_IN_SUB", aom_env%adiab_energies_t(old_state)
+print *, "ENERGY_TO_j_IN_SUB", aom_env%adiab_energies_t(new_state)
+ 
 
            delta_energy = B**2 - 4 * A * (  &
                      aom_env%adiab_energies_t(new_state) - &
