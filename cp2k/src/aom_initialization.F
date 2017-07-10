@@ -636,6 +636,8 @@ active_state = 1
                  !> WARNING: THIS LINE HAS TO BE MODIFIED TO INCLUDE MORE ORBITAL PER MOLECULE
                  ctin(first_diabat) = CMPLX(1.0D0, 0.0D0,dp)  
              CASE("ADIABATIC_BASIS")
+             !> CALCULATE NACV FOR ADIAB PROPAGATION AT t=0
+             CALL nacv_first_ts(aom_env, natom, mat, velocities_com_tp) 
 !ONLY FOR THE TEST
                  ctin(:) = C_tp(first_diabat,:)
 print *, "CTIN_ADIAB_BASIS", ctin
@@ -645,10 +647,13 @@ print *, "CTIN_ADIAB_BASIS", ctin
          CASE("ADIABATIC")
              CALL section_vals_val_get(adiab_section,"FIRST_ADIABAT",&
                                        i_val=active_state)
+              
              SELECT CASE(keyword_basis_repr)
              CASE("DIABATIC_BASIS")
                  ctin(:) = C_tp(:, active_state)
              CASE("ADIABATIC_BASIS")
+             !> CALCULATE NACV FOR ADIAB PROPAGATION AT t=0
+             CALL nacv_first_ts(aom_env, natom, mat, velocities_com_tp) 
                  ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
                  !> WARNING: THIS LINE HAS TO BE MODIFIED TO INCLUDE MORE ORBITAL PER MOLECULE
                  ctin(active_state) = CMPLX(1.0D0, 0.0D0,dp)
@@ -672,8 +677,6 @@ print *, "CTIN_ADIAB_BASIS", ctin
          IF ((new_state).EQ.0) new_state = mat
      ENDIF 
     
-     !> CALCULATE NACV FOR ADIAB PROPAGATION AT t=0
-     CALL nacv_first_ts(aom_env, natom, mat, velocities_com_tp) 
 
 
 !TEST
