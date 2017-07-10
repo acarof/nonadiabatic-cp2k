@@ -284,7 +284,7 @@ print *, "orb", orb
 
      !> CALCULATE THE HAMILTONIAN, THE STTP MATRIX AND THE NACV
      CALL calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cbar, &
-                      scaling, PC_allrvecs)
+                      scaling, PC_allrvecs, orb)
 
 
 print *, "aom_env%Stt", aom_env%Stt
@@ -445,7 +445,7 @@ print *, "aom_env%Stmt", aom_env%Stmt
      aom_env%sh_print_env = sh_print_env
      
 
-stop
+!stop
      !> DEALLOCATE
      deallocate(scoefftot, pcoefftot)
      !deallocate(pcoeffsrun)
@@ -503,13 +503,13 @@ END SUBROUTINE calc_coms_and_nlist
 
 
 SUBROUTINE calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cbar, &
-                      scaling, PC_allrvecs)
+                      scaling, PC_allrvecs, orb)
 
 
-     TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
-     INTEGER, POINTER                               :: itimes
-     integer, intent(in) :: mol
-     integer, intent(IN) :: atoms
+     TYPE(aom_env_type)                      :: aom_env
+     INTEGER, POINTER                        :: itimes
+     integer, intent(in)                     :: mol, orb
+     integer, intent(IN)                     :: atoms
      REAL(KIND=dp), intent(in)                   :: dR  
      LOGICAL, intent(in)                         :: do_random
      REAL(KIND=dp), intent(in)                   :: cbar
@@ -519,7 +519,7 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cba
      !real(kind=dp), DIMENSION(:,:), intent(inout) :: PC_rvecs
      REAL(KIND=dp)                   :: S
 
-     integer :: i, j, k, l, m, d, orb, o
+     integer :: i, j, k, l, m, d, o
      real(kind=dp), DIMENSION(:,:), allocatable, intent(out) :: PC_allrvecs
      real(kind=dp), allocatable :: PC_rvecs(:,:)
 
@@ -575,16 +575,6 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cba
                     !neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
                     !only call overlap if neighbours list says so
                     if (aom_env%NN(i,k) == 1) then
-!print *, "i", i
-!print *, "k", k
-!print *, "orb", orb
-print *, "itimes", itimes
-print *, "atoms", atoms
-print *, "dR", dR
-!print *, "S", S
-print *, "do_random", do_random
-print *, "cbar", cbar
-print *, "scaling", scaling
 
                          !first the diagonals
                          if (i == k) then
@@ -595,13 +585,7 @@ print *, "scaling", scaling
                               CALL off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
                                    dR, S, do_random, cbar, scaling)
 
-print *, "S", S
                          end if !(i==k)
-print *, "aom_env%Stt", aom_env%Stt
-print *, "aom_env%Stptp", aom_env%Stptp
-print *, "aom_env%Stpt", aom_env%Stpt
-print *, "aom_env%Sttp", aom_env%Sttp
-print *, "aom_env%Stmtm", aom_env%Stmtm
 
                     else !(NN(i,k) == 1
                          do d=1,orb
@@ -629,18 +613,11 @@ print *, "aom_env%Stmtm", aom_env%Stmtm
                end do
      end do !loop over i
 
-print *, "aom_env%Stt", aom_env%Stt
-print *, "aom_env%Stptp", aom_env%Stptp
-print *, "aom_env%Stpt", aom_env%Stpt
-print *, "aom_env%Sttp", aom_env%Sttp
-print *, "aom_env%Stmtm", aom_env%Stmtm
-
-
 END SUBROUTINE calc_Xmatrix_elements
 
 SUBROUTINE diagonal_elem(i,k,orb,itimes,aom_env)
 
-     TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
+     TYPE(aom_env_type)              :: aom_env
      INTEGER, POINTER                               :: itimes
      integer, intent(IN) :: i, k,orb
 
@@ -649,6 +626,7 @@ SUBROUTINE diagonal_elem(i,k,orb,itimes,aom_env)
 
      do d=1,orb
           do m=1,orb
+
                !These diagonals are 1 by definition
                !A bit of math to be convinced for Sttp,
                !Stpt: dSii/dt = 0
@@ -673,17 +651,12 @@ SUBROUTINE diagonal_elem(i,k,orb,itimes,aom_env)
           end do     
      end if ! (.not.inrun)
 
-print *, "aom_env%Stt_DIAGONAL", aom_env%Stt
-print *, "aom_env%Stptp_DIAGONAL", aom_env%Stptp
-print *, "aom_env%Stpt_DIAGONAL", aom_env%Stpt
-print *, "aom_env%Sttp_DIAGONAL", aom_env%Sttp
-print *, "aom_env%Stmtm_DIAGONAL", aom_env%Stmtm
 END SUBROUTINE diagonal_elem
 
 SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
                                    dR, S, do_random, cbar, scaling)
 
-     TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
+     TYPE(aom_env_type)                           :: aom_env
      INTEGER, POINTER                               :: itimes
      integer, intent(IN) :: i, k,orb, atoms
      !REAL(KIND=dp), dimension(:,:,:), intent(inout) :: pcoeffsrun
@@ -788,11 +761,6 @@ SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
           end if ! (.not.inrun)
      end if ! ( k < i)
 
-print *, "aom_env%Stt_OFFDIAGONAL", aom_env%Stt
-print *, "aom_env%Stptp_OFFDIAGONAL", aom_env%Stptp
-print *, "aom_env%Stpt_OFFDIAGONAL", aom_env%Stpt
-print *, "aom_env%Sttp_OFFDIAGONAL", aom_env%Sttp
-print *, "aom_env%Stmtm_OFFDIAGONAL", aom_env%Stmtm
 
 END SUBROUTINE off_diagonal_elem
 
