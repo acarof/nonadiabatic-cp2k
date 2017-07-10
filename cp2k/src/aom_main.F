@@ -165,7 +165,7 @@ CONTAINS
      integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
      !integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
-     REAL(KIND=dp) :: S
+     !REAL(KIND=dp) :: S
      REAL(KIND=dp)    :: cbar, minao
      !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      !REAL(KIND=dp), dimension(:,:,:), allocatable :: pcoeffsrun
@@ -283,8 +283,8 @@ print *, "BEFORE_________ENTER"
 print *, "orb", orb
 
      !> CALCULATE THE HAMILTONIAN, THE STTP MATRIX AND THE NACV
-     CALL calc_Xmatrix_elements(aom_env,atoms, mol, dR, do_random, cbar, &
-                      scaling, S, PC_allrvecs)
+     CALL calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cbar, &
+                      scaling, PC_allrvecs)
 
 
 print *, "aom_env%Stt", aom_env%Stt
@@ -445,7 +445,7 @@ print *, "aom_env%Stmt", aom_env%Stmt
      aom_env%sh_print_env = sh_print_env
      
 
-!stop
+stop
      !> DEALLOCATE
      deallocate(scoefftot, pcoefftot)
      !deallocate(pcoeffsrun)
@@ -502,8 +502,8 @@ SUBROUTINE calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
 END SUBROUTINE calc_coms_and_nlist
 
 
-SUBROUTINE calc_Xmatrix_elements(aom_env, atoms, mol, dR, do_random, cbar, &
-                      scaling, S, PC_allrvecs)
+SUBROUTINE calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cbar, &
+                      scaling, PC_allrvecs)
 
 
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
@@ -517,7 +517,7 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, atoms, mol, dR, do_random, cbar, &
      !real(kind=dp), INTENT(IN) :: PC_rvecs
      !real(kind=dp), DIMENSION(:,:), intent(inout) :: PC_allrvecs
      !real(kind=dp), DIMENSION(:,:), intent(inout) :: PC_rvecs
-     REAL(KIND=dp), intent(inout)                  :: S
+     REAL(KIND=dp)                   :: S
 
      integer :: i, j, k, l, m, d, orb, o
      real(kind=dp), DIMENSION(:,:), allocatable, intent(out) :: PC_allrvecs
@@ -575,6 +575,16 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, atoms, mol, dR, do_random, cbar, &
                     !neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
                     !only call overlap if neighbours list says so
                     if (aom_env%NN(i,k) == 1) then
+!print *, "i", i
+!print *, "k", k
+!print *, "orb", orb
+print *, "itimes", itimes
+print *, "atoms", atoms
+print *, "dR", dR
+!print *, "S", S
+print *, "do_random", do_random
+print *, "cbar", cbar
+print *, "scaling", scaling
 
                          !first the diagonals
                          if (i == k) then
@@ -585,7 +595,14 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, atoms, mol, dR, do_random, cbar, &
                               CALL off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
                                    dR, S, do_random, cbar, scaling)
 
+print *, "S", S
                          end if !(i==k)
+print *, "aom_env%Stt", aom_env%Stt
+print *, "aom_env%Stptp", aom_env%Stptp
+print *, "aom_env%Stpt", aom_env%Stpt
+print *, "aom_env%Sttp", aom_env%Sttp
+print *, "aom_env%Stmtm", aom_env%Stmtm
+
                     else !(NN(i,k) == 1
                          do d=1,orb
                               do m=1,orb
@@ -611,6 +628,13 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, atoms, mol, dR, do_random, cbar, &
                   PC_allrvecs (3:5,((i-1)*atoms)+o) = PC_rvecs(:,o)
                end do
      end do !loop over i
+
+print *, "aom_env%Stt", aom_env%Stt
+print *, "aom_env%Stptp", aom_env%Stptp
+print *, "aom_env%Stpt", aom_env%Stpt
+print *, "aom_env%Sttp", aom_env%Sttp
+print *, "aom_env%Stmtm", aom_env%Stmtm
+
 
 END SUBROUTINE calc_Xmatrix_elements
 
@@ -648,6 +672,12 @@ SUBROUTINE diagonal_elem(i,k,orb,itimes,aom_env)
                end do
           end do     
      end if ! (.not.inrun)
+
+print *, "aom_env%Stt_DIAGONAL", aom_env%Stt
+print *, "aom_env%Stptp_DIAGONAL", aom_env%Stptp
+print *, "aom_env%Stpt_DIAGONAL", aom_env%Stpt
+print *, "aom_env%Sttp_DIAGONAL", aom_env%Sttp
+print *, "aom_env%Stmtm_DIAGONAL", aom_env%Stmtm
 END SUBROUTINE diagonal_elem
 
 SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
@@ -757,6 +787,13 @@ SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
 
           end if ! (.not.inrun)
      end if ! ( k < i)
+
+print *, "aom_env%Stt_OFFDIAGONAL", aom_env%Stt
+print *, "aom_env%Stptp_OFFDIAGONAL", aom_env%Stptp
+print *, "aom_env%Stpt_OFFDIAGONAL", aom_env%Stpt
+print *, "aom_env%Sttp_OFFDIAGONAL", aom_env%Sttp
+print *, "aom_env%Stmtm_OFFDIAGONAL", aom_env%Stmtm
+
 END SUBROUTINE off_diagonal_elem
 
 END MODULE aom_main
