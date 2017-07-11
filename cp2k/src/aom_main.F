@@ -162,7 +162,7 @@ CONTAINS
      TYPE(sh_env_type)                              :: sh_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab_new
-     integer :: coord, j
+     integer :: coord
      !integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
      integer :: mol, atoms, c, active_state, mat, orb
      integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
@@ -172,14 +172,14 @@ CONTAINS
      REAL(KIND=dp)    :: cbar, minao
      !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      !REAL(KIND=dp), dimension(:,:,:), allocatable :: pcoeffsrun
-     REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
-     REAL(kind=dp)                               :: delta_energy
+!     REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
+!     REAL(kind=dp)                               :: delta_energy
 
 !    total_kin_energy, total_pot_energy
      REAL(KIND=dp), dimension(:), allocatable    :: energy_conservation
                                         !   total_kin_array, total_pot_array
      INTEGER, dimension(:), allocatable          :: class_forbidden_hop
-     REAL(kind=dp)                               :: A, B
+!     REAL(kind=dp)                               :: A, B
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
@@ -250,8 +250,8 @@ CONTAINS
      ALLOCATE(sh_env%ctin(mat))
      !ALLOCATE(total_pot_array(mat)) 
      !ALLOCATE(total_kin_array(mat)) 
-     ALLOCATE(energy_conservation(mat)) 
-     ALLOCATE(class_forbidden_hop(mat)) 
+     !ALLOCATE(energy_conservation(mat)) 
+     !ALLOCATE(class_forbidden_hop(mat)) 
 
      ALLOCATE(E_t(mat))
      ALLOCATE(E_tp(mat))
@@ -333,45 +333,6 @@ CONTAINS
      !CALL make_adiabX(mol, E_t, NACE_ad_t, X)
      !ENDTEST
       
-     !> ADIABATIC NACV EVALUATION FOR HS CORRECTION
-     do j=1, mat
-           if (j .ne. active_state) then
-               CALL calc_hop_nacv(aom_env, hop_nacv, active_state, j, fast=.TRUE.)
-print *, "ENERGY_ACTIVE_t", E_t(active_state)
-print *, "ENERGY_TO_J_t", E_t(j)
-print *, "ENERGY_ACTIVE_tp", E_tp(active_state)
-print *, "ENERGY_TO_J_tp", E_tp(j)
-print *, "velocities_com_tp", velocities_com_tp
-              CALL evaluate_delta_energy_nacv(velocities_com_tp, local_particles, atomic_kinds, &
-                                     nparticle_kind, atomic_kind_set, &
-                                    aom_env, E_tp, hop_nacv, delta_energy, A, B, & 
-                                              active_state, j)
-              !total_kin_array(j) = total_kin_energy
-              !total_pot_array(j) = total_pot_energy
-              energy_conservation(j) = delta_energy
-              if (energy_conservation(j) .lt. 0.0D0) then 
-                   class_forbidden_hop(j) = j
-              else 
-                   class_forbidden_hop(j) = -1
-              end if  
-
-print *, "energy_conservation(j)", energy_conservation(j)
-print *, "ACTIVE_STATE_NAC", active_state
-print *, "TO_STATE_j", j
-print *, "HOP_NACV", hop_nacv
-           else
-              !total_pot_array(j) = 0.0D0
-              !total_kin_array(j) = 0.0D0 
-              energy_conservation(active_state) = 0.0D0
-              class_forbidden_hop(active_state) = -1
-           end if  
-     end do
-!print *, "KE_ARRAY", total_kin_array
-!print *, "PE_ARRAY", total_pot_array
-!print *, "DIFF", total_pot_array-total_kin_array
-print *, "ENERGY_CONSERV_ARRAY", energy_conservation
-print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop
-
 
      !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
      sh_env%cttm(:) = ctin(:)
@@ -387,6 +348,12 @@ print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop
                                    itimes, adiab_section, deltatMD, deltatE , times,  & 
                                    mat)
      CASE("HS_CORRECTED_RK")  
+           !> ADIABATIC NACV EVALUATION FOR HS CORRECTION
+           CALL classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
+                  velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
+                          atomic_kind_set, energy_conservation, class_forbidden_hop)
+
+
            CALL prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times, &
                             mat)
@@ -499,12 +466,86 @@ print *, "aom_env%Stmt", aom_env%Stmt
      
 
      !> DEALLOCATE
-     DEALLOCATE(energy_conservation, class_forbidden_hop)
+     !DEALLOCATE(energy_conservation, class_forbidden_hop)
      !DEALLOCATE(total_kin_array, total_pot_array)
      deallocate(scoefftot, pcoefftot)
      deallocate(ctin)
      deallocate(exact_forces)
     END SUBROUTINE construct_ham_X_SH
+
+
+SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
+                  velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
+                          atomic_kind_set, energy_conservation, class_forbidden_hop)
+
+        !REAL(kind=dp), DIMENSION(:,:), POINTER              :: velocities_com_tp
+     TYPE(distribution_1d_type), POINTER                :: local_particles
+     TYPE(atomic_kind_list_type), POINTER, OPTIONAL     :: atomic_kinds
+     INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
+     TYPE(atomic_kind_type), DIMENSION(:), &
+                   POINTER, OPTIONAL                        :: atomic_kind_set
+ 
+    
+     REAL(KIND=dp), DIMENSION(:), INTENT(IN)         ::  E_tp
+     TYPE(aom_env_type)                                 :: aom_env
+     INTEGER, INTENT(IN)                             :: active_state, mat
+     REAL(kind=dp), DIMENSION(:,:), POINTER       :: velocities_com_tp
+
+
+     REAL(KIND=dp), dimension(:), allocatable, INTENT(OUT)    :: energy_conservation
+     INTEGER, dimension(:), allocatable, INTENT(OUT)          :: class_forbidden_hop
+
+     INTEGER :: j
+     REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
+     REAL(kind=dp)                               :: delta_energy
+
+!    total_kin_energy, total_pot_energy
+                                        !   total_kin_array, total_pot_array
+     REAL(kind=dp)                               :: A, B
+     
+     
+     ALLOCATE(energy_conservation(mat)) 
+     ALLOCATE(class_forbidden_hop(mat)) 
+
+     do j=1, mat
+           if (j .ne. active_state) then
+               CALL calc_hop_nacv(aom_env, hop_nacv, active_state, j, fast=.TRUE.)
+!print *, "ENERGY_ACTIVE_t", E_t(active_state)
+!print *, "ENERGY_TO_J_t", E_t(j)
+print *, "ENERGY_ACTIVE_tp", E_tp(active_state)
+print *, "ENERGY_TO_J_tp", E_tp(j)
+print *, "velocities_com_tp", velocities_com_tp
+              CALL evaluate_delta_energy_nacv(velocities_com_tp, local_particles, atomic_kinds, &
+                                     nparticle_kind, atomic_kind_set, &
+                                    aom_env, E_tp, hop_nacv, delta_energy, A, B, & 
+                                              active_state, j)
+              !total_kin_array(j) = total_kin_energy
+              !total_pot_array(j) = total_pot_energy
+              energy_conservation(j) = delta_energy
+              if (energy_conservation(j) .lt. 0.0D0) then 
+                   class_forbidden_hop(j) = j
+              else 
+                   class_forbidden_hop(j) = -1
+              end if  
+
+print *, "energy_conservation(j)", energy_conservation(j)
+print *, "ACTIVE_STATE_NAC", active_state
+print *, "TO_STATE_j", j
+print *, "HOP_NACV", hop_nacv
+           else
+              !total_pot_array(j) = 0.0D0
+              !total_kin_array(j) = 0.0D0 
+              energy_conservation(active_state) = 0.0D0
+              class_forbidden_hop(active_state) = -1
+           end if  
+     end do
+!print *, "KE_ARRAY", total_kin_array
+!print *, "PE_ARRAY", total_pot_array
+!print *, "DIFF", total_pot_array-total_kin_array
+print *, "ENERGY_CONSERV_ARRAY", energy_conservation
+print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop
+
+END SUBROUTINE classically_forbidden_hops
 
 
    SUBROUTINE evaluate_delta_energy_nacv(velocities, local_particles, atomic_kinds, &
