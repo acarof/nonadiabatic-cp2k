@@ -172,8 +172,11 @@ CONTAINS
      !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      !REAL(KIND=dp), dimension(:,:,:), allocatable :: pcoeffsrun
      REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
-     REAL(kind=dp)                              :: delta_energy
-     REAL(kind=dp)                              :: A, B
+     REAL(kind=dp)                               :: delta_energy, &
+                                           total_kin_energy, total_pot_energy
+     REAL(KIND=dp), dimension(:), allocatable    :: energy_conservation
+     INTEGER, dimension(:), allocatable          :: class_forbidden_hop
+     REAL(kind=dp)                               :: A, B
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
@@ -242,6 +245,8 @@ CONTAINS
      ALLOCATE(sh_env%cttm(mat))
      ALLOCATE(sh_env%ctt(mat))
      ALLOCATE(sh_env%ctin(mat))
+     ALLOCATE(energy_conservation(mat)) 
+     ALLOCATE(class_forbidden_hop(mat)) 
 
      ALLOCATE(E_t(mat))
      ALLOCATE(E_tp(mat))
@@ -327,29 +332,32 @@ CONTAINS
      do j=1, mat
            if (j .ne. active_state) then
                CALL calc_hop_nacv(aom_env, hop_nacv, active_state, j, fast=.TRUE.)
-print *, "HOP_NACV", hop_nacv
 print *, "ENERGY_ACTIVE_t", E_t(active_state)
 print *, "ENERGY_TO_J_t", E_t(j)
 print *, "ENERGY_ACTIVE_tp", E_tp(active_state)
 print *, "ENERGY_TO_J_tp", E_tp(j)
 print *, "velocities_com_tp", velocities_com_tp
-
-
-     !CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, &
-     !                               deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
-     !                               atomic_kind_set, K_tot, aom_env%ext_pres)
-
               CALL evaluate_delta_energy_nacv(velocities_com_tp, local_particles, atomic_kinds, &
                                      nparticle_kind, atomic_kind_set, &
-                                    aom_env, hop_nacv, delta_energy, A, B, active_state, j) 
-              !CALL cal_delta_energy_nacv(nparticle_kind, &
-              ! velocities_com_tp, aom_env, atomic_kind_set, &
-              !  local_particles, hop_nacv, delta_energy, A, B, active_state, j)
+                                    aom_env, E_tp, hop_nacv, delta_energy, A, B, & 
+                                             total_kin_energy, total_pot_energy, active_state, j)
+              energy_conservation(j) = delta_energy
+              if (energy_conservation(j) .lt. 0.0D00) then 
+                   class_forbidden_hop(j) = j
+              else 
+                   class_forbidden_hop(j) = -1
+              end if  
+print *, "energy_conservation(j)", energy_conservation(j)
 print *, "ACTIVE_STATE_NAC", active_state
 print *, "TO_STATE_j", j
 print *, "HOP_NACV", hop_nacv
-           end if
+           else
+              energy_conservation(active_state) = -1
+              class_forbidden_hop(active_state) = -1
+           end if  
      end do
+print *, "ENERGY_CONSERV_ARRAY", energy_conservation
+print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop
 
 
      !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
@@ -476,6 +484,7 @@ print *, "aom_env%Stmt", aom_env%Stmt
      
 
      !> DEALLOCATE
+     DEALLOCATE(energy_conservation, class_forbidden_hop)
      deallocate(scoefftot, pcoefftot)
      deallocate(ctin)
      deallocate(exact_forces)
@@ -484,7 +493,8 @@ print *, "aom_env%Stmt", aom_env%Stmt
 
    SUBROUTINE evaluate_delta_energy_nacv(velocities, local_particles, atomic_kinds, &
                                      nparticle_kind, atomic_kind_set, &
-                                    aom_env, hop_nacv, delta_energy, A, B, i, j) 
+                                    aom_env,E_tp, hop_nacv, delta_energy, A, B, &
+                                               total_kin_energy, total_pot_energy,i, j) 
 
         REAL(kind=dp), DIMENSION(:,:), POINTER             :: velocities
         TYPE(distribution_1d_type), POINTER                :: local_particles
@@ -495,8 +505,10 @@ print *, "aom_env%Stmt", aom_env%Stmt
         TYPE(aom_env_type)                                 :: aom_env
         INTEGER, OPTIONAL, INTENT(IN)                      :: i, j
         REAL(kind=dp), DIMENSION(:,:), INTENT(IN)          :: hop_nacv
-        REAL(kind=dp), INTENT(OUT)                         :: delta_energy
+        REAL(kind=dp), INTENT(OUT)               :: delta_energy, &
+                                                   total_kin_energy, total_pot_energy 
         REAL(kind=dp), INTENT(OUT)                         :: A, B
+        REAL(KIND=dp), DIMENSION(:), INTENT(IN)            ::  E_tp
 
         !LOGICAL, dimension(:), INTENT(IN)           :: ext_pres
 
@@ -505,6 +517,7 @@ print *, "aom_env%Stmt", aom_env%Stmt
 
         TYPE(atomic_kind_type), DIMENSION(:), &
              POINTER                             :: my_atomic_kind_set
+        REAL(kind=dp)                            :: rescale_factor
         INTEGER                                  :: my_nparticle_kind
         REAL(kind=dp)                            :: mass
         INTEGER                                  :: iparticle_kind, new_state, old_state
@@ -512,27 +525,6 @@ print *, "aom_env%Stmt", aom_env%Stmt
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-
-
-        !INTEGER                                 :: nparticle_kind
-        !INTEGER, OPTIONAL, INTENT(IN)            :: i, j
-        !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
-        !TYPE(aom_env_type)                       :: aom_env
-        !TYPE(distribution_1d_type), POINTER      :: local_particles
-        !TYPE(atomic_kind_type), DIMENSION(:), &
-             !POINTER                                :: atomic_kind_set
-        !REAL(kind=dp), DIMENSION(:,:), INTENT(IN)   :: hop_nacv
-        !REAL(kind=dp), INTENT(OUT)                  :: delta_energy
-        !REAL(kind=dp), INTENT(OUT)                  :: A, B
-
-        !CHARACTER(len=*), PARAMETER :: routineN = 'adiab_nacv_evaluation', &
-        !routineP = moduleN//':'//routineN
-
-        !REAL(kind=dp)                            :: mass
-        !INTEGER                                  :: iparticle_kind, new_state, old_state
-        !INTEGER                                  :: nparticle_local, coord
-        !INTEGER                                  :: iparticle_local, iparticle
-        !TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular dynamics using semiempirical methods. 
 !     Chem Phys 2008, 349:334–347.
@@ -549,17 +541,13 @@ print *, "aom_env%Stmt", aom_env%Stmt
         END IF
 
 
-print *, "HOP_NACV_INSIDE_DELT", hop_nacv
-print *, "VELOCITIES_INSIDE", velocities
+!print *, "HOP_NACV_INSIDE_DELT", hop_nacv
+!print *, "VELOCITIES_INSIDE", velocities
            A = 0
            B = 0
            DO iparticle_kind=1, my_nparticle_kind
-print *, "nparticle_kind", my_nparticle_kind
+!print *, "nparticle_kind", my_nparticle_kind
               atomic_kind => my_atomic_kind_set(iparticle_kind)
-              !atomic_kind => atomic_kind_set(iparticle_kind)
-!print *, "atomic_kind", atomic_kind_set(iparticle_kind)
-              !CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-              !nparticle_local = local_particles%n_el(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
 !print *, "nparticle_local", nparticle_local
@@ -568,12 +556,12 @@ print *, "MASS", mass
               DO iparticle_local=1,nparticle_local
               ! if (ext_pres(iparticle_local)) then
                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-print *, "iparticle", iparticle
+!print *, "iparticle", iparticle
 !stop
                  DO coord = 1, 3
                     IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
                        velocities(3, iparticle)**2 ).NE.0.0d0) THEN
-print *, "VELOCITIES_INSIDE_1_2", velocities(1,1)
+!print *, "VELOCITIES_INSIDE_1_2", velocities(1,1)
                        A = A + hop_nacv(coord, iparticle)**2 / mass
                     ELSE IF ( SUM(velocities).EQ.0) THEN
                        A = A + hop_nacv(coord, iparticle)**2 / mass
@@ -594,13 +582,39 @@ print *, "VELOCITIES_INSIDE_1_2", velocities(1,1)
            ELSE
               old_state = aom_env%active_state
            ENDIF
-print *, "ENERGY_ACTIVE_IN_SUB", aom_env%adiab_energies_t(old_state)
-print *, "ENERGY_TO_j_IN_SUB", aom_env%adiab_energies_t(new_state)
- 
-
+print *, "ENERGY_ACTIVE_IN_SUB", E_tp(old_state)
+print *, "ENERGY_TO_j_IN_SUB", E_tp(new_state)
            delta_energy = B**2 - 4 * A * (  &
-                     aom_env%adiab_energies_t(new_state) - &
-                     aom_env%adiab_energies_t(old_state))
+                     E_tp(new_state) - E_tp(old_state))
+
+!>kinetic_energy calculation eq 23 Fabiano 2008
+!> From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular
+!dynamics using semiempirical methods. 
+!>     Chem Phys 2008, 349:334–347.
+
+!>  B = -B, compare to the paper
+
+          IF (A == 0) THEN
+             rescale_factor = 0
+          ELSE
+             IF (B < 0) THEN
+                rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
+             ELSE
+                rescale_factor = (- B + SQRT(delta_energy))/(2 * A)
+             ENDIF
+          ENDIF
+
+          total_kin_energy = rescale_factor*rescale_factor*A + &
+                             rescale_factor*B
+          total_pot_energy = new_state - old_state
+        
+
+!print *, "ENERGY_ACTIVE_IN_SUB", aom_env%adiab_energies_t(old_state)
+!print *, "ENERGY_TO_j_IN_SUB", aom_env%adiab_energies_t(new_state)
+         !  delta_energy = B**2 - 4 * A * (  &
+          !           aom_env%adiab_energies_t(new_state) - &
+           !          aom_env%adiab_energies_t(old_state))
+
    END SUBROUTINE evaluate_delta_energy_nacv
 
 
