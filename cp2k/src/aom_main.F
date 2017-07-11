@@ -172,9 +172,11 @@ CONTAINS
      !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      !REAL(KIND=dp), dimension(:,:,:), allocatable :: pcoeffsrun
      REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
-     REAL(kind=dp)                               :: delta_energy, &
-                                           total_kin_energy, total_pot_energy
+     REAL(kind=dp)                               :: delta_energy
+
+!    total_kin_energy, total_pot_energy
      REAL(KIND=dp), dimension(:), allocatable    :: energy_conservation
+                                        !   total_kin_array, total_pot_array
      INTEGER, dimension(:), allocatable          :: class_forbidden_hop
      REAL(kind=dp)                               :: A, B
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
@@ -245,6 +247,8 @@ CONTAINS
      ALLOCATE(sh_env%cttm(mat))
      ALLOCATE(sh_env%ctt(mat))
      ALLOCATE(sh_env%ctin(mat))
+     !ALLOCATE(total_pot_array(mat)) 
+     !ALLOCATE(total_kin_array(mat)) 
      ALLOCATE(energy_conservation(mat)) 
      ALLOCATE(class_forbidden_hop(mat)) 
 
@@ -340,22 +344,30 @@ print *, "velocities_com_tp", velocities_com_tp
               CALL evaluate_delta_energy_nacv(velocities_com_tp, local_particles, atomic_kinds, &
                                      nparticle_kind, atomic_kind_set, &
                                     aom_env, E_tp, hop_nacv, delta_energy, A, B, & 
-                                             total_kin_energy, total_pot_energy, active_state, j)
+                                              active_state, j)
+              !total_kin_array(j) = total_kin_energy
+              !total_pot_array(j) = total_pot_energy
               energy_conservation(j) = delta_energy
-              if (energy_conservation(j) .lt. 0.0D00) then 
+              if (energy_conservation(j) .lt. 0.0D0) then 
                    class_forbidden_hop(j) = j
               else 
                    class_forbidden_hop(j) = -1
               end if  
+
 print *, "energy_conservation(j)", energy_conservation(j)
 print *, "ACTIVE_STATE_NAC", active_state
 print *, "TO_STATE_j", j
 print *, "HOP_NACV", hop_nacv
            else
-              energy_conservation(active_state) = -1
+              !total_pot_array(j) = 0.0D0
+              !total_kin_array(j) = 0.0D0 
+              energy_conservation(active_state) = 0.0D0
               class_forbidden_hop(active_state) = -1
            end if  
      end do
+!print *, "KE_ARRAY", total_kin_array
+!print *, "PE_ARRAY", total_pot_array
+!print *, "DIFF", total_pot_array-total_kin_array
 print *, "ENERGY_CONSERV_ARRAY", energy_conservation
 print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop
 
@@ -485,6 +497,7 @@ print *, "aom_env%Stmt", aom_env%Stmt
 
      !> DEALLOCATE
      DEALLOCATE(energy_conservation, class_forbidden_hop)
+     !DEALLOCATE(total_kin_array, total_pot_array)
      deallocate(scoefftot, pcoefftot)
      deallocate(ctin)
      deallocate(exact_forces)
@@ -494,7 +507,7 @@ print *, "aom_env%Stmt", aom_env%Stmt
    SUBROUTINE evaluate_delta_energy_nacv(velocities, local_particles, atomic_kinds, &
                                      nparticle_kind, atomic_kind_set, &
                                     aom_env,E_tp, hop_nacv, delta_energy, A, B, &
-                                               total_kin_energy, total_pot_energy,i, j) 
+                                               i, j) 
 
         REAL(kind=dp), DIMENSION(:,:), POINTER             :: velocities
         TYPE(distribution_1d_type), POINTER                :: local_particles
@@ -505,8 +518,8 @@ print *, "aom_env%Stmt", aom_env%Stmt
         TYPE(aom_env_type)                                 :: aom_env
         INTEGER, OPTIONAL, INTENT(IN)                      :: i, j
         REAL(kind=dp), DIMENSION(:,:), INTENT(IN)          :: hop_nacv
-        REAL(kind=dp), INTENT(OUT)               :: delta_energy, &
-                                                   total_kin_energy, total_pot_energy 
+        REAL(kind=dp), INTENT(OUT)               :: delta_energy
+!                                                   total_kin_energy, total_pot_energy 
         REAL(kind=dp), INTENT(OUT)                         :: A, B
         REAL(KIND=dp), DIMENSION(:), INTENT(IN)            ::  E_tp
 
@@ -517,7 +530,7 @@ print *, "aom_env%Stmt", aom_env%Stmt
 
         TYPE(atomic_kind_type), DIMENSION(:), &
              POINTER                             :: my_atomic_kind_set
-        REAL(kind=dp)                            :: rescale_factor
+        !REAL(kind=dp)                            :: rescale_factor
         INTEGER                                  :: my_nparticle_kind
         REAL(kind=dp)                            :: mass
         INTEGER                                  :: iparticle_kind, new_state, old_state
@@ -593,22 +606,28 @@ print *, "ENERGY_TO_j_IN_SUB", E_tp(new_state)
 !>     Chem Phys 2008, 349:334–347.
 
 !>  B = -B, compare to the paper
-
-          IF (A == 0) THEN
-             rescale_factor = 0
-          ELSE
-             IF (B < 0) THEN
-                rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
-             ELSE
-                rescale_factor = (- B + SQRT(delta_energy))/(2 * A)
-             ENDIF
-          ENDIF
-
-          total_kin_energy = rescale_factor*rescale_factor*A + &
-                             rescale_factor*B
-          total_pot_energy = new_state - old_state
-        
-
+!print *, "A", A
+!print *, "B", B
+!print *, "delta_energy", delta_energy
+!rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
+!print *, "RESCALE_BEFORE", rescale_factor 
+!          IF (A == 0) THEN
+!             rescale_factor = 0
+!          ELSE
+!             IF (B < 0) THEN
+!                rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
+!             ELSE
+!                rescale_factor = (- B + SQRT(delta_energy))/(2 * A)
+!             ENDIF
+!          ENDIF
+!print *, "rescale_factor", rescale_factor
+!
+!          total_kin_energy = rescale_factor*rescale_factor*A + &
+!                             rescale_factor*B
+!          total_pot_energy = new_state - old_state
+!        
+!print *, "total_kin_energy", total_kin_energy
+!print *, "total_pot_energy", total_pot_energy
 !print *, "ENERGY_ACTIVE_IN_SUB", aom_env%adiab_energies_t(old_state)
 !print *, "ENERGY_TO_j_IN_SUB", aom_env%adiab_energies_t(new_state)
          !  delta_energy = B**2 - 4 * A * (  &
