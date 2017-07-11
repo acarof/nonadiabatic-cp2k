@@ -243,6 +243,12 @@ CONTAINS
     CALL keyword_release(keyword)
 
 
+    CALL keyword_create(keyword, name="RK_PROPAGATION",&
+         description="Decide which RK scheme is used: Diab  or Adiab or HS",&
+         usage="DIABATIC or ADIABATIC or HS", & 
+         type_of_var=char_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="REPRESENTATION",&
          description="Decide which representation is used: Diab  or Adiab",&

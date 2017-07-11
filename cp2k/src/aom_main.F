@@ -102,7 +102,8 @@ MODULE aom_main
 
      USE non_adiabatic_utils,            ONLY: decohere_wf,  &
                                                propagate_wf, &
-                                               propagate_adiab_wf
+                                               propagate_adiab_wf, &
+                                               prop_wf_HS_corr
                                           
      USE non_adiabatic_types,           ONLY: sh_env_type
 
@@ -374,19 +375,21 @@ print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop
 
      !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
      sh_env%cttm(:) = ctin(:)
-     CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
+     CALL section_vals_val_get(adiab_section,"RK_PROPAGATION", &
                                                   c_val=prop_wf_keyword)
      SELECT CASE(prop_wf_keyword)                                 
-     CASE("DIABATIC_BASIS")
+     CASE("DIABATIC_RK")
            CALL propagate_wf(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                              itimes, adiab_section, deltatMD, deltatE , times,    &
                              mat)
-     CASE("ADIABATIC_BASIS")
+     CASE("ADIABATIC_RK")
            CALL propagate_adiab_wf(E_t, E_tp, ctin, aom_env, nadiab, norbitals, ELsteps, &
                                    itimes, adiab_section, deltatMD, deltatE , times,  & 
                                    mat)
-     CASE("HS_CORRECTION")  
-            print *, "TO BE ADDED"
+     CASE("HS_CORRECTED_RK")  
+           CALL prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
+                           itimes, adiab_section, deltatMD, deltatE , times, &
+                            mat)
      CASE DEFAULT                                           
            CPABORT("There is no method to propagate the wavefunction.") 
      END SELECT                                             

@@ -97,6 +97,7 @@
                         DECOHERENCE_CORRECTIONS  DAMPING
                         EDC_C 1.0
                         EDC_E0 0.1
+                        RK_PROPAGATION                        HS_CORRECTED_RK
                         INITIALIZATION                        DIABATIC
                         FIRST_DIABAT                          1
                         FIRST_ADIABAT                         1
