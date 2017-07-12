@@ -30,7 +30,7 @@ if [ $version != "here" ]
 then
    make distclean &> make.log
 fi
-make distclean &> make.log
+#make distclean &> make.log
 make -j20 ARCH="local" VERSION="sopt" &> make.log
 cd ../../regtest-fobsh
 

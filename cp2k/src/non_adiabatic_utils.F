@@ -65,7 +65,8 @@ MODULE non_adiabatic_utils
         PUBLIC :: decohere_wf,      &  
                   propagate_wf,    &
                   propagate_adiab_wf, &
-                  prop_wf_HS_corr
+                  prop_wf_HS_corr, &
+                  calc_kinetic_tot
 
 CONTAINS
  
@@ -429,7 +430,7 @@ CONTAINS
              POINTER, OPTIONAL                             :: atomic_kind_set
 
         REAL(kind=dp), INTENT(OUT)                         :: K_tot
-        LOGICAL, dimension(:), INTENT(IN)           :: ext_pres
+        LOGICAL, dimension(:), INTENT(IN), OPTIONAL           :: ext_pres
 
         CHARACTER(len=*), PARAMETER :: routineN = 'calc_kinetic_tot', &
         routineP = moduleN//':'//routineN
@@ -452,26 +453,35 @@ CONTAINS
                  my_atomic_kind_set => atomic_kind_set
               END IF
            END IF
-
+     
+           K_tot = 0.0D0
            DO iparticle_kind= 1, my_nparticle_kind
               atomic_kind => my_atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
-
+print *, "MASS_INSIDE", mass
 !calculate kinetic energy according to the COM since the array is velocities_COM
-           DO iparticle_local= 1, nparticle_local
-                 if (ext_pres(iparticle_local)) then
-                     iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                     K_tot = K_tot + mass*( &
+              DO iparticle_local= 1, nparticle_local
+                 if ((PRESENT(ext_pres)) .and. (ext_pres(iparticle_local))) then
+                        iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                        K_tot = K_tot + mass*( &
                                    array(1, iparticle)**2 + &
                                    array(2, iparticle)**2 + &
                                    array(3, iparticle)**2  ) 
-                 end if
+                     ! end if
+                 else 
+                     iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                     K_tot = K_tot + mass*( &
+                                array(1, iparticle)**2 + &
+                                array(2, iparticle)**2 + &
+                                array(3, iparticle)**2  )
+                 end if 
               END DO
            END DO
            K_tot = 0.5*K_tot
 
-print *, 'K_tot =', K_tot
+print *, "VELOCITIES_COM", array
+print *, 'K_TOT_INSIDE =', K_tot
    END SUBROUTINE calc_kinetic_tot
  
   !SUBROUTINE propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,     &

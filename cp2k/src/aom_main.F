@@ -103,7 +103,8 @@ MODULE aom_main
      USE non_adiabatic_utils,            ONLY: decohere_wf,  &
                                                propagate_wf, &
                                                propagate_adiab_wf, &
-                                               prop_wf_HS_corr
+                                               prop_wf_HS_corr, & 
+                                               calc_kinetic_tot
                                           
      USE non_adiabatic_types,           ONLY: sh_env_type
 
@@ -502,13 +503,22 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
 !    total_kin_energy, total_pot_energy
                                         !   total_kin_array, total_pot_array
      REAL(kind=dp)                               :: A, B
-     
+     REAL(kind=dp)                               :: K_tot 
      
      ALLOCATE(energy_conservation(mat)) 
-     ALLOCATE(class_forbidden_hop(mat)) 
+     ALLOCATE(class_forbidden_hop(mat))
+
+
+     CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
+                  nparticle_kind, atomic_kind_set, K_tot)
+
+     !E_cutoff = E_tp(active_state) + K_tot
+     
+print *, "KINETIC_ENERGY_QUNATUMM", K_tot  
 
      do j=1, mat
            if (j .gt. active_state) then
+               
                CALL calc_hop_nacv(aom_env, hop_nacv, active_state, j, fast=.TRUE.)
 !print *, "ENERGY_ACTIVE_t", E_t(active_state)
 !print *, "ENERGY_TO_J_t", E_t(j)
