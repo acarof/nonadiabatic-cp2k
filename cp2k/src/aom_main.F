@@ -300,11 +300,11 @@ CONTAINS
      CALL calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cbar, &
                       scaling, PC_allrvecs, orb)
 
-!print *, "aom_env%Stt", aom_env%Stt
+print *, "aom_env%Stt", aom_env%Stt
 !print *, "aom_env%Stptp", aom_env%Stptp
 !print *, "aom_env%Stpt", aom_env%Stpt
 !print *, "aom_env%Sttp", aom_env%Sttp
-!print *, "aom_env%Stmtm", aom_env%Stmtm
+print *, "aom_env%Stmtm", aom_env%Stmtm
 !print *, "aom_env%Sttm", aom_env%Sttm
 !print *, "aom_env%Stmt", aom_env%Stmt
 
@@ -316,14 +316,15 @@ CONTAINS
      !It gives us back the eigenvalues and eigenvectors
      !initialize Adiabatic energies that will be used for trivial hopping and
      !decoherence corrections
+print *, "HAMILTONIAN_COMPLEX", aom_env%H_t
      CALL adiabaticity(-AIMAG(aom_env%H_t), mat, C_t, E_t, .false.)
      sh_env%E_t = E_t
      CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
 
-!print *, "EIGENVALUES", E_tp
+print *, "EIGENVALUES", E_t
 !print *, "EIGENVECTORS_tp", C_tp
-!print *, "EIGENVECTORS_t", C_t
+print *, "EIGENVECTORS_t", C_t
 !print *, "EIGENVECTORS_tp", C_tp
 
      !> ADIABATIC NACE CALCULATION
@@ -357,7 +358,7 @@ CONTAINS
 
            CALL prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times, &
-                            mat)
+                            mat, class_forbidden_hop)
      CASE DEFAULT                                           
            CPABORT("There is no method to propagate the wavefunction.") 
      END SELECT                                             

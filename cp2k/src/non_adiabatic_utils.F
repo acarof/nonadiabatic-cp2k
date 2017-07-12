@@ -39,7 +39,8 @@ MODULE non_adiabatic_utils
                                             read_listcoeff, &
                                             choose_firstadiabat, &
                                              simple_vel_rescaling, &
-                                              translate_com
+                                              translate_com , & 
+                                             calc_diabatic_nace
 
 
      USE non_adiabatic_types,           ONLY: sh_env_type
@@ -715,13 +716,13 @@ print *, 'K_TOT_INSIDE =', K_tot
 
   SUBROUTINE prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,      &
-                            mat)
+                            mat, class_forbidden_hop)
 
      !COMPLEX(KIND=dp), dimension(:,:), INTENT(IN)    :: H_t, H_tp
      !REAL(KIND=dp), dimension(:,:), INTENT(IN)       :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
      COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)   :: ctin
      INTEGER, INTENT(IN)                             :: nadiab,  norbitals 
-
+     INTEGER, dimension(:), INTENT(IN)               :: class_forbidden_hop
 
      CHARACTER(len=*), PARAMETER                     :: routineN ='propagate_wf', &
      routineP = moduleN//':'//routineN
@@ -729,11 +730,14 @@ print *, 'K_TOT_INSIDE =', K_tot
      COMPLEX(KIND=dp), dimension(:), allocatable     :: ctout, ctotal
      REAL(KIND=dp), dimension(:,:), allocatable      :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
      REAL(KIND=dp), dimension(:,:), allocatable      :: NACE
+!     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE1
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
      REAL(KIND=dp), dimension(:,:), allocatable      :: Imat 
      REAL(KIND=dp), dimension(:,:), allocatable       :: Stt_int, Sttp_int, Stptp_int, &
                                                           Sttm_int, Stmtm_int
+     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE       :: U_t
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE         :: Eig_val_t
 
 
      INTEGER                                         :: ELsteps   
@@ -812,6 +816,7 @@ print *, 'K_TOT_INSIDE =', K_tot
              H_0  = aom_env%H_t
              H_2 = aom_env%H_tp
 
+
 !Assignment internal variabls used in the RK
              
              Stt_int = aom_env%Stt 
@@ -823,9 +828,16 @@ print *, 'K_TOT_INSIDE =', K_tot
              Stmtm_int = aom_env%Stmtm
 
              do t2=1,int(deltatMD/deltatE)
-                    call makeX(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
-                                             Stmtm_int, X1, deltatMD)
-
+  
+                    CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
+print *, "UMATRIX", U_t
+                    CALL calc_diabatic_nace(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, &
+                                                        Stptp_int, Stmtm_int, X1, deltatMD, NACE)
+!print *, "NACE_CALC_DIAB", NACE1
+!                    call makeX(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
+!                                             Stmtm_int, X1, deltatMD, NACE)
+print *, "NACE_MAKEX_OLD", NACE
+print *, "class_forbidden_hop", class_forbidden_hop
 
 
                     !create timestepped equivalents
@@ -835,7 +847,7 @@ print *, 'K_TOT_INSIDE =', K_tot
                     Sttm_int = Sttm_int + 0.5D0*Sttmdiff
                     Stptp_int = Stptp_int + 0.5D0*Stptpdiff
                     Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
-                    call makeX(mat, H_1, Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
+                    call calc_diabatic_nace(mat, H_1, Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
                                                        Stmtm_int, X12, deltatMD)
      
                     H_2 = H_1 + 0.5D0*Hdiff
@@ -844,8 +856,8 @@ print *, 'K_TOT_INSIDE =', K_tot
                     Sttm_int = Sttm_int + 0.5D0*Sttmdiff
                     Stptp_int = Stptp_int + 0.5D0*Stptpdiff
                     Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
-                    call makeX(mat, H_2, Stt_int, Sttp_int, Sttm_int, Stptp_int, Stmtm_int, &
-                                                 X2, deltatMD, NACE)
+                    call calc_diabatic_nace(mat, H_2, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
+                                                     Stmtm_int, X2, deltatMD, NACE)
      
                     K2 = cmplx(0.0D0, 0.0D0,dp)
                     K3 = cmplx(0.0D0, 0.0D0,dp)

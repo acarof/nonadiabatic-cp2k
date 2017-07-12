@@ -136,7 +136,8 @@ IMPLICIT NONE
              surf_hop_type,    &
              calc_adiab_nace, &
              calc_hop_nacv, &
-             cal_delta_energy_nacv
+             cal_delta_energy_nacv , &
+             calc_diabatic_nace
 
 CONTAINS
   
@@ -194,9 +195,9 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
 !ADD: SYMMETRIZE NACE
         my_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2)
 
-print *, "MY_DIAB_NACE_NONSIMM", my_NACE
+!print *, "MY_DIAB_NACE_NONSIMM", my_NACE
         my_NACE = (my_NACE - TRANSPOSE(my_NACE)) / 2
-print *, "MY_DIAB_NACE_SIMM", my_NACE
+!print *, "MY_DIAB_NACE_SIMM", my_NACE
         !X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
         X = H - my_NACE
 
@@ -209,8 +210,83 @@ print *, "MY_DIAB_NACE_SIMM", my_NACE
         ENDIF
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
+        deallocate(my_NACE)
 
 end subroutine makeX
+
+
+subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
+       !X is the name I give to the matrix in the solution to the Schroedinger equation:
+       !dc/dt = X*sh_env%ctt
+       !makeX constructs an X matrix from inputs of S and H
+
+       implicit none
+
+       integer, intent(in) :: mol
+       REAL(KIND=dp), intent(in) :: deltat
+       REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, Sttp, Sttm, Stptp, Stmtm
+       REAL(KIND=dp), dimension(:,:), allocatable :: Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt
+       REAL(KIND=dp), dimension(:,:), allocatable :: Sterm1, Sterm2, Splace1, Splace2
+       COMPLEX(KIND=dp), dimension(:,:), intent(in) :: H
+       COMPLEX(KIND=dp), dimension(:,:), intent(out) :: X
+       REAL(KIND=dp), dimension(:,:), intent(out), optional    :: NACE   
+
+       REAL(KIND=dp), dimension(:,:), allocatable     :: diab_NACE   
+
+       !allocate matrices
+       allocate(Sttinvsqrt(mol,mol))
+       allocate(Sttsqrt(mol,mol))
+       allocate(Stptpinvsqrt(mol,mol))
+       allocate(Stmtminvsqrt(mol,mol))
+       allocate(Sterm1(mol,mol))
+       allocate(Sterm2(mol,mol))
+       allocate(Splace1(mol,mol))
+       allocate(Splace2(mol,mol))
+       allocate(diab_NACE(mol,mol))
+
+       Sttsqrt = Stt
+       call matinvsqrt(mol, .FALSE., Sttsqrt)
+       Sttinvsqrt = Stt
+       call matinvsqrt(mol, .TRUE., Sttinvsqrt)
+       Stptpinvsqrt = Stptp
+       call matinvsqrt(mol, .TRUE., Stptpinvsqrt)
+       Stmtminvsqrt = Stmtm
+       call matinvsqrt(mol, .TRUE., Stmtminvsqrt)
+
+       !subroutine DGEMM multiplies two matrices, from the BLAS
+       !use to build the S terms in the X matrix
+
+       !first term: Sttsqrt*(Stptpinvsqrt - Stmtmtinvsqrt)
+       Splace1 = Stptpinvsqrt - Stmtminvsqrt
+       call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttsqrt, mol, Splace1, mol, 0.0D0, Sterm1, mol)
+
+!print *, "TERM1_TST", Sterm1
+       !second term: Sttinvsqrt*(Sttp - Sttm)*Sttinvsqrt
+       Splace1 = Sttp - Sttm
+       call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Splace1, mol, Sttinvsqrt, mol, 0.0D0, Splace2, mol)
+       call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
+!print *, "TERM2_TDT", Sterm1
+!ADD: SYMMETRIZE NACE
+       diab_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2)
+
+!print *, "MY_DIAB_NACE_NONSIMM", my_NACE
+       diab_NACE = (diab_NACE - TRANSPOSE(diab_NACE)) / 2
+!print *, "MY_DIAB_NACE_SIMM", my_NACE
+       X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
+       X = H - diab_NACE
+
+
+!> CHANGE_AC
+
+       IF (PRESENT(NACE)) THEN
+          NACE = diab_NACE
+!print *, 'LOOK NACE=', NACE 
+       ENDIF
+
+       deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
+       deallocate(diab_NACE)
+
+end subroutine calc_diabatic_nace
 
 
 subroutine make_adiabX(mol, E_t, NACE_ad_t, X) !deltat, NACE)

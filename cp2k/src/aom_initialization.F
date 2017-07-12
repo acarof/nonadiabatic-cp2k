@@ -726,6 +726,7 @@ print *, "NACE_MATRIXXX", aom_env%adiab_nace_tp
      aom_env%Stt = Stptp
      energy_adiabat = E_tp(active_state)
 
+print *, "aom_env%Stt", aom_env%Stt
     !> DEALLOCATE
     deallocate(scoefftot, pcoefftot)
     deallocate(pcoeffsrun)
