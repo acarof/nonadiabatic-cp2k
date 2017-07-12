@@ -508,7 +508,7 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
      ALLOCATE(class_forbidden_hop(mat)) 
 
      do j=1, mat
-           if (j .ne. active_state) then
+           if (j .gt. active_state) then
                CALL calc_hop_nacv(aom_env, hop_nacv, active_state, j, fast=.TRUE.)
 !print *, "ENERGY_ACTIVE_t", E_t(active_state)
 !print *, "ENERGY_TO_J_t", E_t(j)
@@ -532,11 +532,11 @@ print *, "energy_conservation(j)", energy_conservation(j)
 print *, "ACTIVE_STATE_NAC", active_state
 print *, "TO_STATE_j", j
 print *, "HOP_NACV", hop_nacv
-           else
+           else if (j .le. active_state) then
               !total_pot_array(j) = 0.0D0
               !total_kin_array(j) = 0.0D0 
-              energy_conservation(active_state) = 0.0D0
-              class_forbidden_hop(active_state) = -1
+              energy_conservation(j) = 0.0D0
+              class_forbidden_hop(j) = -1
            end if  
      end do
 !print *, "KE_ARRAY", total_kin_array
