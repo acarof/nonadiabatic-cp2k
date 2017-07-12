@@ -503,7 +503,7 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
 !    total_kin_energy, total_pot_energy
                                         !   total_kin_array, total_pot_array
      REAL(kind=dp)                               :: A, B
-     REAL(kind=dp)                               :: K_tot 
+     REAL(kind=dp)                               :: K_tot, E_cutoff  
      
      ALLOCATE(energy_conservation(mat)) 
      ALLOCATE(class_forbidden_hop(mat))
@@ -511,18 +511,21 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
 
      CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                   nparticle_kind, atomic_kind_set, K_tot)
-
-     !E_cutoff = E_tp(active_state) + K_tot
-     
+     E_cutoff = 0.0D0
+     E_cutoff = E_tp(active_state) + K_tot  !THIS CUTOFF IS TO LARGE ALL THE
+                                            !STATE ARE BELOW IT
+!     E_cutoff = 4.6612978986598338E-002
 print *, "KINETIC_ENERGY_QUNATUMM", K_tot  
-
+print *, "ENERGY_ACTIVE_tp", E_tp(active_state)
+print *,  "CUTOFF_ENERGY", E_cutoff
+print *, "POTENTIAL_STATE9", E_tp(9)
      do j=1, mat
-           if (j .gt. active_state) then
+           if ((j .gt. active_state) .and. (E_tp(j) .le. E_cutoff)) then
                
-               CALL calc_hop_nacv(aom_env, hop_nacv, active_state, j, fast=.TRUE.)
+              CALL calc_hop_nacv(aom_env, hop_nacv, active_state, j, fast=.TRUE.)
 !print *, "ENERGY_ACTIVE_t", E_t(active_state)
 !print *, "ENERGY_TO_J_t", E_t(j)
-print *, "ENERGY_ACTIVE_tp", E_tp(active_state)
+!print *, "ENERGY_ACTIVE_tp", E_tp(active_state)
 print *, "ENERGY_TO_J_tp", E_tp(j)
 print *, "velocities_com_tp", velocities_com_tp
               CALL evaluate_delta_energy_nacv(velocities_com_tp, local_particles, atomic_kinds, &
@@ -536,18 +539,21 @@ print *, "velocities_com_tp", velocities_com_tp
                    class_forbidden_hop(j) = j
               else 
                    class_forbidden_hop(j) = -1
-              end if  
-
-print *, "energy_conservation(j)", energy_conservation(j)
-print *, "ACTIVE_STATE_NAC", active_state
-print *, "TO_STATE_j", j
-print *, "HOP_NACV", hop_nacv
+              end if
+           else if ((j .gt. active_state) .and. (E_tp(j) .gt. E_cutoff)) then
+print *, "NOWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+              class_forbidden_hop(j) = j
+              energy_conservation(j) = -2  
            else if (j .le. active_state) then
               !total_pot_array(j) = 0.0D0
               !total_kin_array(j) = 0.0D0 
               energy_conservation(j) = 0.0D0
               class_forbidden_hop(j) = -1
            end if  
+print *, "energy_conservation(j)", energy_conservation(j)
+print *, "ACTIVE_STATE_NAC", active_state
+print *, "TO_STATE_j", j
+print *, "HOP_NACV", hop_nacv
      end do
 !print *, "KE_ARRAY", total_kin_array
 !print *, "PE_ARRAY", total_pot_array
