@@ -169,7 +169,9 @@ IMPLICIT NONE
      TYPE(rng_stream_type), POINTER              :: rng_stream
      REAL(KIND=dp), DIMENSION(:,:), POINTER      :: pcoeffs
      REAL(KIND=dp), DIMENSION(:), POINTER         :: scoeffs
-     REAL(KIND = dp)                        :: energy_new
+     REAL(KIND = dp)                              :: energy_new
+     INTEGER, dimension(:), POINTER          :: class_forbidden_hop_t
+
    END TYPE aom_env_type
 
    PUBLIC :: aom_env_type, &

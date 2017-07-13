@@ -59,7 +59,8 @@ MODULE aom_initialization
                                              simple_vel_rescaling, &
                                              translate_com, &
                                              calc_adiab_nace, &
-                                              calc_hop_nacv
+                                              calc_hop_nacv, &
+                                              cal_delta_energy_nacv
 
      USE aom_types,                    ONLY: aom_env_type, &
                                                 sh_print_env_type
@@ -101,7 +102,11 @@ MODULE aom_initialization
 
      USE non_adiabatic_utils,            ONLY: decohere_wf,  &
                                                propagate_wf, &
-                                               propagate_adiab_wf
+                                               propagate_adiab_wf, &
+                                                  prop_wf_HS_corr, & 
+                                                  calc_kinetic_tot, & 
+                                               classically_forbidden_hops
+
 
      USE non_adiabatic_types,           ONLY: sh_env_type
 
@@ -185,6 +190,7 @@ CONTAINS
      ALLOCATE(aom_env%population(mat))
      ALLOCATE(aom_env%ctin(mat))
 
+     ALLOCATE(aom_env%class_forbidden_hop_t(mat))
      ALLOCATE(aom_env%H_t(mat,mat))
      ALLOCATE(aom_env%H_tp(mat,mat))
      allocate(aom_env%pcoeffsrun(atoms,mat,3)) !pcoeffsrun exists because the p-coefficients
@@ -192,6 +198,7 @@ CONTAINS
      ALLOCATE(aom_env%eigenvector_matrix(mat,mat))
      ALLOCATE(aom_env%connlist1(4,aom_atoms))
      ALLOCATE(aom_env%neighbourlist(nadiab, nadiab,0:aom_atoms,0:aom_atoms))
+     
      !need to allocate these square matrices
      !first the real, S-related ones
      ALLOCATE(aom_env%Stt(mat,mat))
@@ -293,7 +300,8 @@ CONTAINS
      TYPE(atomic_kind_list_type), POINTER           :: atomic_kinds
      TYPE(distribution_1d_type), POINTER            :: local_particles
      LOGICAL, INTENT(IN)                            :: my_test_keyword
-     CHARACTER(LEN=default_string_length)     :: method_keyword
+     CHARACTER(LEN=default_string_length)           :: method_keyword
+     TYPE(atomic_kind_type), DIMENSION(:), POINTER  :: atomic_kind_set
 
      CHARACTER(len=*), PARAMETER :: routineN ='propagate_aom_namd_first_step', &
      routineP = moduleN//':'//routineN
@@ -330,10 +338,14 @@ CONTAINS
      LOGICAL                                      :: keyword_translate
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER        :: positions_com_tp, velocities_com_tp
-     CHARACTER(LEN=default_string_length)         :: keyword_init, keyword_basis_repr
+     CHARACTER(LEN=default_string_length)         :: keyword_init, keyword_basis_repr, &
+                                                     prop_wf_keyword
      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
      real(kind=dp), allocatable :: PC_rvecs(:,:)
      LOGICAL    :: do_random
+     INTEGER                                    :: nparticle_kind
+     REAL(KIND=dp), dimension(:), allocatable    :: energy_conservation
+     INTEGER, dimension(:), allocatable          :: class_forbidden_hop_tp
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -682,7 +694,7 @@ print *, "CTIN_ADIAB_BASIS", ctin
 !TEST
 !aom_env%adiab_nace_tp = 0.0D0
 
-print *, "NACE_MATRIXXX", aom_env%adiab_nace_tp
+!print *, "NACE_MATRIXXX", aom_env%adiab_nace_tp
 
      !> second part CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE
      !RESULT OF THE SURFACE HOP ROUTINE IS.
@@ -708,11 +720,29 @@ print *, "NACE_MATRIXXX", aom_env%adiab_nace_tp
      !print*, "ctin", sh_env%ctin
      !ctin=sh_env%ctin
 
+     CALL section_vals_val_get(adiab_section,"RK_PROPAGATION", &
+                                                  c_val=prop_wf_keyword)
+     SELECT CASE(prop_wf_keyword)                                 
+     CASE("DIABATIC_RK")
+     CASE("ADIABATIC_RK")
+     CASE("HS_CORRECTED_RK")  
+          !> CALC ARRAY OF CLASSICALLY FORBIDDEN HOPS
+          CALL classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
+                  velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
+                          atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
+
+print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop_tp
+     CASE DEFAULT                                           
+           CPABORT("There is no method to propagate the wavefunction.") 
+     END SELECT                                             
+     
 
      !> STORE THE COORDINATES IF NOT SUCCESSFUL RUN
      aom_env%forces_adiab=my_forces_adiab
+     
      aom_env%rm_tm      = positions_com_tp - velocities_com_tp*deltatMD
      aom_env%rm_t       = positions_com_tp
+     aom_env%class_forbidden_hop_t = class_forbidden_hop_tp
      aom_env%energies_t = energies_tp
      aom_env%neighbourlist = neighbourlist
      aom_env%sh_print_env = sh_print_env
