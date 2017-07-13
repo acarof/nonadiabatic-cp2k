@@ -968,6 +968,7 @@ print *, 'K_TOT_INSIDE =', K_tot
      REAL(KIND=dp), dimension(:,:), allocatable       :: Stt_int, Sttp_int, Stptp_int, &
                                                           Sttm_int, Stmtm_int
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE       :: U_t, U_t1, U_t2
+     COMPLEX(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: interm_hamil
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE         :: Eig_val_t, Eig_val_t1, Eig_val_t2
 
 
@@ -995,6 +996,7 @@ print *, 'K_TOT_INSIDE =', K_tot
      
      !need to allocate these square matrices
      !first the real, S-related ones
+     allocate(interm_hamil(2,5,mat,mat))
      allocate(Stptpdiff(mat,mat))
      allocate(Sttpdiff(mat,mat))
      allocate(Sttdiff(mat,mat))
@@ -1047,6 +1049,31 @@ print *, 'K_TOT_INSIDE =', K_tot
              H_0  = aom_env%H_t
              H_2 = aom_env%H_tp
 
+print *, "START_aom_env%H_t", aom_env%H_t
+print *, "START_aom_env%H_tp", aom_env%H_tp
+print *, "START_Hdiff", Hdiff
+
+            !> LOOP TO BUILD INTERMEDIATE HAMILTONIANS AND CALCULATE 
+            !> RESPECTIVE U MATRICES
+           
+            !CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
+            do t2=1,int(deltatMD/deltatE)
+                
+                   !create 2 others intermediate hamiltonians usefull to build the X
+                   !matrix in the following 
+                   H_1 = H_0 + 0.5D0*Hdiff
+                   interm_hamil(1,t2,:,:) = H_1(:,:)
+             !      CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
+                   H_2 = H_1 + 0.5D0*Hdiff
+                   interm_hamil(2,t2,:,:) = H_2(:,:)
+              !     CALL adiabaticity(-AIMAG(H_2), mat, U_t2, Eig_val_t2, .false.)
+
+                   H_0 = H_2
+            end do
+print *, "interm_hamil", interm_hamil 
+                
+             !H_0  = aom_env%H_t
+             !H_2 = aom_env%H_tp
 
 !Assignment internal variabls used in the RK
              
@@ -1063,15 +1090,19 @@ print *, 'K_TOT_INSIDE =', K_tot
                     CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
                     CALL calc_diabatic_nace(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, &
                                                         Stptp_int, Stmtm_int, X1, deltatMD, NACE)
+print *, "LOOP_H_t", aom_env%H_t
+print *, "LOOP_H_0", H_0
+print *, "LOOP_X_1", X1
+
 !print *, "NACE_CALC_DIAB", NACE1
 !                    call makeX(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
 !                                             Stmtm_int, X1, deltatMD, NACE)
 print *, "UMATRIX", U_t
-print *, "NACE_MAKEX_OLD", NACE
-print *, "class_forbidden_hop", class_forbidden_hop
+!print *, "NACE_MAKEX_OLD", NACE
+!print *, "class_forbidden_hop", class_forbidden_hop
      
                     !create timestepped equivalents
-                    H_1 = H_0 + 0.5D0*Hdiff
+                    !H_1 = H_0 + 0.5D0*Hdiff
                     Stt_int = Stt_int + 0.5D0*Sttdiff
                     Sttp_int = Sttp_int + 0.5D0*Sttpdiff
                     Sttm_int = Sttm_int + 0.5D0*Sttmdiff
@@ -1079,12 +1110,14 @@ print *, "class_forbidden_hop", class_forbidden_hop
                     Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
 
                     CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
-                    call calc_diabatic_nace(mat, H_1, Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
+                    call calc_diabatic_nace(mat, interm_hamil(1,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
                                                        Stmtm_int, X12, deltatMD, NACE )
 
-print *, "UMATRIX_1", U_t1
+!print *, "LOOP_H_1", H_1
+!print *, "LOOP_X_12", X12
+!print *, "UMATRIX_1", U_t1
 
-                    H_2 = H_1 + 0.5D0*Hdiff
+                   ! H_2 = H_1 + 0.5D0*Hdiff
                     Stt_int = Stt_int + 0.5D0*Sttdiff
                     Sttp_int = Sttp_int + 0.5D0*Sttpdiff
                     Sttm_int = Sttm_int + 0.5D0*Sttmdiff
@@ -1092,10 +1125,11 @@ print *, "UMATRIX_1", U_t1
                     Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
 
                     CALL adiabaticity(-AIMAG(H_2), mat, U_t2, Eig_val_t2, .false.)
-                    call calc_diabatic_nace(mat, H_2, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
+                    call calc_diabatic_nace(mat, interm_hamil(2,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, &
                                                      Stmtm_int, X2, deltatMD, NACE)
-     
-print *, "UMATRIX_2", U_t2
+!print *, "LOOP_H_2", H_2     
+!print *, "LOOP_X_2", X2
+!print *, "UMATRIX_2", U_t2
 
                     K2 = cmplx(0.0D0, 0.0D0,dp)
                     K3 = cmplx(0.0D0, 0.0D0,dp)
@@ -1158,7 +1192,7 @@ print *, "UMATRIX_2", U_t2
                     end if
 
                     !update
-                    H_0 = H_2
+                    !H_0 = H_2
 
                     ctin = ctout
 
