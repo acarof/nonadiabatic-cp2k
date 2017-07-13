@@ -140,6 +140,9 @@ IMPLICIT NONE
              calc_diabatic_nace
 
 CONTAINS
+
+
+
   
 subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         !X is the name I give to the matrix in the solution to the Schroedinger equation:
