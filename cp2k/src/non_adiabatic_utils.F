@@ -967,10 +967,11 @@ print *, 'K_TOT_INSIDE =', K_tot
      REAL(KIND=dp), dimension(:,:), allocatable      :: Imat 
      REAL(KIND=dp), dimension(:,:), allocatable       :: Stt_int, Sttp_int, Stptp_int, &
                                                           Sttm_int, Stmtm_int
-     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE       :: U_t, U_t1, U_t2, U_tp
+     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE       :: U_t, U_t1, U_t2, U_tp, U_t0 
      COMPLEX(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: interm_hamil
      REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: interm_umatrix
-     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE         :: Eig_val_t, Eig_val_t1, Eig_val_t2, Eig_val_tp
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE         :: Eig_val_t, Eig_val_t1, Eig_val_t2, Eig_val_t0,& 
+                                                          Eig_val_tp
 
 
      INTEGER                                         :: ELsteps   
@@ -1065,26 +1066,49 @@ print *, "START_Hdiff", Hdiff
                    !create 3 others intermediate hamiltonians usefull to build the X
                    !matrix in the following 
                    interm_hamil(1,t2,:,:) = H_0(:,:)
+                   CALL adiabaticity(-AIMAG(H_0), mat, U_t0, Eig_val_t0, .false.)
+                   interm_umatrix(1,t2,:,:) = U_t0(:,:)
+
                    H_1 = H_0 + 0.5D0*Hdiff
                    interm_hamil(2,t2,:,:) = H_1(:,:)
                    CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
-                   interm_umatrix(1,t2,:,:) = U_t1(:,:)
+                   interm_umatrix(2,t2,:,:) = U_t1(:,:)
+
                    H_2 = H_1 + 0.5D0*Hdiff
                    interm_hamil(3,t2,:,:) = H_2(:,:)
                    CALL adiabaticity(-AIMAG(H_2), mat, U_t2, Eig_val_t2, .false.)
-                   interm_umatrix(2,t2,:,:) = U_t2(:,:)
+                   interm_umatrix(3,t2,:,:) = U_t2(:,:)
 
                    H_0 = H_2
             end do
 
-print *, "interm_hamil(1,2,:,:)", interm_hamil(1,2,:,:)
-print *, "interm_hamil(3,1,:,:)", interm_hamil(3,1,:,:)
+print *, "interm_hamil(1,2,:,:)", interm_umatrix(1,2,:,:)
+print *, "interm_hamil(3,1,:,:)", interm_umatrix(3,1,:,:)
+
+print *, "--------------------------------------------"
+print *, "interm_hamil(1,3,:,:)", interm_umatrix(1,3,:,:)
+print *, "interm_hamil(3,2,:,:)", interm_umatrix(3,2,:,:)
+
+print *, "--------------------------------------------"
+
+print *, "interm_hamil(1,4,:,:)", interm_umatrix(1,4,:,:)
+print *, "interm_hamil(3,3,:,:)", interm_umatrix(3,3,:,:)
      
 print *, "interm_hamil", interm_hamil 
 print *, "interm_umatrix", interm_umatrix
-print *, "interm_umatrixH2", interm_umatrix(2,5,:,:)
+print *, "interm_umatrixH2", interm_umatrix(3,5,:,:)
 print *, "U_tp", U_tp 
                 
+            ! !> CONSTRUCT Udot MATRICES
+            ! udot_matrices(1,1,:,:) = (interm_umatrix(1,2,:,:) - & 
+            !                        interm_umatrix(1,1,:,:))/(deltatE/2.0) !forward
+            ! udot_matrices(2,1,:,:) = (interm_umatrix(1,3,:,:) - &
+             !                              interm_umatrix(1,1,:,:))/(deltatE) !centering
+            ! do i =1,4
+            !      udot_matrices(2,i+1,:,:) = (interm_umatrix(1,3,:,:) - & 
+                                                
+
+
 
 
              !H_0  = aom_env%H_t
