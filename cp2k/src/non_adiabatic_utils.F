@@ -915,7 +915,7 @@ print *, 'K_TOT_INSIDE =', K_tot
                     end if
 
                     !update
-                    H_0 = H_2
+                     H_0 = H_2
 
                     ctin = ctout
 
@@ -931,7 +931,7 @@ print *, 'K_TOT_INSIDE =', K_tot
                                                     times)
 
              end do
-
+       
 !END PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
 
 !DEALLOCATE
@@ -960,7 +960,7 @@ print *, 'K_TOT_INSIDE =', K_tot
 
      COMPLEX(KIND=dp), dimension(:), allocatable     :: ctout, ctotal
      REAL(KIND=dp), dimension(:,:), allocatable      :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
-     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE
+     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE, modified_ad_nace
 !     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE1
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
@@ -1148,6 +1148,7 @@ print *, "udot_matrices", udot_matrices(3,:,:,:)
                     !CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
                     CALL calc_diabatic_nace(mat, interm_hamil(1,t2,:,:), Stt_int, Sttp_int, Sttm_int, &
                                                         Stptp_int, Stmtm_int, X1, deltatMD, NACE)
+                    
 !print *, "LOOP_H_t", aom_env%H_t
 !print *, "LOOP_H_0", H_0
 !print *, "LOOP_X_1", X1
@@ -1168,9 +1169,11 @@ print *, "class_forbidden_hop", class_forbidden_hop
                     Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
 
 !                    CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
-                    call calc_diabatic_nace(mat, interm_hamil(2,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
+                    CALL calc_diabatic_nace(mat, interm_hamil(2,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
                                                        Stmtm_int, X12, deltatMD, NACE )
-
+                     
+                    CALL calc_modified_ad_nace(class_forbidden_hop, NACE, & 
+                                                udot_matrices, interm_umatrix, modified_ad_nace, mat)
 !print *, "LOOP_H_1", H_1
 !print *, "LOOP_X_12", X12
 !print *, "UMATRIX_1", U_t1
@@ -1282,6 +1285,26 @@ print *, "class_forbidden_hop", class_forbidden_hop
   END SUBROUTINE prop_wf_HS_corr                                                                
 
                                                             
+  SUBROUTINE calc_modified_ad_nace(class_forbidden_hop, NACE, udot_matrices, interm_umatrix, & 
+                                            modified_ad_nace, mat)
+
+
+     REAL(KIND=dp), DIMENSION(:,:,:,:), INTENT(IN)     :: interm_umatrix, udot_matrices 
+     INTEGER, dimension(:), INTENT(IN)          :: class_forbidden_hop
+     REAL(KIND=dp), dimension(:,:), INTENT(IN)      :: NACE
+     REAL(KIND=dp), dimension(:,:), allocatable, INTENT(OUT)     :: modified_ad_nace
+     integer, INTENT(IN)                                         :: mat 
+     
+
+     !integer                                         :: j
+     
+
+
+     allocate(modified_ad_nace(mat,mat))
+
+     modified_ad_nace = 0.0D0
+
+  END SUBROUTINE calc_modified_ad_nace
 
   SUBROUTINE propagate_adiab_wf(E_t, E_tp, ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,      &
