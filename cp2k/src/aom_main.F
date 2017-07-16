@@ -361,6 +361,8 @@ print *, "EIGENVECTORS_t", C_t
            CALL classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
+           
+           aom_env%class_forbidden_hop_t = class_forbidden_hop_tp 
      CASE DEFAULT                                           
            CPABORT("There is no method to propagate the wavefunction.") 
      END SELECT                                             
@@ -445,7 +447,6 @@ print *, "EIGENVECTORS_t", C_t
      aom_env%Stt   = aom_env%Stptp
      aom_env%Sttm  = aom_env%Stpt
      aom_env%Stmt  = aom_env%Sttp
-     aom_env%class_forbidden_hop_t = class_forbidden_hop_tp 
 
 print *, "aom_env%Stt", aom_env%Stt
 print *, "aom_env%Stptp", aom_env%Stptp

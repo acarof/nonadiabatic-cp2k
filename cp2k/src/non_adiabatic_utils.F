@@ -830,7 +830,7 @@ print *, 'K_TOT_INSIDE =', K_tot
              Stmtm_int = aom_env%Stmtm
 
              do t2=1,int(deltatMD/deltatE)
-                    call makeX(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
+                    call makeX(mat, H_0, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
                                              Stmtm_int, X1, deltatMD)
 
 
@@ -1146,7 +1146,7 @@ print *, "udot_matrices", udot_matrices(3,:,:,:)
              do t2=1,int(deltatMD/deltatE)
   
                     !CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
-                    CALL calc_diabatic_nace(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, &
+                    CALL calc_diabatic_nace(mat, interm_hamil(1,t2,:,:), Stt_int, Sttp_int, Sttm_int, &
                                                         Stptp_int, Stmtm_int, X1, deltatMD, NACE)
 !print *, "LOOP_H_t", aom_env%H_t
 !print *, "LOOP_H_0", H_0
@@ -1371,7 +1371,7 @@ print *, "class_forbidden_hop", class_forbidden_hop
              NACEint = aom_env%adiab_nace_t
  
              do t2=1,int(deltatMD/deltatE)
-                    call make_adiabX(mat, E_t, NACEint, X1)
+                    call make_adiabX(mat, E_0, NACEint, X1)
  
  
                     !create timestepped equivalents

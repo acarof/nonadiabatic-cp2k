@@ -730,7 +730,8 @@ print *, "CTIN_ADIAB_BASIS", ctin
           CALL classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
-
+          
+          aom_env%class_forbidden_hop_t = class_forbidden_hop_tp
 print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop_tp
      CASE DEFAULT                                           
            CPABORT("There is no method to propagate the wavefunction.") 
@@ -742,7 +743,6 @@ print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop_tp
      
      aom_env%rm_tm      = positions_com_tp - velocities_com_tp*deltatMD
      aom_env%rm_t       = positions_com_tp
-     aom_env%class_forbidden_hop_t = class_forbidden_hop_tp
      aom_env%energies_t = energies_tp
      aom_env%neighbourlist = neighbourlist
      aom_env%sh_print_env = sh_print_env
