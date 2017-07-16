@@ -969,7 +969,7 @@ print *, 'K_TOT_INSIDE =', K_tot
                                                           Sttm_int, Stmtm_int
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE       :: U_t, U_t1, U_t2, U_tp, U_t0 
      COMPLEX(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: interm_hamil
-     REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: interm_umatrix
+     REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: interm_umatrix, udot_matrices 
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE         :: Eig_val_t, Eig_val_t1, Eig_val_t2, Eig_val_t0,& 
                                                           Eig_val_tp
 
@@ -999,7 +999,8 @@ print *, 'K_TOT_INSIDE =', K_tot
      !need to allocate these square matrices
      !first the real, S-related ones
      allocate(interm_hamil(3,5,mat,mat))
-     allocate(interm_umatrix(2,5,mat,mat))
+     allocate(interm_umatrix(3,5,mat,mat))
+     allocate(udot_matrices(3,5,mat,mat))
      allocate(Stptpdiff(mat,mat))
      allocate(Sttpdiff(mat,mat))
      allocate(Sttdiff(mat,mat))
@@ -1082,34 +1083,52 @@ print *, "START_Hdiff", Hdiff
                    H_0 = H_2
             end do
 
-print *, "interm_hamil(1,2,:,:)", interm_umatrix(1,2,:,:)
-print *, "interm_hamil(3,1,:,:)", interm_umatrix(3,1,:,:)
-
-print *, "--------------------------------------------"
-print *, "interm_hamil(1,3,:,:)", interm_umatrix(1,3,:,:)
-print *, "interm_hamil(3,2,:,:)", interm_umatrix(3,2,:,:)
-
-print *, "--------------------------------------------"
-
-print *, "interm_hamil(1,4,:,:)", interm_umatrix(1,4,:,:)
-print *, "interm_hamil(3,3,:,:)", interm_umatrix(3,3,:,:)
      
-print *, "interm_hamil", interm_hamil 
-print *, "interm_umatrix", interm_umatrix
-print *, "interm_umatrixH2", interm_umatrix(3,5,:,:)
-print *, "U_tp", U_tp 
+!print *, "interm_hamil", interm_hamil 
+!print *, "interm_umatrix", interm_umatrix
+!print *, "interm_umatrixH2", interm_umatrix(3,5,:,:)
+!print *, "U_tp", U_tp 
                 
-            ! !> CONSTRUCT Udot MATRICES
-            ! udot_matrices(1,1,:,:) = (interm_umatrix(1,2,:,:) - & 
-            !                        interm_umatrix(1,1,:,:))/(deltatE/2.0) !forward
+             !> CONSTRUCT Udot MATRICES
+             
+             !> 1st and 3rd arraies of the super-array:
+             udot_matrices(1,1,:,:) = (interm_umatrix(2,1,:,:) - & 
+                                    interm_umatrix(1,1,:,:))/(deltatE/2.0) !forwards
             ! udot_matrices(2,1,:,:) = (interm_umatrix(1,3,:,:) - &
-             !                              interm_umatrix(1,1,:,:))/(deltatE) !centering
-            ! do i =1,4
-            !      udot_matrices(2,i+1,:,:) = (interm_umatrix(1,3,:,:) - & 
+             !                             interm_umatrix(1,1,:,:))/(deltatE) !centering
+             do i =1,4
+                   udot_matrices(3,i,:,:) =  (interm_umatrix(2,i+1,:,:) - & 
+                                                     interm_umatrix(2,i,:,:))/(deltatE)
+                   udot_matrices(1,i+1,:,:) = udot_matrices(3,i,:,:)
+             end do 
                                                 
+             udot_matrices(3,5,:,:) = (interm_umatrix(3,5,:,:) - & 
+                                       interm_umatrix(2,5,:,:))/(deltatE/2.0) !backwards
+             !> 2nd array of the super-array:
+             do i =1,5
+                   udot_matrices(2,i,:,:) = (interm_umatrix(3,i,:,:) - & 
+                                         interm_umatrix(1,i,:,:))/(deltatE) !all centering
+             end do
 
+print *, "deltatE", deltatE
+print *, "interm_U0", interm_umatrix(1,1,:,:)
+print *, "interm_U2", interm_umatrix(3,1,:,:)
+print *, "interm_Udot1", udot_matrices(2,1,:,:)
 
+print *, "--------------------------------------------"
+print *, "interm_U3", interm_umatrix(2,2,:,:)
+print *, "interm_U5", interm_umatrix(2,3,:,:)
+print *, "interm_Udot4", udot_matrices(1,3,:,:)
 
+print *, "--------------------------------------------"
+
+print *, "interm_hamil(1,4,:,:)", udot_matrices(1,4,:,:)
+print *, "interm_hamil(3,3,:,:)", udot_matrices(3,3,:,:)
+
+print *, "udot_matrices", udot_matrices
+
+print *, "udot_matrices", udot_matrices(1,:,:,:)
+print *, "udot_matrices", udot_matrices(3,:,:,:)
 
              !H_0  = aom_env%H_t
              !H_2 = aom_env%H_tp
@@ -1131,14 +1150,14 @@ print *, "U_tp", U_tp
                                                         Stptp_int, Stmtm_int, X1, deltatMD, NACE)
 !print *, "LOOP_H_t", aom_env%H_t
 !print *, "LOOP_H_0", H_0
-print *, "LOOP_X_1", X1
+!print *, "LOOP_X_1", X1
 
 !print *, "NACE_CALC_DIAB", NACE1
 !                    call makeX(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
 !                                             Stmtm_int, X1, deltatMD, NACE)
 !print *, "UMATRIX", U_t
 !print *, "NACE_MAKEX_OLD", NACE
-!print *, "class_forbidden_hop", class_forbidden_hop
+print *, "class_forbidden_hop", class_forbidden_hop
      
                     !create timestepped equivalents
                     !H_1 = H_0 + 0.5D0*Hdiff
@@ -1251,7 +1270,9 @@ print *, "LOOP_X_1", X1
 !END PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
 
 !DEALLOCATE
+
        DEALLOCATE(NACE)
+       deallocate(interm_hamil,interm_umatrix, udot_matrices)
        deallocate(H_0, Hdiff, H_1, H_2, X1, X2, X12, Ktot, K2, K3, K4)
        deallocate(Sttdiff, Stptpdiff, Stmtmdiff, Sttpdiff, Sttmdiff)
        deallocate(Stt_int, Sttp_int, Stptp_int, Sttm_int, Stmtm_int)
