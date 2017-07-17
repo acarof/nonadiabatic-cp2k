@@ -1150,14 +1150,14 @@ print *, "udot_matrices", udot_matrices(3,:,:,:)
                     dim_ = 1
                     !CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
                     CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, &
-                                                        Stptp_int, Stmtm_int, deltatMD, NACE)
+                                                        Stptp_int, Stmtm_int, deltatMD, NACE, X1)
 print *, "X1_TOGREP", X1
                     !CALL calc_diabatic_nace(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, &
                      !                                   Stptp_int, Stmtm_int, X1, deltatMD, NACE)
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
                     
-                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X1)
+                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, Ytot)
 print *, "Ytot_TOGREP", Ytot              
 !print *, "LOOP_H_t", aom_env%H_t
 !print *, "LOOP_H_0", H_0
@@ -1181,10 +1181,10 @@ print *, "class_forbidden_hop", class_forbidden_hop
                     dim_ = 2 
 !                    CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
                     CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
-                                                       Stmtm_int, deltatMD, NACE )
+                                                       Stmtm_int, deltatMD, NACE , X12)
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
-                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X12)
+                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, Ytot)
 !print *, "LOOP_H_1", H_1
 !print *, "LOOP_X_12", X12
 !print *, "UMATRIX_1", U_t1
@@ -1199,11 +1199,11 @@ print *, "class_forbidden_hop", class_forbidden_hop
                     dim_ = 3  
 !                    CALL adiabaticity(-AIMAG(H_2), mat, U_t2, Eig_val_t2, .false.)
                     call calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, &
-                                                     Stmtm_int, deltatMD, NACE)
+                                                     Stmtm_int, deltatMD, NACE, X2 )
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
 
-                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X2)
+                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, Ytot)
 !print *, "LOOP_H_2", H_2     
 !print *, "LOOP_X_2", X2
 !print *, "UMATRIX_2", U_t2
