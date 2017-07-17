@@ -1313,6 +1313,8 @@ print *, "class_forbidden_hop", class_forbidden_hop
      REAL(KIND=dp), dimension(:,:)                 :: modified_diab_nace
 
      modified_diab_nace = (modified_diab_nace - TRANSPOSE(modified_diab_nace)) / 2
+
+print *, "SIMMETRIZED_modified_diab_nace", modified_diab_nace
      Ytot = interm_hamil(dim_,t2,:,:) - modified_diab_nace
 
 
