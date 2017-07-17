@@ -961,7 +961,7 @@ print *, 'K_TOT_INSIDE =', K_tot
 
      COMPLEX(KIND=dp), dimension(:), allocatable     :: ctout, ctotal
      REAL(KIND=dp), dimension(:,:), allocatable      :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
-     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE , modified_ad_nace
+     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE , modified_diab_nace
 !     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE1
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
@@ -1145,12 +1145,15 @@ print *, "udot_matrices", udot_matrices(3,:,:,:)
              Stmtm_int = aom_env%Stmtm
 
              do t2=1,int(deltatMD/deltatE)
-  
+                 
+                    dim_ = 1
                     !CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
-                    CALL calc_diabatic_nace(mat, interm_hamil(1,t2,:,:), Stt_int, Sttp_int, Sttm_int, &
+                    CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, &
                                                         Stptp_int, Stmtm_int, X1, deltatMD, NACE)
                     !CALL calc_diabatic_nace(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, &
                      !                                   Stptp_int, Stmtm_int, X1, deltatMD, NACE)
+                    CALL calc_modified_ad_nace(class_forbidden_hop, NACE, & 
+                          udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
                     
 !print *, "LOOP_H_t", aom_env%H_t
 !print *, "LOOP_H_0", H_0
@@ -1176,7 +1179,7 @@ print *, "class_forbidden_hop", class_forbidden_hop
                     CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
                                                        Stmtm_int, X12, deltatMD, NACE )
                     CALL calc_modified_ad_nace(class_forbidden_hop, NACE, & 
-                          udot_matrices, interm_umatrix, modified_ad_nace, mat, active_state, t2, dim_)
+                          udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
 !print *, "LOOP_H_1", H_1
 !print *, "LOOP_X_12", X12
 !print *, "UMATRIX_1", U_t1
@@ -1187,10 +1190,13 @@ print *, "class_forbidden_hop", class_forbidden_hop
                     Sttm_int = Sttm_int + 0.5D0*Sttmdiff
                     Stptp_int = Stptp_int + 0.5D0*Stptpdiff
                     Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
-
+                    
+                    dim_ = 3  
 !                    CALL adiabaticity(-AIMAG(H_2), mat, U_t2, Eig_val_t2, .false.)
-                    call calc_diabatic_nace(mat, interm_hamil(3,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, &
+                    call calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, &
                                                      Stmtm_int, X2, deltatMD, NACE)
+                    CALL calc_modified_ad_nace(class_forbidden_hop, NACE, & 
+                          udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
 !print *, "LOOP_H_2", H_2     
 !print *, "LOOP_X_2", X2
 !print *, "UMATRIX_2", U_t2
@@ -1291,17 +1297,19 @@ print *, "class_forbidden_hop", class_forbidden_hop
 
                                                             
   SUBROUTINE calc_modified_ad_nace(class_forbidden_hop, NACE, udot_matrices, interm_umatrix, & 
-                                            modified_ad_nace, mat, active_state, t2, dim_)
+                                            modified_diab_nace, mat, active_state, t2, dim_)
 
 
      REAL(KIND=dp), DIMENSION(:,:,:,:), INTENT(IN)     :: interm_umatrix, udot_matrices 
      INTEGER, dimension(:), INTENT(IN)          :: class_forbidden_hop
      REAL(KIND=dp), dimension(:,:), INTENT(IN)      :: NACE
-     REAL(KIND=dp), dimension(:,:), allocatable, INTENT(OUT)     :: modified_ad_nace
+     REAL(KIND=dp), dimension(:,:), allocatable, INTENT(OUT)     :: modified_diab_nace
      integer, INTENT(IN)                                         :: active_state,mat,t2,dim_ 
      
 
      integer                                         :: i,j, k, l
+     REAL(KIND=dp), dimension(:,:), allocatable      :: modified_ad_nace
+     REAL(KIND=dp), dimension(:,:), allocatable      :: rotated_ad_nace
      
      print *, "class_forbidden_hop_INT", class_forbidden_hop
      print *, "NACE_INT", NACE
@@ -1314,10 +1322,14 @@ print *, "class_forbidden_hop", class_forbidden_hop
      
 
      allocate(modified_ad_nace(mat,mat))
+     allocate(rotated_ad_nace(mat,mat))
+     allocate(modified_diab_nace(mat,mat))
 
+
+     !> CALCULATE MODIFIED ADIABATIC NACE 
      modified_ad_nace = 0.0D0
 
-     print *, "modified_ad_nace", modified_ad_nace
+!print *, "modified_ad_nace", modified_ad_nace
      do i=1,mat
          if (i .eq. active_state) then
              do j=1,mat
@@ -1335,7 +1347,7 @@ print *, "class_forbidden_hop", class_forbidden_hop
                                    modified_ad_nace(i,j) + interm_umatrix(dim_,t2,k,i)* &
                                         NACE(k,l)*interm_umatrix(dim_,t2,l,j)
 !print  *, "NACE(k,l)", NACE(k,l)
-print *, "OKK_modified_ad_nace", i, j, modified_ad_nace(i,j)
+!print *, "OKK_modified_ad_nace", i, j, modified_ad_nace(i,j)
 !print *, "modified_ad_nace(i,j)", modified_ad_nace(i,j)
  
                              end do
@@ -1350,7 +1362,8 @@ print *, "OKK_modified_ad_nace", i, j, modified_ad_nace(i,j)
          end if
      end do
 
-print *, "modified_ad_nace_FIRST", modified_ad_nace 
+     !> SIMMETRIZATION OF modified_ad_nace
+!print *, "modified_ad_nace_FIRST", modified_ad_nace 
      do i=1,mat
          do j=1,mat
               if(j .lt. i) then 
@@ -1360,9 +1373,32 @@ print *, "modified_ad_nace_FIRST", modified_ad_nace
      end do    
   
 print *, "modified_ad_nace", modified_ad_nace
-  
-  
-  deallocate(modified_ad_nace)
+
+      
+     !rotated_ad_nace = modified_ad_nace
+
+     !> ROTATE BACK modified_ad_nace INTO DIABATIC BASIS
+     do i=1,mat
+         do j=1,mat
+              rotated_ad_nace(i,j) = 0.0D0
+                 do k=1,mat
+                      do l=1,mat
+                           rotated_ad_nace(i,j) =  rotated_ad_nace(i,j) + &
+                     interm_umatrix(dim_,t2,i,k)*modified_ad_nace(k,l)*interm_umatrix(dim_,t2,j,l)
+                      end do
+                 end do
+         end do
+     end do
+
+
+print *, "rotated_ad_nace", rotated_ad_nace
+     !> CALCULATION OF THE NEW MODIFIED DIABATIC NACV
+     modified_diab_nace = rotated_ad_nace + NACE
+print*, "modified_diab_nace", modified_diab_nace
+   
+ 
+ 
+     deallocate(modified_ad_nace, rotated_ad_nace)
 
   END SUBROUTINE calc_modified_ad_nace
 
