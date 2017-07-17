@@ -218,7 +218,7 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
 end subroutine makeX
 
 
-subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
+subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, deltat, NACE)
        !X is the name I give to the matrix in the solution to the Schroedinger equation:
        !dc/dt = X*sh_env%ctt
        !makeX constructs an X matrix from inputs of S and H
@@ -231,7 +231,7 @@ subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, 
        REAL(KIND=dp), dimension(:,:), allocatable :: Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt
        REAL(KIND=dp), dimension(:,:), allocatable :: Sterm1, Sterm2, Splace1, Splace2
        COMPLEX(KIND=dp), dimension(:,:), intent(in) :: H
-       COMPLEX(KIND=dp), dimension(:,:), intent(out) :: X
+      ! COMPLEX(KIND=dp), dimension(:,:), intent(out) :: X
        REAL(KIND=dp), dimension(:,:), intent(out), optional    :: NACE   
 
        REAL(KIND=dp), dimension(:,:), allocatable     :: diab_NACE   
@@ -275,8 +275,8 @@ subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, 
 !print *, "MY_DIAB_NACE_NONSIMM", my_NACE
        diab_NACE = (diab_NACE - TRANSPOSE(diab_NACE)) / 2
 !print *, "MY_DIAB_NACE_SIMM", my_NACE
-       X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
-       X = H - diab_NACE
+!       X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
+!       X = H - diab_NACE
 
 
 !> CHANGE_AC

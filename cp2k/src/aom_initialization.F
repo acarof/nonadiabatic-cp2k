@@ -730,6 +730,11 @@ print *, "CTIN_ADIAB_BASIS", ctin
           CALL classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
+
+!TEST!
+do i =1,mat 
+   class_forbidden_hop_tp = -1
+end do         
           
           aom_env%class_forbidden_hop_t = class_forbidden_hop_tp
 print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop_tp
