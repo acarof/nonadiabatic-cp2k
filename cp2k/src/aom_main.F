@@ -356,7 +356,7 @@ print *, "EIGENVECTORS_t", C_t
 
            CALL prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times, &
-                            mat, aom_env%class_forbidden_hop_t)
+                            mat, aom_env%class_forbidden_hop_t, active_state)
                                                      
            CALL classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &

@@ -947,20 +947,21 @@ print *, 'K_TOT_INSIDE =', K_tot
 
   SUBROUTINE prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,      &
-                            mat, class_forbidden_hop)
+                            mat, class_forbidden_hop, active_state)
 
      !COMPLEX(KIND=dp), dimension(:,:), INTENT(IN)    :: H_t, H_tp
      !REAL(KIND=dp), dimension(:,:), INTENT(IN)       :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
      COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)   :: ctin
      INTEGER, INTENT(IN)                             :: nadiab,  norbitals 
      INTEGER, dimension(:), INTENT(IN)               :: class_forbidden_hop
+     integer, INTENT(IN)                             :: active_state, mat 
 
      CHARACTER(len=*), PARAMETER                     :: routineN ='propagate_wf', &
      routineP = moduleN//':'//routineN
 
      COMPLEX(KIND=dp), dimension(:), allocatable     :: ctout, ctotal
      REAL(KIND=dp), dimension(:,:), allocatable      :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
-     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE, modified_ad_nace
+     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE , modified_ad_nace
 !     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE1
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
@@ -982,8 +983,8 @@ print *, 'K_TOT_INSIDE =', K_tot
      REAL(KIND=dp)                                   :: ctmag
      REAL(KIND=dp)                                   :: times 
      COMPLEX(KIND=dp)                                :: alpha, beta, ctcomp
-     integer                                         :: t2
-     integer                                         :: i,j, inc, mat 
+     integer                                         :: t2, dim_
+     integer                                         :: i,j, inc 
      character(len=1)                                :: zgemm_type
 
 
@@ -1148,6 +1149,8 @@ print *, "udot_matrices", udot_matrices(3,:,:,:)
                     !CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
                     CALL calc_diabatic_nace(mat, interm_hamil(1,t2,:,:), Stt_int, Sttp_int, Sttm_int, &
                                                         Stptp_int, Stmtm_int, X1, deltatMD, NACE)
+                    !CALL calc_diabatic_nace(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, &
+                     !                                   Stptp_int, Stmtm_int, X1, deltatMD, NACE)
                     
 !print *, "LOOP_H_t", aom_env%H_t
 !print *, "LOOP_H_0", H_0
@@ -1167,13 +1170,13 @@ print *, "class_forbidden_hop", class_forbidden_hop
                     Sttm_int = Sttm_int + 0.5D0*Sttmdiff
                     Stptp_int = Stptp_int + 0.5D0*Stptpdiff
                     Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
-
+                    
+                    dim_ = 2 
 !                    CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
-                    CALL calc_diabatic_nace(mat, interm_hamil(2,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
+                    CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
                                                        Stmtm_int, X12, deltatMD, NACE )
-                     
                     CALL calc_modified_ad_nace(class_forbidden_hop, NACE, & 
-                                                udot_matrices, interm_umatrix, modified_ad_nace, mat)
+                          udot_matrices, interm_umatrix, modified_ad_nace, mat, active_state, t2, dim_)
 !print *, "LOOP_H_1", H_1
 !print *, "LOOP_X_12", X12
 !print *, "UMATRIX_1", U_t1
@@ -1270,6 +1273,8 @@ print *, "class_forbidden_hop", class_forbidden_hop
 
              end do
 
+!stop
+
 !END PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
 
 !DEALLOCATE
@@ -1286,23 +1291,78 @@ print *, "class_forbidden_hop", class_forbidden_hop
 
                                                             
   SUBROUTINE calc_modified_ad_nace(class_forbidden_hop, NACE, udot_matrices, interm_umatrix, & 
-                                            modified_ad_nace, mat)
+                                            modified_ad_nace, mat, active_state, t2, dim_)
 
 
      REAL(KIND=dp), DIMENSION(:,:,:,:), INTENT(IN)     :: interm_umatrix, udot_matrices 
      INTEGER, dimension(:), INTENT(IN)          :: class_forbidden_hop
      REAL(KIND=dp), dimension(:,:), INTENT(IN)      :: NACE
      REAL(KIND=dp), dimension(:,:), allocatable, INTENT(OUT)     :: modified_ad_nace
-     integer, INTENT(IN)                                         :: mat 
+     integer, INTENT(IN)                                         :: active_state,mat,t2,dim_ 
      
 
-     !integer                                         :: j
+     integer                                         :: i,j, k, l
      
-
+     print *, "class_forbidden_hop_INT", class_forbidden_hop
+     print *, "NACE_INT", NACE
+     print *, "udot_matrices(dim_,t2,:,2)", udot_matrices(dim_,t2,:,2)
+     print *, "interm_umatrix(dim_,t2,:,1)", interm_umatrix(dim_,t2,:,1) 
+     print *, "mat", mat
+     print *, "active_state", active_state
+     print *, "t2", t2
+     print *,  "dim_", dim_  
+     
 
      allocate(modified_ad_nace(mat,mat))
 
      modified_ad_nace = 0.0D0
+
+     print *, "modified_ad_nace", modified_ad_nace
+     do i=1,mat
+         if (i .eq. active_state) then
+             do j=1,mat
+                  if((j .ge. i) .and. (j .eq. class_forbidden_hop(j))) then
+                      print *, "i_cic", i
+                      print *, "jcic", j 
+                      print *, "TRUE"
+                      modified_ad_nace(i,j) = 0.0D0
+                         do k=1,mat
+                             modified_ad_nace(i,j) = & 
+                                modified_ad_nace(i,j) + interm_umatrix(dim_,t2,k,i)*udot_matrices(dim_,t2,k,j)
+!print *, "BEFORE_modified_ad_nace", i, j, modified_ad_nace(i,j)
+                             do l=1,mat
+                                modified_ad_nace(i,j) = & 
+                                   modified_ad_nace(i,j) + interm_umatrix(dim_,t2,k,i)* &
+                                        NACE(k,l)*interm_umatrix(dim_,t2,l,j)
+!print  *, "NACE(k,l)", NACE(k,l)
+print *, "OKK_modified_ad_nace", i, j, modified_ad_nace(i,j)
+!print *, "modified_ad_nace(i,j)", modified_ad_nace(i,j)
+ 
+                             end do
+                         end do
+                  !else 
+                      !modified_ad_nace(i,j) = -modified_ad_nace(j,i)
+!print *, "MINUS_modified_ad_nace", i, j, modified_ad_nace(i,j) 
+                  end if 
+             end do
+         !else 
+          !   modified_ad_nace(i,j) = 0.0D0
+         end if
+     end do
+
+print *, "modified_ad_nace_FIRST", modified_ad_nace 
+     do i=1,mat
+         do j=1,mat
+              if(j .lt. i) then 
+                 modified_ad_nace(i,j) = -modified_ad_nace(j,i)
+              end if
+         end do
+     end do    
+  
+print *, "modified_ad_nace", modified_ad_nace
+  
+  
+  deallocate(modified_ad_nace)
 
   END SUBROUTINE calc_modified_ad_nace
 
