@@ -963,7 +963,7 @@ print *, 'K_TOT_INSIDE =', K_tot
      REAL(KIND=dp), dimension(:,:), allocatable      :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
      REAL(KIND=dp), dimension(:,:), allocatable      :: NACE , modified_diab_nace
 !     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE1
-     COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12, Ytot
+     COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12!, Ytot
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
      REAL(KIND=dp), dimension(:,:), allocatable      :: Imat 
      REAL(KIND=dp), dimension(:,:), allocatable       :: Stt_int, Sttp_int, Stptp_int, &
@@ -1031,7 +1031,7 @@ print *, 'K_TOT_INSIDE =', K_tot
      allocate(X1(mat,mat))
      allocate(X2(mat,mat))
      allocate(X12(mat,mat))
-     allocate(Ytot(mat,mat))
+    ! allocate(Ytot(mat,mat))
      
     
      !finally the K matrices, which are the terms in the Runge-Kutta integration
@@ -1150,15 +1150,16 @@ print *, "udot_matrices", udot_matrices(3,:,:,:)
                     dim_ = 1
                     !CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
                     CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, &
-                                                        Stptp_int, Stmtm_int, deltatMD, NACE, X1)
-print *, "X1_TOGREP", X1
+                                                        Stptp_int, Stmtm_int, deltatMD, NACE)
                     !CALL calc_diabatic_nace(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, &
                      !                                   Stptp_int, Stmtm_int, X1, deltatMD, NACE)
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
                     
-                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, Ytot)
-print *, "Ytot_TOGREP", Ytot              
+                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X1)
+
+print *, "X1_TOGREP", X1
+!print *, "Ytot_TOGREP", Ytot              
 !print *, "LOOP_H_t", aom_env%H_t
 !print *, "LOOP_H_0", H_0
 !print *, "LOOP_X_1", X1
@@ -1181,10 +1182,10 @@ print *, "class_forbidden_hop", class_forbidden_hop
                     dim_ = 2 
 !                    CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
                     CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
-                                                       Stmtm_int, deltatMD, NACE , X12)
+                                                       Stmtm_int, deltatMD, NACE)
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
-                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, Ytot)
+                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X12)
 !print *, "LOOP_H_1", H_1
 !print *, "LOOP_X_12", X12
 !print *, "UMATRIX_1", U_t1
@@ -1199,11 +1200,11 @@ print *, "class_forbidden_hop", class_forbidden_hop
                     dim_ = 3  
 !                    CALL adiabaticity(-AIMAG(H_2), mat, U_t2, Eig_val_t2, .false.)
                     call calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, &
-                                                     Stmtm_int, deltatMD, NACE, X2 )
+                                                     Stmtm_int, deltatMD, NACE)
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
 
-                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, Ytot)
+                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X2)
 !print *, "LOOP_H_2", H_2     
 !print *, "LOOP_X_2", X2
 !print *, "UMATRIX_2", U_t2
