@@ -13,7 +13,7 @@ j=0
 h=0
 t = 0
 t_prev = 0
-eps = 10e-10
+eps = 10e-7
 for i in range(0,len(coeffxyz)):
     line = coeffxyz[i].split()
     if (line[0] == 'i' and i != 0 and t != int(line[2].replace(',','')) ):
