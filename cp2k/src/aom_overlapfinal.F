@@ -15,7 +15,6 @@
 
 
 module aom_overlapfinal
-  USE machine,                         ONLY: m_getpid
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE parallel_rng_types,              ONLY: next_random_number
@@ -32,8 +31,39 @@ module aom_overlapfinal
         module procedure project_monomer_b
       end interface
 
+! _PC_
+
+DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: s_ppi_table, s_psigma_table 
+REAL(kind=dp), DIMENSION(3) :: s_ppi_table_dims, s_psigma_table_dims
+REAL(kind=dp), PARAMETER :: factorials(13) = (/1.0d0, 1.0d0, 2.0d0, 6.0d0, 24.0d0, &
+            & 120.0d0, 720.0d0, 5040.0d0, 40320.0d0, 362880.0d0, 3628800.0d0, 39916800.0d0, 47900160.0d0 /)
+
 contains
-      
+
+!--------PC added functino to build S lookuptable----------
+
+  subroutine build_s_tables()
+
+      REAL(kind=dp) :: Bohr
+      !INTEGER :: nrows,i
+      INTEGER :: nrows
+      Bohr = 5.29177E-011
+
+      open(1, file="S_psigma.txt")
+      read(1,*) s_psigma_table_dims
+      nrows = NINT((s_psigma_table_dims(2)-s_psigma_table_dims(1))/s_psigma_table_dims(3))
+      allocate(s_psigma_table(nrows))
+      read(1,*) s_psigma_table
+
+
+      open(2, file="S_ppi.txt")
+      read(2,*) s_ppi_table_dims
+      nrows = NINT((s_ppi_table_dims(2)-s_ppi_table_dims(1))/s_ppi_table_dims(3))
+      allocate(s_ppi_table(nrows))
+      read(2,*) s_ppi_table
+  
+  end subroutine 
+
   subroutine center_of_mass(xyz, mass, com)
 
       REAL(KIND=dp), intent(in) :: xyz(:,:)
@@ -380,14 +410,15 @@ contains
   subroutine calc_overlap_p(expcoeffa, expcoeffb, mua, musb, dist, sarray)
 !     Subroutine calculating the overlap between p orbitals only currently
 !     currently this is the only one called.
- 
+
       REAL(KIND=dp), intent(in) :: expcoeffa(:,:)
       REAL(KIND=dp), intent(in) :: expcoeffb(:,:)
       REAL(KIND=dp), intent(in) :: mua, musb(:)
       REAL(KIND=dp), intent(in) :: dist(:)
       REAL(KIND=dp), intent(out) :: sarray(:)
       REAL(KIND=dp), allocatable :: c(:,:)
-      REAL(KIND=dp) :: p, t
+      !REAL(KIND=dp) :: p, t
+      REAL(KIND=dp) :: t
  
       integer :: stat_err
       integer :: i
@@ -396,9 +427,23 @@ contains
       c = expcoeffa * expcoeffb ! 
       do i=1,size(expcoeffa,2)
         if (dist(i) .gt. abs(epsilon(0.d0))) then
-          p = (mua + musb(i))/2.0D0*dist(i) !mua and musb are slater decay coefficients see eqn 5.12 F thesis
+! ------- PC remved next two lines for lookup table function --- can replace
+! above value with fixed known tolerance not look up with epsilon each time
+!          p = (mua + musb(i))/2.0D0*dist(i) !mua and musb are slater decay coefficients see eqn 5.12 F thesis
           t = (mua - musb(i))/(mua + musb(i)) !abs???
-          sarray(i) = (c(1,i) + c(2,i)) * S_ppi(p,t) + c(3,i) * S_psigma(p,t) !eqn 5.12 fruzina thesis
+          !print *, "mua and musb are:", mua, musb(i)
+          !sarray(i) = (c(1,i) + c(2,i)) * S_ppi(p,t) + c(3,i) * S_psigma(p,t) !eqn 5.12 fruzina thesis
+!-----PC comment below line in for lookup                
+          if (abs(t) .lt. epsilon(0.D0)) then
+            sarray(i) = (c(1,i) + c(2,i)) * S_ppi_lookup(dist(i)) + c(3,i) * S_psigma_lookup(dist(i))
+          else
+            sarray(i) = 0.0D0
+!            print *, "S_ppi diff:", S_ppi(p,t)-S_ppi_lookup(dist(i))
+!            print *, "S_psigma diff:", S_psigma(p,t)-S_psigma_lookup(dist(i))
+          !else
+            !print *, "(t > 0) S_ppi diff:", S_ppi(p,t)-S_ppi_lookup(dist(i))
+            !print *, "(t > 0) S_psigma diff:", S_psigma(p,t)-S_psigma_lookup(dist(i))
+          end if
         else
          sarray(i) = 1.d0
         end if
@@ -486,79 +531,150 @@ contains
 
   end function
 
+!----------PC commented out original functions of s_ppi and s_psigma
 
-  function S_psigma(p,t)
-!     Calculates p_sigma-p_sigma overlap integral 
-      REAL(KIND=dp) :: S_psigma
-      REAL(KIND=dp), intent(in) :: p, t
- 
-      if (abs(t) .lt. epsilon(0.D0)) then
-          S_psigma = - dexp(-p)/15.0D0 * (p*p*p*p + 2.0D0*p*p*p - 3.0D0*p*p - 15.0D0*p - 15.0D0)    
-      else
-          S_psigma =  1/16.0D0 * p**5 *(1 - t**2)**(5.0D0/2.0D0)*&
-                 (B(2,p,t)*(A(0,p)+A(4,p)) - A(2,p)*(B(0,p,t)+B(4,p,t)))
-      end if
+!  function S_psigma(p,t)
+!!     Calculates p_sigma-p_sigma overlap integral 
+!      REAL(KIND=dp) :: S_psigma
+!      REAL(KIND=dp), intent(in) :: p, t
+
+!      if (abs(t) .lt. epsilon(0.D0)) then
+          ! PC -- below equation is from Mulliken Rieke, Orloff anf Orloff page 1256 eqn (55) however the
+          ! equation in the paper is incorrect by a factor of -1 hence the added minus sign below
+!          S_psigma = - dexp(-p)/15.0D0 * (p*p*p*p + 2.0D0*p*p*p - 3.0D0*p*p - 15.0D0*p - 15.0D0)
+          !----PC-----
+          !print *, "S_psigma is", S_psigma    
+          !----------
+      
+      !!else section is unnecessary for carbon and hydrogen and results in dramatic slowdown
+      !!-------------beginning of else section------
+      !    S_psigma =  1/16.0D0 * p**5 *(1 - t**2)**(5.0D0/2.0D0)*&
+      !           (B(2,p,t)*(A(0,p)+A(4,p)) - A(2,p)*(B(0,p,t)+B(4,p,t)))
+      !!-------------end of else section-------------
+          !----PC-----
+          !print *, "t > 0, S_psigma is", S_psigma
+          !-----------
+!      end if
+!  end function
+
+!  function S_ppi(p,t)
+
+!     Calculates p_pi-p_pi overlap integral
+!      REAL(KIND=dp) :: S_ppi
+!      REAL(KIND=dp), intent(in) :: p, t
+
+!     if (abs(t) .lt. epsilon(0.D0)) then
+!         S_ppi = dexp(-p) / 15.0D0 * (p*p*p + 6.0D0 * p*p + 15.0D0 * p + 15.0D0)
+         !-------PC-----
+         !print *, "S_ppi is", S_ppi
+         !--------------
+      !!else section is unnecessary for carbon and hydrogen and results in dramatic slowdown
+      !!-------------beginning of else section------
+      !else
+      !   S_ppi =  1/32.0D0 * p*p*p*p*p*(1 - (t*t))**(5.0D0/2.0D0)*&
+      !           (A(4,p)*(B(0,p,t)-B(2,p,t))&
+      !           +A(2,p)*(B(4,p,t)-B(0,p,t))&
+      !           +A(0,p)*(B(2,p,t)-B(4,p,t)))
+      !!-------------end of else section-------------
+!      end if
+!  end function
+
+  function S_ppi_lookup(R)
+!! ----PC uses lookuptable to find S_ppi-----
+      REAL(kind=dp), intent(in) :: R
+      REAL(kind=dp) :: S_ppi_lookup
+      integer :: row      
+
+      row = int((R-s_ppi_table_dims(1))/s_ppi_table_dims(3))
+      IF (row .GE. SIZE(s_ppi_table)) THEN
+        S_ppi_lookup = 0.0_dp
+      ELSE
+        S_ppi_lookup = s_ppi_table(row)
+      ENDIF
+
   end function
 
-  function S_ppi(p,t)
-!     Calculates p_pi-p_pi overlap integral
-      REAL(KIND=dp) :: S_ppi
-      REAL(KIND=dp), intent(in) :: p, t
+  function S_psigma_lookup(R)
+ ! --------PC uses lookup table to find psigma
+      REAL(kind=dp), intent(in) :: R
+      REAL(kind=dp) :: S_psigma_lookup
+      integer :: row
 
-      if (abs(t) .lt. epsilon(0.D0)) then
-         S_ppi = dexp(-p) / 15.0D0 * (p*p*p + 6.0D0 * p*p + 15.0D0 * p + 15.0D0)
-      else
-         S_ppi =  1/32.0D0 * p*p*p*p*p*(1 - (t*t))**(5.0D0/2.0D0)*&
-                 (A(4,p)*(B(0,p,t)-B(2,p,t))&
-                 +A(2,p)*(B(4,p,t)-B(0,p,t))&
-                 +A(0,p)*(B(2,p,t)-B(4,p,t)))
-      end if
+      row = int((R-s_psigma_table_dims(1))/s_psigma_table_dims(3))
+      IF (row .GE. SIZE(s_psigma_table)) THEN
+        S_psigma_lookup = 0.0_dp
+      ELSE
+        S_psigma_lookup = s_psigma_table(row)
+      END IF
+
   end function
 
 !     Subroutines factorial, A and B are only needed for hetero atompair calculations or
 !     s-p overlaps.
 
+!     PC added lookup table speedup
+  
   function factorial(k)
-      integer :: factorial, i 
+
+      REAL(kind=dp) :: factorial 
+      !integer :: i
       integer, intent(in) :: k
 
-      factorial=1
-      if (k .ge. 1) then
-         do i=1,k
-            factorial=factorial*i
-         end do
-      elseif (k < 0) then
-         CPABORT("Negative number argumented to factorial!")
+      if (k < SIZE(factorials)) then
+
+        factorial = factorials(k+1)
+      
+      else if (k < 0) then
+
+        CPABORT("Negative number argumented to factorial!")
+      
+      else if (k >= SIZE(factorials)) then
+
+        CPABORT("Integer Overflow in factorial")
+      
       end if
 
-  end function  
+  end function 
 
-
+ 
   function A(k,p)
+
       REAL(KIND=dp) :: A
       REAL(KIND=dp), intent(in) :: p
-      integer, intent(in) :: k 
+      integer, intent(in) :: k
       integer :: mu
 
       A = 0
+
       do mu=1,(k+1)
-          A = A+dexp(-1*p)*factorial(k)/factorial(k-mu+1)/(p**mu)
+      
+          A = A + 1.0 / factorial(k-mu+1) / (p**mu)
+      
       end do
 
-  end function  
+      A = A*dexp(-p)*factorial(k)
 
+  end function 
 
   function B(k,p,t)
-      REAL(KIND=dp) :: B
+
+      REAL(KIND=dp) :: Ba, Bb, B
       REAL(KIND=dp), intent(in) :: p, t
       integer, intent(in) :: k
       integer :: mu
 
-      B=0 
+      B=0
+      Ba=0
+      Bb=0
+
       do mu=1,(k+1)
-         B = B -dexp(-1*p*t)*factorial(k)/factorial(k-mu+1)/((p*t)**mu)&
-               -dexp(p*t)*factorial(k)/factorial(k-mu+1)/((p*t)**mu)*(-1)**(k-mu)
+
+         Ba = Ba - 1.0/factorial(k-mu+1)/((p*t)**mu)
+         Bb = Bb - 1.0/factorial(k-mu+1)/((p*t)**mu)*(-1)**(k-mu)
+      
       end do
+      
+      B = (Ba*dexp(-p*t) + Bb*dexp(p*t))*factorial(k)
 
   end function
 
@@ -700,11 +816,12 @@ deallocate(prervecsa)
 
         do i=1,size(xyzb,2)
          musbp(i)=slaters(int(xyzb(1,i)),2)
+         !print *, "musbp is", musbp
         end do
 
         do i=1,size(xyza,2)
           muap=slaters(int(xyza(1,i)),2)
-         
+          !print *, "muap is", muap 
           !calculate unitvectors for each atom in monomer A
           !and distance array
           call calc_unit_vecs(xyza(2:4,i), xyzb(2:4,:), dist, unitvecs)
@@ -1066,8 +1183,8 @@ deallocate(prervecsa)
               else
                  signed = 1
               endif
- 
-              xyzadr(j+1,i)=xyza(j+1,i)+ signed*dR 
+
+              xyzadr(j+1,i)=xyza(j+1,i)+ signed*dR
               coeffapdr=coeffap        
 
               sarrayndr=sarrayn
@@ -1138,7 +1255,7 @@ deallocate(prervecsa)
               else
                  signed = 1
               endif
-              
+
               xyzbdr(j+1,i)=xyzb(j+1,i)+signed*dR
               coeffbpdr=coeffbp
               rvecsbdr=rvecsb
@@ -1799,53 +1916,5 @@ deallocate(prervecsa)
          call calc_rvecs(prexyza(2:4,:), prervecsa, connlista)
       return
   end subroutine calc_sab_pete
-
-subroutine init_random_seed()
-
-        !this subroutine just initialises a random seed for the random_number
-        !subroutine
-
-        integer, allocatable :: seed(:)
-        integer :: i, n, dt(8), pid, t(2), s
-        integer(8) :: count, tms
-
-        call random_seed(size = n)
-        allocate(seed(n))
-        ! XOR:ing the current time and pid. The PID is
-        ! useful in case one launches multiple instances of the same
-        ! program in parallel.
-        call system_clock(count)
-        if (count /= 0) then
-                t = transfer(count, t)
-        else
-                call date_and_time(values=dt)
-                tms = (dt(1) - 1970) * 365_8 * 24 * 60 * 60 * 1000 &
-                        + dt(2) * 31_8 * 24 * 60 * 60 * 1000 &
-                        + dt(3) * 24 * 60 * 60 * 60 * 1000 &
-                        + dt(5) * 60 * 60 * 1000 &
-                        + dt(6) * 60 * 1000 + dt(7) * 1000 &
-                        + dt(8)
-                t = transfer(tms, t)
-        end if
-        s = ieor(t(1), t(2))
-!        pid = getpid() + 1099279 ! Add a prime
-        CALL m_getpid(pid)
-        pid = pid + 1099279 ! Add a prime
-
-        s = ieor(s, pid)
-        if (n >= 3) then
-                seed(1) = t(1) + 36269
-                seed(2) = t(2) + 72551
-                seed(3) = pid
-                if (n > 3) then
-                        seed(4:) = s + 37 * (/ (i, i = 0, n - 4) /)
-                end if
-        else
-                seed = s + 37 * (/ (i, i = 0, n - 1 ) /)
-        end if
-        call random_seed(put=seed)
-
-end subroutine init_random_seed
-
 
 end module aom_overlapfinal

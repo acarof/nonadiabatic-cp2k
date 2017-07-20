@@ -46,7 +46,8 @@ MODULE aom_initialization
                                               sab_screen_new, &
                                               calc_dRSab, &
                                               calc_rvecs, &
-                                              calc_sab_pete
+                                              calc_sab_pete, &
+                                              build_s_tables
 
      USE aom_utils,                    ONLY: makeX,    &
                                              make_adiabX,      &
@@ -225,6 +226,7 @@ CONTAINS
      allocate(aom_env%adiab_nace_tp(mat,mat))
      ALLOCATE(aom_env%velocities_t(3, natom))
      aom_env%futur_decohere = .FALSE.
+     CALL build_s_tables()
      allocate(aom_env%elements(c))
      !allocate(aom_env%adiab_nace_t(mat,mat))
 
