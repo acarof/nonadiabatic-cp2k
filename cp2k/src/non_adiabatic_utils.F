@@ -116,19 +116,10 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
      E_cutoff = E_tp(active_state) + K_tot  !THIS CUTOFF IS TO LARGE ALL THE
                                             !STATE ARE BELOW IT
 !     E_cutoff = 4.6612978986598338E-002
-print *, "KINETIC_ENERGY_QUNATUMM", K_tot  
-print *, "ENERGY_ACTIVE_tp", E_tp(active_state)
-print *,  "CUTOFF_ENERGY", E_cutoff
-print *, "POTENTIAL_STATE9", E_tp(9)
      do j=1, mat
            if ((j .gt. active_state) .and. (E_tp(j) .le. E_cutoff)) then
                
               CALL calc_hop_nacv(aom_env, hop_nacv, active_state, j, fast=.TRUE.)
-!print *, "ENERGY_ACTIVE_t", E_t(active_state)
-!print *, "ENERGY_TO_J_t", E_t(j)
-!print *, "ENERGY_ACTIVE_tp", E_tp(active_state)
-print *, "ENERGY_TO_J_tp", E_tp(j)
-print *, "velocities_com_tp", velocities_com_tp
               CALL evaluate_delta_energy_nacv(velocities_com_tp, local_particles, atomic_kinds, &
                                      nparticle_kind, atomic_kind_set, &
                                     aom_env, E_tp, hop_nacv, delta_energy, A, B, & 
@@ -142,7 +133,6 @@ print *, "velocities_com_tp", velocities_com_tp
                    class_forbidden_hop(j) = -1
               end if
            else if ((j .gt. active_state) .and. (E_tp(j) .gt. E_cutoff)) then
-print *, "NOWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
               class_forbidden_hop(j) = j
               energy_conservation(j) = -2  
            else if (j .le. active_state) then
@@ -151,16 +141,7 @@ print *, "NOWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
               energy_conservation(j) = 0.0D0
               class_forbidden_hop(j) = -1
            end if  
-print *, "energy_conservation(j)", energy_conservation(j)
-print *, "ACTIVE_STATE_NAC", active_state
-print *, "TO_STATE_j", j
-print *, "HOP_NACV", hop_nacv
      end do
-!print *, "KE_ARRAY", total_kin_array
-!print *, "PE_ARRAY", total_pot_array
-!print *, "DIFF", total_pot_array-total_kin_array
-print *, "ENERGY_CONSERV_ARRAY", energy_conservation
-print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop
 
 END SUBROUTINE classically_forbidden_hops
 
@@ -216,27 +197,20 @@ END SUBROUTINE classically_forbidden_hops
         END IF
 
 
-!print *, "HOP_NACV_INSIDE_DELT", hop_nacv
-!print *, "VELOCITIES_INSIDE", velocities
            A = 0
            B = 0
            DO iparticle_kind=1, my_nparticle_kind
-!print *, "nparticle_kind", my_nparticle_kind
               atomic_kind => my_atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
-!print *, "nparticle_local", nparticle_local
-print *, "MASS", mass
 !stop
               DO iparticle_local=1,nparticle_local
               ! if (ext_pres(iparticle_local)) then
                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-!print *, "iparticle", iparticle
 !stop
                  DO coord = 1, 3
                     IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
                        velocities(3, iparticle)**2 ).NE.0.0d0) THEN
-!print *, "VELOCITIES_INSIDE_1_2", velocities(1,1)
                        A = A + hop_nacv(coord, iparticle)**2 / mass
                     ELSE IF ( SUM(velocities).EQ.0) THEN
                        A = A + hop_nacv(coord, iparticle)**2 / mass
@@ -257,8 +231,6 @@ print *, "MASS", mass
            ELSE
               old_state = aom_env%active_state
            ENDIF
-print *, "ENERGY_ACTIVE_IN_SUB", E_tp(old_state)
-print *, "ENERGY_TO_j_IN_SUB", E_tp(new_state)
            delta_energy = B**2 - 4 * A * (  &
                      E_tp(new_state) - E_tp(old_state))
 
@@ -268,11 +240,7 @@ print *, "ENERGY_TO_j_IN_SUB", E_tp(new_state)
 !>     Chem Phys 2008, 349:334–347.
 
 !>  B = -B, compare to the paper
-!print *, "A", A
-!print *, "B", B
-!print *, "delta_energy", delta_energy
 !rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
-!print *, "RESCALE_BEFORE", rescale_factor 
 !          IF (A == 0) THEN
 !             rescale_factor = 0
 !          ELSE
@@ -282,16 +250,11 @@ print *, "ENERGY_TO_j_IN_SUB", E_tp(new_state)
 !                rescale_factor = (- B + SQRT(delta_energy))/(2 * A)
 !             ENDIF
 !          ENDIF
-!print *, "rescale_factor", rescale_factor
 !
 !          total_kin_energy = rescale_factor*rescale_factor*A + &
 !                             rescale_factor*B
 !          total_pot_energy = new_state - old_state
 !        
-!print *, "total_kin_energy", total_kin_energy
-!print *, "total_pot_energy", total_pot_energy
-!print *, "ENERGY_ACTIVE_IN_SUB", aom_env%adiab_energies_t(old_state)
-!print *, "ENERGY_TO_j_IN_SUB", aom_env%adiab_energies_t(new_state)
          !  delta_energy = B**2 - 4 * A * (  &
           !           aom_env%adiab_energies_t(new_state) - &
            !          aom_env%adiab_energies_t(old_state))
@@ -395,11 +358,9 @@ print *, "ENERGY_TO_j_IN_SUB", E_tp(new_state)
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
          !Finally, collapse the wavefunction if called for                 
-!         print*, "future", aom_env%futur_decohere, sh_env%decohere
          if (aom_env%futur_decohere .and. sh_env%decohere) then                                  
 !> Check if the surface_hop subroutine asks us to do the decoherence       
                   sh_print_env%decohere = .TRUE.
-!                  print*, "deco!", sh_env%c_tp(:,:)
 !The wafunction is collapsed in a pure state
                      sh_env%ctin(:) =  CMPLX(0.0D0, 0.0D0,dp)
                      sh_env%ctin(sh_env%active_state) = CMPLX(1.0D0, 0.0D0,dp)
@@ -424,11 +385,9 @@ print *, "ENERGY_TO_j_IN_SUB", E_tp(new_state)
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
          !Finally, collapse the wavefunction if called for                 
-!         print*, "future", aom_env%futur_decohere, sh_env%decohere
          if (aom_env%futur_decohere .and. sh_env%decohere) then                                  
 !> Check if the surface_hop subroutine asks us to do the decoherence       
                   sh_print_env%decohere = .TRUE.
-!                  print*, "deco!", sh_env%c_tp(:,:)
                      sh_env%ctin(:) = sh_env%C_tp(:, sh_env%active_state)
                   aom_env%futur_decohere = .FALSE.                         
          end if                                                            
@@ -452,7 +411,6 @@ print *, "ENERGY_TO_j_IN_SUB", E_tp(new_state)
          if (sh_env%decohere) then                                  
 !> Check if the surface_hop subroutine asks us to do the decoherence       
                   sh_print_env%decohere = .TRUE.
-!                  print*, sh_env%c_tp(:,:)
                      sh_env%ctin(:) = sh_env%C_tp(:, sh_env%active_state)
          end if                                                            
          CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
@@ -691,7 +649,6 @@ print *, "ENERGY_TO_j_IN_SUB", E_tp(new_state)
               atomic_kind => my_atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
-print *, "MASS_INSIDE", mass
 !calculate kinetic energy according to the COM since the array is velocities_COM
               DO iparticle_local= 1, nparticle_local
                  if ((PRESENT(ext_pres)) .and. (ext_pres(iparticle_local))) then
@@ -712,8 +669,6 @@ print *, "MASS_INSIDE", mass
            END DO
            K_tot = 0.5*K_tot
 
-print *, "VELOCITIES_COM", array
-print *, 'K_TOT_INSIDE =', K_tot
    END SUBROUTINE calc_kinetic_tot
  
   !SUBROUTINE propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,     &
@@ -1055,9 +1010,6 @@ print *, 'K_TOT_INSIDE =', K_tot
              H_0  = aom_env%H_t
              H_2 = aom_env%H_tp
 
-print *, "START_aom_env%H_t", aom_env%H_t
-print *, "START_aom_env%H_tp", aom_env%H_tp
-print *, "START_Hdiff", Hdiff
 
             !> LOOP TO BUILD INTERMEDIATE HAMILTONIANS AND CALCULATE 
             !> RESPECTIVE U MATRICES
@@ -1086,10 +1038,6 @@ print *, "START_Hdiff", Hdiff
             end do
 
      
-!print *, "interm_hamil", interm_hamil 
-!print *, "interm_umatrix", interm_umatrix
-!print *, "interm_umatrixH2", interm_umatrix(3,5,:,:)
-!print *, "U_tp", U_tp 
                 
              !> CONSTRUCT Udot MATRICES
              
@@ -1112,25 +1060,7 @@ print *, "START_Hdiff", Hdiff
                                          interm_umatrix(1,i,:,:))/(deltatE) !all centering
              end do
 
-print *, "deltatE", deltatE
-print *, "interm_U0", interm_umatrix(1,1,:,:)
-print *, "interm_U2", interm_umatrix(3,1,:,:)
-print *, "interm_Udot1", udot_matrices(2,1,:,:)
 
-print *, "--------------------------------------------"
-print *, "interm_U3", interm_umatrix(2,2,:,:)
-print *, "interm_U5", interm_umatrix(2,3,:,:)
-print *, "interm_Udot4", udot_matrices(1,3,:,:)
-
-print *, "--------------------------------------------"
-
-print *, "interm_hamil(1,4,:,:)", udot_matrices(1,4,:,:)
-print *, "interm_hamil(3,3,:,:)", udot_matrices(3,3,:,:)
-
-print *, "udot_matrices", udot_matrices
-
-print *, "udot_matrices", udot_matrices(1,:,:,:)
-print *, "udot_matrices", udot_matrices(3,:,:,:)
 
              !H_0  = aom_env%H_t
              !H_2 = aom_env%H_tp
@@ -1158,18 +1088,9 @@ print *, "udot_matrices", udot_matrices(3,:,:,:)
                     
                     CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X1)
 
-print *, "X1_TOGREP", X1
-!print *, "Ytot_TOGREP", Ytot              
-!print *, "LOOP_H_t", aom_env%H_t
-!print *, "LOOP_H_0", H_0
-!print *, "LOOP_X_1", X1
 
-!print *, "NACE_CALC_DIAB", NACE1
 !                    call makeX(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
 !                                             Stmtm_int, X1, deltatMD, NACE)
-!print *, "UMATRIX", U_t
-!print *, "NACE_MAKEX_OLD", NACE
-print *, "class_forbidden_hop", class_forbidden_hop
      
                     !create timestepped equivalents
                     !H_1 = H_0 + 0.5D0*Hdiff
@@ -1186,9 +1107,6 @@ print *, "class_forbidden_hop", class_forbidden_hop
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
                     CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X12)
-!print *, "LOOP_H_1", H_1
-!print *, "LOOP_X_12", X12
-!print *, "UMATRIX_1", U_t1
 
                    ! H_2 = H_1 + 0.5D0*Hdiff
                     Stt_int = Stt_int + 0.5D0*Sttdiff
@@ -1205,9 +1123,6 @@ print *, "class_forbidden_hop", class_forbidden_hop
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
 
                     CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X2)
-!print *, "LOOP_H_2", H_2     
-!print *, "LOOP_X_2", X2
-!print *, "UMATRIX_2", U_t2
 
                     K2 = cmplx(0.0D0, 0.0D0,dp)
                     K3 = cmplx(0.0D0, 0.0D0,dp)
@@ -1315,7 +1230,6 @@ print *, "class_forbidden_hop", class_forbidden_hop
 
      modified_diab_nace = (modified_diab_nace - TRANSPOSE(modified_diab_nace)) / 2
 
-print *, "SIMMETRIZED_modified_diab_nace", modified_diab_nace
      Ytot = interm_hamil(dim_,t2,:,:) - modified_diab_nace
 
 
@@ -1336,14 +1250,6 @@ print *, "SIMMETRIZED_modified_diab_nace", modified_diab_nace
      REAL(KIND=dp), dimension(:,:), allocatable      :: modified_ad_nace
      REAL(KIND=dp), dimension(:,:), allocatable      :: rotated_ad_nace
      
-     print *, "class_forbidden_hop_INT", class_forbidden_hop
-     print *, "NACE_INT", NACE
-     print *, "udot_matrices(dim_,t2,:,2)", udot_matrices(dim_,t2,:,2)
-     print *, "interm_umatrix(dim_,t2,:,1)", interm_umatrix(dim_,t2,:,1) 
-     print *, "mat", mat
-     print *, "active_state", active_state
-     print *, "t2", t2
-     print *,  "dim_", dim_  
      
 
      allocate(modified_ad_nace(mat,mat))
@@ -1354,32 +1260,24 @@ print *, "SIMMETRIZED_modified_diab_nace", modified_diab_nace
      !> CALCULATE MODIFIED ADIABATIC NACE 
      modified_ad_nace = 0.0D0
 
-!print *, "modified_ad_nace", modified_ad_nace
      do i=1,mat
          if (i .eq. active_state) then
              do j=1,mat
                   if((j .ge. i) .and. (j .eq. class_forbidden_hop(j))) then
-                      print *, "i_cic", i
-                      print *, "jcic", j 
-                      print *, "TRUE"
                       modified_ad_nace(i,j) = 0.0D0
                          do k=1,mat
                              modified_ad_nace(i,j) = & 
                                 modified_ad_nace(i,j) + interm_umatrix(dim_,t2,k,i)*udot_matrices(dim_,t2,k,j)
-!print *, "BEFORE_modified_ad_nace", i, j, modified_ad_nace(i,j)
                              do l=1,mat
                                 modified_ad_nace(i,j) = & 
                                    modified_ad_nace(i,j) + interm_umatrix(dim_,t2,k,i)* &
                                         NACE(k,l)*interm_umatrix(dim_,t2,l,j)
 !print  *, "NACE(k,l)", NACE(k,l)
-!print *, "OKK_modified_ad_nace", i, j, modified_ad_nace(i,j)
-!print *, "modified_ad_nace(i,j)", modified_ad_nace(i,j)
  
                              end do
                          end do
                   !else 
                       !modified_ad_nace(i,j) = -modified_ad_nace(j,i)
-!print *, "MINUS_modified_ad_nace", i, j, modified_ad_nace(i,j) 
                   end if 
              end do
          !else 
@@ -1388,7 +1286,6 @@ print *, "SIMMETRIZED_modified_diab_nace", modified_diab_nace
      end do
 
      !> SIMMETRIZATION OF modified_ad_nace
-!print *, "modified_ad_nace_FIRST", modified_ad_nace 
      do i=1,mat
          do j=1,mat
               if(j .lt. i) then 
@@ -1397,7 +1294,6 @@ print *, "SIMMETRIZED_modified_diab_nace", modified_diab_nace
          end do
      end do    
   
-print *, "modified_ad_nace", modified_ad_nace
 
       
      !rotated_ad_nace = modified_ad_nace
@@ -1416,12 +1312,8 @@ print *, "modified_ad_nace", modified_ad_nace
      end do
 
 
-!print *, "udot_matrices(dim_,t2,:,2)", udot_matrices(dim_,t2,:,2)
-print *, "interm_umatrixTOTALL", interm_umatrix(dim_,t2,:,:) 
-print *, "rotated_ad_nace", rotated_ad_nace
      !> CALCULATION OF THE NEW MODIFIED DIABATIC NACV
      modified_diab_nace = rotated_ad_nace + NACE
-print*, "modified_diab_nace", modified_diab_nace
    
  
  
@@ -1580,7 +1472,6 @@ print*, "modified_diab_nace", modified_diab_nace
                          ctcomp = ctcomp + ctotal(i)
                     end do
                     ctmag = abs(ctcomp)
-print *, "CT_BEFORE_RENORM", ctmag
                     !rescale to conserve norm = 1
                     do i=1,mat
                          ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)

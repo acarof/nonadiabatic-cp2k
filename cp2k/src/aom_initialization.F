@@ -241,7 +241,6 @@ CONTAINS
                              name="aom fssh",&
                              distribution_type=UNIFORM, &
                              seed=initial_seed)
-     !print*, "HERE"
      !stop
      ALLOCATE(aom_env%rng_stream)
      aom_env%rng_stream = rng_stream
@@ -600,9 +599,7 @@ CONTAINS
      CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
      aom_env%adiab_energies_t = E_tp
-print *, "EIGENVALUES", E_tp
      aom_env%eigenvector_matrix = C_tp
-print *, "EIGENVECTORS", C_tp
      aom_env%Stptp = Stptp
      aom_env%scaling  = scaling
      aom_env%cbar     = cbar
@@ -620,7 +617,6 @@ print *, "EIGENVECTORS", C_tp
      ENDDO
 
      aom_env%diabatic_forces = F
-!print *, "FOCES_DIAB", F
 
      !> PRINT 
      CALL adiab_print_adiabat_energies(adiab_section, E_tp, nadiab, deltatMD, times)
@@ -659,7 +655,6 @@ active_state = 1
              CALL nacv_first_ts(aom_env, natom, mat, velocities_com_tp) 
 !ONLY FOR THE TEST
                  ctin(:) = C_tp(first_diabat,:)
-print *, "CTIN_ADIAB_BASIS", ctin
              CASE DEFAULT
                  CPABORT("Choose REPRESENTATION, only: DIABATIC_BASIS or ADIABATIC_BASIS")
              END SELECT
@@ -701,7 +696,6 @@ print *, "CTIN_ADIAB_BASIS", ctin
 !TEST
 !aom_env%adiab_nace_tp = 0.0D0
 
-!print *, "NACE_MATRIXXX", aom_env%adiab_nace_tp
 
      !> second part CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE
      !RESULT OF THE SURFACE HOP ROUTINE IS.
@@ -720,11 +714,9 @@ print *, "CTIN_ADIAB_BASIS", ctin
      !sh_env%E_tp=E_tp
      !sh_env%ctin=ctin
      !sh_env%active_state=active_state
-     !print*, "ctin", ctin
      !CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, successful_hop, &
      !                 deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
      !                 atomic_kind_set, K_tot, aom_env%ext_pres)
-     !print*, "ctin", sh_env%ctin
      !ctin=sh_env%ctin
 
      CALL section_vals_val_get(adiab_section,"RK_PROPAGATION", &
@@ -744,7 +736,6 @@ print *, "CTIN_ADIAB_BASIS", ctin
 !end do         
           
           aom_env%class_forbidden_hop_t = class_forbidden_hop_tp
-print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop_tp
      CASE DEFAULT                                           
            CPABORT("There is no method to propagate the wavefunction.") 
      END SELECT                                             
@@ -768,7 +759,6 @@ print *, "CLASS_FORBIDD_ARRAY", class_forbidden_hop_tp
      aom_env%Stt = Stptp
      energy_adiabat = E_tp(active_state)
 
-print *, "aom_env%Stt", aom_env%Stt
     !> DEALLOCATE
     deallocate(scoefftot, pcoefftot)
     deallocate(pcoeffsrun)
@@ -803,8 +793,6 @@ print *, "aom_env%Stt", aom_env%Stt
          do j = 1, mat
               if (j .ge. i) then
                   CALL calc_hop_nacv(aom_env, hop_nacv, i, j, fast=.TRUE.)
-print *, "NACV_PRINTED", hop_nacv(1,5)
-print *, "VELOCITIES_COM", velocities_com_tp(1,5) 
                   do iparticle=1,natom
                        do coord = 1,3
                             aom_env%adiab_nace_tp(i,j) = aom_env%adiab_nace_tp(i,j) + &

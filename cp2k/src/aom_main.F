@@ -301,13 +301,6 @@ CONTAINS
      CALL calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cbar, &
                       scaling, PC_allrvecs, orb)
 
-print *, "aom_env%Stt", aom_env%Stt
-!print *, "aom_env%Stptp", aom_env%Stptp
-!print *, "aom_env%Stpt", aom_env%Stpt
-!print *, "aom_env%Sttp", aom_env%Sttp
-print *, "aom_env%Stmtm", aom_env%Stmtm
-!print *, "aom_env%Sttm", aom_env%Sttm
-!print *, "aom_env%Stmt", aom_env%Stmt
 
      !> CONVERT THE diabatic NACV WITH THE GOOD UNITS
      aom_env%nacv = cbar*aom_env%nacv
@@ -317,20 +310,14 @@ print *, "aom_env%Stmtm", aom_env%Stmtm
      !It gives us back the eigenvalues and eigenvectors
      !initialize Adiabatic energies that will be used for trivial hopping and
      !decoherence corrections
-print *, "HAMILTONIAN_COMPLEX", aom_env%H_t
      CALL adiabaticity(-AIMAG(aom_env%H_t), mat, C_t, E_t, .false.)
      sh_env%E_t = E_t
      CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
 
-print *, "EIGENVALUES", E_t
-!print *, "EIGENVECTORS_tp", C_tp
-print *, "EIGENVECTORS_t", C_t
-!print *, "EIGENVECTORS_tp", C_tp
 
      !> ADIABATIC NACE CALCULATION
      CALL calc_adiab_nace(C_t, C_tp, deltatMD, aom_env)
-!print *, "CALC_ADIAB_NACE", aom_env%adiab_nace_tp
      
      !TEST
      !CALL make_adiabX(mol, E_t, NACE_ad_t, X)
@@ -452,13 +439,6 @@ print *, "EIGENVECTORS_t", C_t
      aom_env%Sttm  = aom_env%Stpt
      aom_env%Stmt  = aom_env%Sttp
 
-print *, "aom_env%Stt", aom_env%Stt
-print *, "aom_env%Stptp", aom_env%Stptp
-print *, "aom_env%Stpt", aom_env%Stpt
-print *, "aom_env%Sttp", aom_env%Sttp
-print *, "aom_env%Stmtm", aom_env%Stmtm
-print *, "aom_env%Sttm", aom_env%Sttm
-print *, "aom_env%Stmt", aom_env%Stmt
      !aom_env%Stmtm = Stt
      IF (attempt_hop) THEN
          aom_env%forces_adiab_new = my_forces_adiab_new

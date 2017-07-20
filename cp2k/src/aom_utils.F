@@ -189,18 +189,14 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         Splace1 = Stptpinvsqrt - Stmtminvsqrt
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttsqrt, mol, Splace1, mol, 0.0D0, Sterm1, mol)
 
-!print *, "TERM1_TST", Sterm1
         !second term: Sttinvsqrt*(Sttp - Sttm)*Sttinvsqrt
         Splace1 = Sttp - Sttm
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Splace1, mol, Sttinvsqrt, mol, 0.0D0, Splace2, mol)
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
-!print *, "TERM2_TDT", Sterm1
 !ADD: SYMMETRIZE NACE
         my_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2)
 
-!print *, "MY_DIAB_NACE_NONSIMM", my_NACE
         my_NACE = (my_NACE - TRANSPOSE(my_NACE)) / 2
-!print *, "MY_DIAB_NACE_SIMM", my_NACE
         !X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
         X = H - my_NACE
 
@@ -209,7 +205,6 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
 
         IF (PRESENT(NACE)) THEN
            NACE = my_NACE
-!print *, 'LOOK NACE=', NACE 
         ENDIF
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
@@ -263,18 +258,14 @@ subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, deltat, NAC
        Splace1 = Stptpinvsqrt - Stmtminvsqrt
        call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttsqrt, mol, Splace1, mol, 0.0D0, Sterm1, mol)
 
-!print *, "TERM1_TST", Sterm1
        !second term: Sttinvsqrt*(Sttp - Sttm)*Sttinvsqrt
        Splace1 = Sttp - Sttm
        call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Splace1, mol, Sttinvsqrt, mol, 0.0D0, Splace2, mol)
        call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
-!print *, "TERM2_TDT", Sterm1
 !ADD: SYMMETRIZE NACE
        diab_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2)
 
-!print *, "MY_DIAB_NACE_NONSIMM", my_NACE
        diab_NACE = (diab_NACE - TRANSPOSE(diab_NACE)) / 2
-!print *, "MY_DIAB_NACE_SIMM", my_NACE
 !       X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
 
        if (PRESENT(X)) then
@@ -286,7 +277,6 @@ subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, deltat, NAC
 
        IF (PRESENT(NACE)) THEN
           NACE = diab_NACE
-!print *, 'LOOK NACE=', NACE 
        ENDIF
 
        deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
@@ -324,15 +314,11 @@ subroutine make_adiabX(mol, E_t, NACE_ad_t, X) !deltat, NACE)
             end do
         end do
 
-print *, "ADIAB_HAMILTONIAN", H
 
-print *, "MY_NACE_NON_SIMM_ADIAB", NACE_ad_t
         my_NACE = (NACE_ad_t - TRANSPOSE(NACE_ad_t)) / 2
                 
-print *, "MY_NACE_SIMM_ADIAB", my_NACE
 
         X = H - my_NACE
-print *, "NEW_X_MATRIXX", X
 
 end subroutine make_adiabX
 
@@ -423,8 +409,6 @@ subroutine diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, C1, cttm_a
                         END IF
                 end do
         end do
-!print *, "CT_DIABTIC", ct
-print *, "CTM_1", cttm_ad
 
 end subroutine diab_to_adiab
 
@@ -513,13 +497,11 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         CASE("DIABATIC_BASIS")
                CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, &
                                                    C1, cttm_ad, cstate_tm)
-print *, "CTM", cttm_ad 
         CASE("ADIABATIC_BASIS")
                ct(:) = sh_env%ctt(:)
                cttm_ad(:) = sh_env%cttm(:)
                cstate = sh_env%ctt(old_state)
                cstate_tm = sh_env%cttm(old_state)
-print *, "CTM", cttm_ad 
         CASE DEFAULT
                CPABORT("There is no method to propagate the wavefunction.")
         END SELECT
@@ -530,9 +512,6 @@ print *, "CTM", cttm_ad
                 ak(i) = ct(i)*conjg(cstate)
                 akttm(i) = cttm_ad(i)*conjg(cstate_tm)
                 b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
-print *, "SINGLE_CICLE ak(i)", ak(i)
-print *, "SINGLE_CICLE akttm(i)", akttm(i)
-print *, "SINGLE_CICLE b(i)", b(i)
         end do
 
 
@@ -546,7 +525,6 @@ print *, "SINGLE_CICLE b(i)", b(i)
         sumg = 0.0D0
         !calculate g and sum(g)
         do i=1,mol
-!print*, "deltat b ak", i, deltat, b(i), abs(ak(old_state))
               !g(i) is the probability to hop from the current state (old_state) to any other
               !state (i) 
                 g(i) = (deltat*b(i))/abs(ak(old_state))
@@ -704,13 +682,6 @@ subroutine calc_adiab_nace(C1, C2, deltat, aom_env)
         DT = (0.5D0/deltat)*(T2 - T1)
         DS = (0.5D0/deltat)*(aom_env%Sttp - aom_env%Sttm)
         DC = (1.0D0/deltat)*(C2 - C1)
-print*, "Sttp", aom_env%Sttp
-print*, "Sttm", aom_env%Sttm
-print *, "C1", C1
-print *, "C2", C2
-print *, "DT", DT
-print *, "DS", DS
-print *, "DC", DC
 
         !with these two loops, calculate the nacv in the time domain between adiabatic wavefunctions
         !by transforming from the diabatic overlaps
@@ -726,9 +697,6 @@ print *, "DC", DC
                         end do
                 end do
         end do
-!print *, "TERM1_TST", TST
-!print *, "TERM2_TDT", TDT
-!print *, "DIAB_NACE", (TST + TDT)
         do i=1,mol
                 do j=1,mol
                         aom_env%adiab_nace_tp(i,j) = 0.0D0
@@ -738,8 +706,6 @@ print *, "DC", DC
                                 do l=1,mol
                                         aom_env%adiab_nace_tp(i,j) = & 
                           aom_env%adiab_nace_tp(i,j) + C2(k,i)*C2(l,j)*(TST(k,l) + TDT(k,l))
-!print *, "i,j coefficients", i, j
-!print *, "NACE_ADIABATIC", aom_env%adiab_nace_tp(i,j) 
                                 end do
                         end do
                 end do
@@ -816,23 +782,18 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         do i=1,mol
                 ak(i) = ct(i)*conjg(cstate)
                 b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
-print *, "SINGLE_CICLE ak(i)", ak(i)
-print *, "SINGLE_CICLE b(i)", b(i)
         end do
 
         sumg = 0.0D0
         !calculate g and sum(g)
         do i=1,mol
                 g(i) = (deltat*b(i))/abs(ak(old_state))
-print *, "Probability_INIT: ", i, g(i)
                 !as in Tully, set negative probabilities to 0
                 if (g(i) < 0.0D0) then
                         g(i) = 0.0D0
                 end if
                 if (i .ne. old_state) then
                         sumg = sumg + g(i)
-!print*, "sum proba", sumg, g(i)
-print *, "Probability_other_states: ", i, g(i)
                 end if
         end do
         !due to finite timestep, sometimes the probabilities may sum to greater than 1
@@ -852,7 +813,6 @@ print *, "Probability_other_states: ", i, g(i)
                 g(old_state) = 1.0D0 - sumg
         end if
 
-print *, "Probability_RENORM: ", g
 
 !> CHANGE_AC
         sh_print_env%proba     = g
@@ -886,10 +846,8 @@ print *, "Probability_RENORM: ", g
                                 !then a wavefunction collapse will be enforced
                                 sh_env%decohere = .TRUE.
                                 do j=1,mol
-!print*, j, old_state, abs(dphi(old_state,j)), decohere_criterion
                                         if (abs(aom_env%adiab_nace_tp(old_state,j)) & 
                                                  > decohere_criterion .and. old_state .ne. j) then
-!print*, j, abs(dphi(old_state,j)), decohere_criterion
                                                ! decohere = .FALSE.
                                                 sh_env%decohere = .FALSE.
                                                 EXIT
@@ -897,7 +855,6 @@ print *, "Probability_RENORM: ", g
                                 end do
                                ! decohere = .TRUE.
                                ! sh_env%decohere = .TRUE.
-!print*, "decohere", sh_env%decohere
                                 EXIT
                         end if
                 end if
@@ -1139,20 +1096,13 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
         allocate(hop_nacv(3, natom)) 
 
         scaling = aom_env%scaling
-print *, "scaling", scaling
         cbar = aom_env%cbar
-print *, "cbar", cbar
         NN = aom_env%NN
-print *, "NN", NN
         S = aom_env%Stptp
-print *, "SMATRIX", aom_env%Stptp
         C = aom_env%eigenvector_matrix
-print *, "aom_env%eigenvector_matrix", aom_env%eigenvector_matrix
         
         nacv = aom_env%nacv
-!print *, "aom_env%nacv", aom_env%nacv
         Fin = aom_env%diabatic_forces
-!print *, "aom_env%diabatic_forces", aom_env%diabatic_forces
         ext_pres = aom_env%ext_pres       
         IF (PRESENT(ext_old_state)) THEN
            old_state = ext_old_state
@@ -1165,9 +1115,7 @@ print *, "aom_env%eigenvector_matrix", aom_env%eigenvector_matrix
            new_state = aom_env%new_state
         ENDIF
         E_old_state = aom_env%adiab_energies_t(old_state)
-print *, "E_old_state(i)", E_old_state
         E_new_state = aom_env%adiab_energies_t(new_state)
-print *, "E_new_state(j)", E_new_state
         IF (E_old_state.EQ.E_new_state) THEN
            diff_energy = 0.0D0
         ELSE
@@ -1815,10 +1763,8 @@ end subroutine calcTDT
 
  !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
         rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
-!print *, 'rescale_factor', rescale_factor
 
         velocities = rescale_factor*velocities
-!print *, 'velocities', velocities 
 
    END SUBROUTINE simple_vel_rescaling
 
@@ -1932,7 +1878,6 @@ end subroutine calcTDT
         CASE("SIMPLE")
            CALL cal_delta_energy(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                                  local_particles, delta_energy, kinetic_energy_prime)
-!print *, 'kinetic_energy_prime is', kinetic_energy_prime          
            sh_print_env%old_state        = force_env%mixed_env%aom_env%active_state
            sh_print_env%new_state        = force_env%mixed_env%aom_env%new_state
            IF (delta_energy.lt.0) THEN
@@ -1960,7 +1905,6 @@ end subroutine calcTDT
         CASE("SIMPLE_QSYS")
            CALL cal_delta_ene_QSYS(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                          local_particles, delta_energy, kinetic_energy_qsys)
-!print *, 'kinetic_energy_qsys is', kinetic_energy_qsys           
            sh_print_env%old_state        = force_env%mixed_env%aom_env%active_state
            sh_print_env%new_state        = force_env%mixed_env%aom_env%new_state
            IF (delta_energy.lt.0) THEN
@@ -2327,27 +2271,19 @@ ENDIF
 !       Chem Phys 2008, 349:334–347.
 !  
 !  
-!  print *, "HOP_NACV_INSIDE_DELT", hop_nacv
-!  print *, "VELOCITIES_INSIDE", velocities
 !            A = 0
 !            B = 0
 !            DO iparticle_kind=1,nparticle_kind
-!  print *, "nparticle_kind", nparticle_kind
 !               atomic_kind => atomic_kind_set(iparticle_kind)
-!  print *, "atomic_kind", atomic_kind_set(iparticle_kind)
 !               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
 !               nparticle_local = local_particles%n_el(iparticle_kind)
-!  print *, "nparticle_local", nparticle_local
-!  print *, "MASS", mass
 !  stop
 !               DO iparticle_local=1,nparticle_local
 !                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-!  print *, "iparticle", iparticle
 !  !stop
 !                  DO coord = 1, 3
 !                     IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
 !                        velocities(3, iparticle)**2 ).NE.0.0d0) THEN
-!  print *, "VELOCITIES_INSIDE_1_2", velocities(1,1)
 !                        A = A + hop_nacv(coord, iparticle)**2 / mass
 !                     ELSE IF ( SUM(velocities).EQ.0) THEN
 !                        A = A + hop_nacv(coord, iparticle)**2 / mass
@@ -2368,8 +2304,6 @@ ENDIF
 !            ELSE
 !               old_state = aom_env%active_state
 !            ENDIF
-!  print *, "ENERGY_ACTIVE_IN_SUB", aom_env%adiab_energies_t(old_state)
-!  print *, "ENERGY_TO_j_IN_SUB", aom_env%adiab_energies_t(new_state)
 !  
 !  
 !            delta_energy = B**2 - 4 * A * (  &
@@ -2408,22 +2342,16 @@ ENDIF
            A = 0
            B = 0
            DO iparticle_kind=1,nparticle_kind
-!print *, "nparticle_kind", nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
-!print *, "atomic_kind", atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
-!print *, "nparticle_local", nparticle_local
-!print *, "MASS", mass
 !stop
               DO iparticle_local=1,nparticle_local
                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-!print *, "iparticle", iparticle
 !stop
                  DO coord = 1, 3
                     IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
                        velocities(3, iparticle)**2 ).NE.0.0d0) THEN
-!print *, "VELOCITIES_INSIDE_1_2", velocities(1,1)
                        A = A + hop_nacv(coord, iparticle)**2 / mass
                     ELSE IF ( SUM(velocities).EQ.0) THEN
                        A = A + hop_nacv(coord, iparticle)**2 / mass
@@ -2573,7 +2501,6 @@ ENDIF
 
         rescale_factor = SQRT(  delta_energy /kinetic_energy_qsys)
 
-!print *, 'rescale_factor is', rescale_factor
 
            DO iparticle_kind=1,nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
@@ -2586,7 +2513,6 @@ ENDIF
                  end if
               END DO
            END DO
-!print *, 'velocities are', velocities
 
    END SUBROUTINE simple_vel_resc_qsys
 
