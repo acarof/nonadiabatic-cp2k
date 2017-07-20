@@ -1555,12 +1555,12 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, forces
         convert_nacv = - scaling / cbar
         num_mol = 0
         do d=1,3
-                num_j = -1
+                num_j = 0
                 do j=1,natom
                    forces_adiab(d,j) = 0.0D0
                    IF (ext_pres(j)) THEN
                       num_j   = num_j + 1
-                      num_mol = int(num_j/atoms) + 1 
+                      num_mol = int((num_j-1)/atoms) + 1 
                    ENDIF
                    do i=1,mat
                       forces_adiab(d,j) = forces_adiab(d,j) + (abs(C(i,state))**2)*Fin(d,j,i)
