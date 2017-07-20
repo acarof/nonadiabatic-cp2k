@@ -154,7 +154,8 @@ IMPLICIT NONE
 !> To print the NACEs
      REAL(KIND=dp), DIMENSION(:,:), POINTER              :: nace
 !> To print the NACVs
-     REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER          :: nacv
+     !REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER          :: nacv
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER          :: nacv
 !> Store information of a previous hop- required for the decoherence
 !procedure
      LOGICAL                                             :: futur_decohere

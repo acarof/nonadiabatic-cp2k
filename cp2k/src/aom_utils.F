@@ -1084,12 +1084,15 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
         CHARACTER(len=*), PARAMETER :: routineN = 'calc_hop_nacv', &
         routineP = moduleN//':'//routineN
 
-        INTEGER                                      :: aom_iatom, iatom, num_mol, nadiab, num_j, natom
+        !INTEGER                                      :: aom_iatom, iatom, num_mol, nadiab, num_j, natom
+        INTEGER                                      :: num_mol, nadiab, num_j, natom
         INTEGER                                      :: old_state, new_state
         REAL(KIND=dp)                                :: scaling, cbar, diff_energy
         REAL(KIND=dp)                                :: E_old_state, E_new_state
         REAL(KIND=dp), dimension(:,:,:), allocatable :: Fin
-        REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv, Wprime
+        !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv, Wprime
+        REAL(KIND=dp), dimension(:,:,:), allocatable   :: nacv
+        REAL(KIND=dp), dimension(:,:,:,:), allocatable :: Wprime
         integer, dimension(:,:), allocatable :: NN
         integer :: i, j, k, mat, d, l, atoms
         REAL(KIND=dp), dimension(:,:,:,:), allocatable :: DH, my_DP
@@ -1101,6 +1104,7 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
         REAL(KIND=dp)                              :: normf1, normf2, normf22, normf3, normf11, normnacv
         LOGICAL                                    :: my_fast
         REAL(KIND = dp)                            :: error_f1, error_f11, error_f2, error_f22, error_f3
+        REAL(KIND = dp)                            :: convert_nacv
 
         mat    = SIZE(aom_env%Stptp, 1)
         natom  = SIZE(aom_env%diabatic_forces, 2)
@@ -1123,7 +1127,8 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
 
         allocate(DH(mat,mat,natom,3))
         allocate(my_DP(mat,mat,natom,3)) 
-        allocate(nacv(3,mat,mat, mat*atoms)) 
+        allocate(nacv(3,mat, mat*atoms)) 
+        !allocate(nacv(3,mat,mat, mat*atoms)) 
         allocate(Wprime(mat,mat,natom,3)) 
         allocate(F_1(3,natom))
         allocate(F_11(3,natom))
@@ -1180,30 +1185,30 @@ print *, "E_new_state(j)", E_new_state
         Y = matmul( transpose(LL), C)
 
 !CALCULATE GRADIENT OF S: my_DP
-        aom_iatom = 0
-        do iatom=1, natom
-           if (ext_pres(iatom)) then
-              aom_iatom = aom_iatom +1
-              do d=1,3
-                  my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
-               enddo
-           else 
-              my_DP(:,:,iatom,:) = 0.0D0
-           endif
-        enddo
-        CPASSERT(aom_iatom.EQ.SIZE(nacv,4))
+        !aom_iatom = 0
+        !do iatom=1, natom
+        !   if (ext_pres(iatom)) then
+        !      aom_iatom = aom_iatom +1
+        !      do d=1,3
+        !          my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
+        !       enddo
+        !   else 
+        !      my_DP(:,:,iatom,:) = 0.0D0
+        !   endif
+        !enddo
+        !CPASSERT(aom_iatom.EQ.SIZE(nacv,4))
 
-        do i=1,mat
-                do j=1,mat
-                        if (j > i) then
-                                my_DP(i,j,:,:) = my_DP(i,j,:,:) + my_DP(j,i,:,:)
-                        else
-                                my_DP(i,j,:,:) = my_DP(j,i,:,:)
-                        end if
-                end do
-        end do
+        !do i=1,mat
+        !        do j=1,mat
+        !                if (j > i) then
+        !                        my_DP(i,j,:,:) = my_DP(i,j,:,:) + my_DP(j,i,:,:)
+        !                else
+        !                        my_DP(i,j,:,:) = my_DP(j,i,:,:)
+        !                end if
+        !        end do
+        !end do
 
-!CALCULATE W'
+        !CALCULATE W'
         do d=1,3
            num_j = -1
            do j=1,natom
@@ -1217,7 +1222,8 @@ print *, "E_new_state(j)", E_new_state
                     do i=1,mat 
                        IF (ext_pres(j)) THEN
                           IF (i.ne.num_mol) THEN
-                             Wprime(k,l,j,d) = Wprime(k,l,j,d) + my_DP(i,num_mol,j,d) &
+                             !Wprime(k,l,j,d) = Wprime(k,l,j,d) + my_DP(i,num_mol,j,d) &
+                             Wprime(k,l,j,d) = Wprime(k,l,j,d) + nacv(d, i, num_j) &
                                                *( LL(num_mol,k)*LL(i,l)  + LL(num_mol,l) * LL(i, k))
                           ENDIF
                        ENDIF
@@ -1229,42 +1235,44 @@ print *, "E_new_state(j)", E_new_state
         ENDDO          
 
         !i is over each site
-        do i=1,mat
-                do j=1,mat
-                        do k=1, natom
-                                do d=1,3
-                                        if (NN(i,j) == 1) then
-                                                if (i == j) then
-                                                        DH(i,j,k,d) = Fin(d,k,i)
-                                                else
+        !do i=1,mat
+        !        do j=1,mat
+        !                do k=1, natom
+        !                        do d=1,3
+        !                                if (NN(i,j) == 1) then
+        !                                        if (i == j) then
+        !                                                DH(i,j,k,d) = Fin(d,k,i)
+        !                                        else
 !> Correct the nacv
-                                                        DH(i,j,k,d) = - scaling*my_DP(i,j,k,d)/cbar
-                                                end if
-                                        else
-                                                DH(i,j,k,d) = 0.0D0
-                                        end if
-                                end do
-                        end do
-                end do
-        end do
-     ELSE
-        DH = 0.0D0
-        do i=1,mat
-                do j=1,mat
-                        do k=1, natom
-                                do d=1,3
-                                        if (NN(i,j) == 1) then
-                                                if (i == j) then
-                                                        DH(i,j,k,d) = Fin(d,k,i)
-                                                end if
-                                        end if
-                                end do
-                        end do
-                end do
-        end do
+        !                                                DH(i,j,k,d) = - scaling*my_DP(i,j,k,d)/cbar
+        !                                        end if
+        !                                else
+        !                                        DH(i,j,k,d) = 0.0D0
+        !                                end if
+        !                        end do
+        !                end do
+        !        end do
+        !end do
+     !ELSE
+     !   DH = 0.0D0
+     !   do i=1,mat
+     !           do j=1,mat
+     !                   do k=1, natom
+     !                           do d=1,3
+     !                                   if (NN(i,j) == 1) then
+     !                                           if (i == j) then
+     !                                                   DH(i,j,k,d) = Fin(d,k,i)
+     !                                           end if
+     !                                   end if
+     !                           end do
+     !                   end do
+     !           end do
+     !   end do
      ENDIF
 
 
+
+       convert_nacv = - scaling / cbar
        IF (.NOT.my_fast) THEN
            num_mol = 0
            do d=1,3
@@ -1279,11 +1287,14 @@ print *, "E_new_state(j)", E_new_state
                     num_mol = int(num_j/atoms) + 1 
                  ENDIF
                  do i=1,mat
-                    F_1(d,j) = F_1(d,j) + C(i,old_state)*DH(i,i,j,d)*C(i,new_state)*diff_energy
+                    !F_1(d,j) = F_1(d,j) + C(i,old_state)*DH(i,i,j,d)*C(i,new_state)*diff_energy
+                    F_1(d,j) = F_1(d,j) + C(i,old_state)*Fin(d,j,i)*C(i,new_state)*diff_energy
                     IF (ext_pres(j)) THEN
-                       F_2(d, j) = F_2(d,j) + X(i, old_state) * nacv(d, i, num_mol, j) * X( num_mol, new_state) 
+                       !F_2(d, j) = F_2(d,j) + X(i, old_state) * nacv(d, i, num_mol, j) * X( num_mol, new_state) 
+                       F_2(d, j) = F_2(d,j) + X(i, old_state) * nacv(d, i, num_j) * X( num_mol, new_state) 
                        IF (i.ne.num_mol) THEN
-                          F_11(d,j) = F_11(d,j) + diff_energy * DH(i,num_mol,j,d) * (              &
+                          !F_11(d,j) = F_11(d,j) + diff_energy * DH(i,num_mol,j,d) * (              &
+                          F_11(d,j) = F_11(d,j) + diff_energy * convert_nacv*nacv(d, i, num_j) * (              &
                                                  C(num_mol, new_state) * C(i, old_state) +   &
                                                  C(num_mol, old_state) * C(i,new_state) )
                        ENDIF
@@ -1379,7 +1390,8 @@ print*, "ERRORFF1HYDROGEN", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / 
                       do j=1,natom
                  F_1(d,j) = 0.0D0
                  do i=1,mat
-                    F_1(d,j) = F_1(d,j) + C(i,old_state)*DH(i,i,j,d)*C(i,new_state)*diff_energy
+                    !F_1(d,j) = F_1(d,j) + C(i,old_state)*DH(i,i,j,d)*C(i,new_state)*diff_energy
+                    F_1(d,j) = F_1(d,j) + C(i,old_state)*Fin(d,j,i)*C(i,new_state)*diff_energy
                  ENDDO
               ENDDO
            ENDDO 
@@ -1398,142 +1410,172 @@ print*, "ERRORFF1HYDROGEN", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / 
 END SUBROUTINE calc_hop_nacv
 
 subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, forces_adiab, & 
-                  ext_pres, analytics,  exact_forces,ctin)
+                  ext_pres, analytics,  exact_forces)
 
         !per our full force expression derivation, this calculates the adiabatic forces
         !on each atom
 
 
-        COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT), OPTIONAL   :: ctin
-        integer, intent(in) :: state, atoms
+        integer, intent(in) :: state
+        REAL(KIND=dp), intent(in), dimension(:,:) :: Hin, C
+        !REAL(KIND=dp), intent(in), dimension(:,:,:,:) :: nacv
+        REAL(KIND=dp), intent(in), dimension(:,:,:) :: nacv
+        integer, intent(in), dimension(:,:) :: NN
+        integer, intent(in) :: atoms
+        REAL(KIND=dp), intent(in) :: scaling, cbar
+        REAL(KIND=dp), intent(in), dimension(:,:,:) :: Fin
+        REAL(KIND=dp), dimension(:,:), POINTER                  :: forces_adiab
+        LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
         LOGICAL, INTENT(IN)  :: analytics
         REAL(KIND=dp), dimension(:,:), INTENT(OUT) :: exact_forces
-        REAL(KIND=dp), dimension(:,:), POINTER                  :: forces_adiab
-        REAL(KIND=dp), intent(in) :: scaling, cbar
-        REAL(KIND=dp), intent(in), dimension(:,:) :: Hin, C
-        REAL(KIND=dp), intent(in), dimension(:,:,:) :: Fin
-        REAL(KIND=dp), intent(in), dimension(:,:,:,:) :: nacv
-        integer, intent(in), dimension(:,:) :: NN
 
-        integer :: i, j, k, mat, d
+        !integer :: i, j, k, mat, d
         !REAL(KIND=dp) :: bohrang, kcal
-        REAL(KIND=dp), dimension(:,:,:,:), allocatable :: DH, DT, my_DP
-        REAL(KIND=dp), dimension(:,:), allocatable :: F
-        REAL(KIND=dp), dimension(:,:), allocatable :: H, T, nsave, DHtemp
+        !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: DH, DT, my_DP
+        !REAL(KIND=dp), dimension(:,:), allocatable :: F
+        !REAL(KIND=dp), dimension(:,:), allocatable :: H, T, nsave, DHtemp
 
-        INTEGER                                                 :: natom
-        LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
-        INTEGER                                                 :: aom_iatom, iatom, num_mol, nadiab, num_j
+        !INTEGER                                 :: natom
+        !LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
+        !INTEGER                                 :: aom_iatom, iatom, num_mol, nadiab, num_j
+        integer :: i, j, mat, d
+        !REAL(KIND=dp) :: bohrang, kcal
+
+        INTEGER                                 :: natom
+        INTEGER                                 :: num_mol, nadiab, num_j
+        REAL(KIND=dp)                           :: convert_nacv 
 
         natom = SIZE(Fin,2)
         nadiab= SIZE(Fin,3)
         mat = size(Hin,1)
-        ctin = ctin
+        !ctin = ctin
 
         !1 Angstrom = bohrang Bohr
         !bohrang = 1.889725989D0
         !kcal = 1 Hartree in kcal/mol
         !kcal = 627.509D0
 
-        allocate(H(mat,mat))
-        allocate(T(mat,mat))
-        allocate(DHtemp(mat,mat))
-        allocate(DH(mat,mat,natom,3))
-        allocate(DT(mat,mat,mat*atoms,3))
-        allocate(my_DP(mat,mat,natom,3)) 
-        allocate(F(3,natom))
-        allocate(nsave(natom,3))
+        !allocate(H(mat,mat))
+        !allocate(T(mat,mat))
+        !allocate(DHtemp(mat,mat))
+        !allocate(DH(mat,mat,natom,3))
+        !allocate(DT(mat,mat,mat*atoms,3))
+        !allocate(my_DP(mat,mat,natom,3)) 
+        !allocate(F(3,natom))
+        !allocate(nsave(natom,3))
 
-        aom_iatom = 0
-        do iatom=1, natom
-           if (ext_pres(iatom)) then
-              aom_iatom = aom_iatom +1
-              do d=1,3
-                  my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
-               enddo
-           else 
-              my_DP(:,:,iatom,:) = 0.0D0
-           endif
-        enddo
+        !aom_iatom = 0
+        !do iatom=1, natom
+        !   if (ext_pres(iatom)) then
+        !      aom_iatom = aom_iatom +1
+        !      do d=1,3
+        !          my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
+        !       enddo
+        !   else 
+        !      my_DP(:,:,iatom,:) = 0.0D0
+        !   endif
+        !enddo
 !       IF (aom_iatom.NE.SIZE(nacv,4)) THEN
 !       ENDIF
 
-        do i=1,mat
-                do j=1,mat
-                        if (j > i) then
-                                my_DP(i,j,:,:) = my_DP(i,j,:,:) + my_DP(j,i,:,:)
-                        else
-                                my_DP(i,j,:,:) = my_DP(j,i,:,:)
-                        end if
-                end do
-        end do
+        !do i=1,mat
+        !        do j=1,mat
+        !                if (j > i) then
+        !                        my_DP(i,j,:,:) = my_DP(i,j,:,:) + my_DP(j,i,:,:)
+        !                else
+        !                        my_DP(i,j,:,:) = my_DP(j,i,:,:)
+        !                end if
+        !        end do
+        !end do
 
         !i is over each site
-        do i=1,mat
-                do j=1,mat
-                        do k=1, natom
-                                do d=1,3
-                                        if (NN(i,j) == 1) then
-                                                if (i == j) then
-                                                        DH(i,j,k,d) = Fin(d,k,i)
-                                                else
+        !do i=1,mat
+        !        do j=1,mat
+        !                do k=1, natom
+        !                        do d=1,3
+        !                                if (NN(i,j) == 1) then
+        !                                        if (i == j) then
+        !                                                DH(i,j,k,d) = Fin(d,k,i)
+        !                                        else
 !> Correct the nacv
-                                                        DH(i,j,k,d) = - scaling*my_DP(i,j,k,d)/cbar
-                                                end if
-                                        else
-                                                DH(i,j,k,d) = 0.0D0
-                                        end if
-                                end do
-                        end do
-                end do
-        end do
+        !                                                DH(i,j,k,d) = - scaling*my_DP(i,j,k,d)/cbar
+        !                                        end if
+        !                                else
+        !                                        DH(i,j,k,d) = 0.0D0
+        !                                end if
+        !                        end do
+        !                end do
+        !        end do
+        !end do
 
         !You can calculate the forces with a "shortcut formula"
         !This should take advantage of the sparsity of H for large systems
 
-        IF (analytics) THEN
-           IF (mat.NE.2) CPABORT("YOU CAN ONLY USE ANALYTICAL EXPRESSION FOR 2x2 SYSTEMS.")
-           DO d=1,3
-              DO j=1,natom
-                 IF (state.EQ.1) THEN
-                    exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  -  &
-                    ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
-                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
-                 ELSE 
-                    exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2.0  +  &
-                    ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
-                    (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
-                 ENDIF
-              ENDDO 
-           ENDDO
-        ELSE
-           exact_forces = 0.0D0
-        ENDIF
+        !IF (analytics) THEN
+        !   IF (mat.NE.2) CPABORT("YOU CAN ONLY USE ANALYTICAL EXPRESSION FOR 2x2 SYSTEMS.")
+        !   DO d=1,3
+        !      DO j=1,natom
+        !         IF (state.EQ.1) THEN
+        !            exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  -  &
+        !            ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
+        !            (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
+        !         ELSE 
+        !            exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2.0  +  &
+        !            ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
+        !            (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
+        !         ENDIF
+        !      ENDDO 
+        !   ENDDO
+        !ELSE
+        !   exact_forces = 0.0D0
+        !ENDIF
         !begin shortcut formula 
         !conjugates and realpart commands have been omitted, as everything should be real
         !remember to change this if it ever becomes not the case!
+        !num_mol = 0
+        !do d=1,3
+        !        num_j = -1
+        !        do j=1,natom
+        !           F(d,j) = 0.0D0
+        !           IF (ext_pres(j)) THEN
+        !              num_j   = num_j + 1
+        !              num_mol = int(num_j/atoms) + 1 
+        !           ENDIF
+        !           do i=1,mat
+        !              F(d,j) = F(d,j) + (abs(C(i,state))**2)*DH(i,i,j,d)
+        !              IF (ext_pres(j)) THEN
+        !                 IF (i.ne.num_mol) THEN
+        !                    F(d,j) = F(d,j) + 2.0D0*((C(num_mol,state))*DH(i,num_mol,j,d)*C(i,state))
+        !                 ENDIF
+        !              ENDIF
+        !           ENDDO
+        !        ENDDO
+        !ENDDO
+        !forces_adiab = F
+        convert_nacv = - scaling / cbar
         num_mol = 0
         do d=1,3
                 num_j = -1
                 do j=1,natom
-                   F(d,j) = 0.0D0
+                   forces_adiab(d,j) = 0.0D0
                    IF (ext_pres(j)) THEN
                       num_j   = num_j + 1
                       num_mol = int(num_j/atoms) + 1 
                    ENDIF
                    do i=1,mat
-                      F(d,j) = F(d,j) + (abs(C(i,state))**2)*DH(i,i,j,d)
+                      forces_adiab(d,j) = forces_adiab(d,j) + (abs(C(i,state))**2)*Fin(d,j,i)
                       IF (ext_pres(j)) THEN
                          IF (i.ne.num_mol) THEN
-                            F(d,j) = F(d,j) + 2.0D0*((C(num_mol,state))*DH(i,num_mol,j,d)*C(i,state))
+                            forces_adiab(d,j) = forces_adiab(d,j) + &
+                                        2.0D0*((C(num_mol,state))*nacv(d,i, num_j)*C(i,state))*convert_nacv
                          ENDIF
                       ENDIF
                    ENDDO
                 ENDDO
         ENDDO
-        forces_adiab = F
+        !forces_adiab = F
 
-        deallocate(T, DH, DT, my_DP, F, nsave)
+        !deallocate(T, DH, DT, my_DP, F, nsave)
                 
 end subroutine calcforces
 

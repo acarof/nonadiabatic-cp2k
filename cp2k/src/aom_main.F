@@ -739,8 +739,8 @@ SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
                     !Calcul of the NACV
                     call calc_dRSab(aom_env%Atp, aom_env%atomlist, aom_env%connlist1, &
                     aom_env%pcoeffsrun(1:atoms,orb*(i-1)+d,2), aom_env%scoeffs, &
-                    aom_env%nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
-                    aom_env%nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
+                    aom_env%nacv(1:3,orb*(k-1)+d,(i-1)*atoms+1:i*atoms), &
+                    aom_env%nacv(1:3,orb*(i-1)+m,(k-1)*atoms+1:k*atoms), &
                     aom_env%Btp, aom_env%atomlist, aom_env%connlist1, &
                     aom_env%pcoeffsrun(1:atoms,orb*(k-1)+m,2), &
                      aom_env%scoeffs, aom_env%neighbourlist(k,i,:,:), aom_env%neighbourlist(i,k,:,:), dR, &

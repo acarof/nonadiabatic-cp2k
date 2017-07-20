@@ -6,10 +6,12 @@
 system=$1
 version=$2
 
-MAIN_PATH=/scratch/sgiannini/CODE_versions/new_adiabatic_prop/flavoured-cptk
+#MAIN_PATH=/scratch/sgiannini/CODE_versions/new_adiabatic_prop/flavoured-cptk
+MAIN_PATH=../
 
 # prepare build enviromnent
 source ${MAIN_PATH}/cp2k/tools/toolchain/install/setup
+MODULEPATH=/scratch/grudorff/modulefiles module load automake fftw libint libxc mpich scalapack 
 
 # pull last change
 cd ..
@@ -31,7 +33,8 @@ then
    make distclean &> make.log
 fi
 #make distclean &> make.log
-make -j20 ARCH="local" VERSION="sopt" &> make.log
+make -j12 ARCH="local" VERSION="sopt" &> make.log
+tail make.log
 cd ../../regtest-fobsh
 
 # run cp2k

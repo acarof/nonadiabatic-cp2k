@@ -214,7 +214,8 @@ CONTAINS
      ALLOCATE(aom_env%energies_t(nadiab))
      ALLOCATE(aom_env%adiab_energies_t(mat))
      ALLOCATE(aom_env%bneighbour(3,0:aom_atoms))
-     ALLOCATE(aom_env%nacv(3,mat,mat,mat*aom_atoms))
+     !ALLOCATE(aom_env%nacv(3,mat,mat,mat*aom_atoms))
+     ALLOCATE(aom_env%nacv(3,mat, mat*aom_atoms))
      ALLOCATE(aom_env%diabatic_forces(3,natom, mat))
      ALLOCATE(aom_env%forces_adiab(3,natom))
      ALLOCATE(aom_env%forces_adiab_new(3,natom))
@@ -317,7 +318,8 @@ CONTAINS
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
      REAL(KIND=dp)    :: cbar, minao
-     REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
+     !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
+     REAL(KIND=dp), dimension(:,:,:), allocatable :: nacv
      REAL(KIND=dp), dimension(:,:,:), allocatable :: crds, pcoeffsrun
      REAL(KIND=dp), dimension(:,:), allocatable :: Stptp
      REAL(KIND=dp), dimension(:,:), allocatable :: dist
@@ -420,7 +422,8 @@ CONTAINS
      !H_t etc are always -i*H.
      !This is why they're complex variables
      allocate(H_tp(mat,mat))
-     allocate(nacv(3,mat,mat,mat*atoms))      !non-adiabatic coupling vectors
+     !allocate(nacv(3,mat,mat,mat*atoms))      !non-adiabatic coupling vectors
+     allocate(nacv(3,mat,mat*atoms))      !non-adiabatic coupling vectors
      nacv = 0.0D0
      allocate(siteenergies(3,mat))      !diagonals of the Hamiltonian
      allocate(pcoeffsrun(atoms,mat,3)) !pcoeffsrun exists because the p-coefficients need to be renormalised for each structure
@@ -562,8 +565,10 @@ CONTAINS
 
                                              call calc_dRSab(Atp, aom_env%atomlist, aom_env%connlist1, &
                                              pcoeffsrun(1:atoms,orb*(i-1)+d,3), aom_env%scoeffs, &
-                                             nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
-                                             nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
+                                             !nacv(1:3,orb*(k-1)+d,orb*(i-1)+m,(i-1)*atoms+1:i*atoms), &
+                                             !nacv(1:3,orb*(i-1)+m,orb*(k-1)+d,(k-1)*atoms+1:k*atoms), &
+                                             nacv(1:3,orb*(k-1)+d,(i-1)*atoms+1:i*atoms), &
+                                             nacv(1:3,orb*(i-1)+m,(k-1)*atoms+1:k*atoms), &
                                              Btp, aom_env%atomlist, aom_env%connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
                                              aom_env%scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, &
                                              do_random, aom_env)
