@@ -144,12 +144,12 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN ='create_aom_env', &
      routineP = moduleN//':'//routineN
 
-     integer :: i, j, mat, c, coord, mol, atoms
+     integer :: i, j, mat, c, coord, mol, atoms, start
      REAL(KIND=dp) :: cutoff_connect
      REAL(KIND=dp), dimension(:,:), allocatable :: crds
      REAL(KIND=dp), dimension(:,:), allocatable :: Atp
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
-     LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask
+     LOGICAL, DIMENSION(:), ALLOCATABLE :: atomlist_mask, submask
      integer, dimension(:), ALLOCATABLE           :: ext_elements
      TYPE(cp_sll_val_type), POINTER               :: listcoeff
 
@@ -157,6 +157,7 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
      INTEGER    :: input_seed
      TYPE(rng_stream_type), POINTER           :: rng_stream
+     LOGICAL                                  :: continue_while
 
      !> Number of sites
      mol = nadiab ! CHANGE_AC
@@ -253,14 +254,27 @@ CONTAINS
      aom_env%elements = PACK(ext_elements, aom_env%ext_pres) !Only select active atoms
      allocate(atomlist_mask(c))
      atomlist_mask =.NOT.((scoefftot.eq.0).AND.(pcoefftot.eq.0)) !Only select atoms with orbitals
-     allocate(aom_env%atomlist(COUNT(atomlist_mask(1:aom_atoms))))
-     aom_env%atomlist = PACK( (/ (i, i=1,aom_atoms) /), atomlist_mask(1:aom_atoms) ) !List atoms with orbitals
+     allocate(submask(aom_atoms))
+     i = 1
+     continue_while = .True. 
+     do while (continue_while)
+        if (atomlist_mask(i)) then
+           start = i
+           continue_while = .False.
+         endif
+         i = i+1
+     end do
+     do i=1, aom_atoms 
+        submask(i) = atomlist_mask(i + start - 1)
+     enddo
+     allocate(aom_env%atomlist(COUNT(submask(1:aom_atoms))))
+     aom_env%atomlist = PACK( (/ (i, i=1,aom_atoms) /), submask(1:aom_atoms) ) !List atoms with orbitals
      allocate(aom_env%connlist2(4,size(aom_env%atomlist)))
      do i=1,aom_atoms
           do j=1,norbitals
-                aom_env%pcoeffs(i,j) = pcoefftot( i + (j-1)*norbitals)
+                aom_env%pcoeffs(i,j) = pcoefftot( start -1 + i + (j-1)*norbitals)
           end do
-          aom_env%scoeffs(i) = scoefftot(i)
+          aom_env%scoeffs(i) = scoefftot(start - 1 + i)
      end do
 
 
@@ -327,7 +341,7 @@ CONTAINS
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
      COMPLEX(KIND=dp), dimension(:,:), allocatable :: H_tp
      REAL(KIND=dp), dimension(:,:), allocatable ::  Atp, Btp, coms, siteenergies
-     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE ::  scoefftot
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp
      !REAL(KIND=dp), dimension(:,:), allocatable   :: NACE_ad_tp
@@ -428,7 +442,6 @@ CONTAINS
      nacv = 0.0D0
      allocate(siteenergies(3,mat))      !diagonals of the Hamiltonian
      allocate(pcoeffsrun(atoms,mat,3)) !pcoeffsrun exists because the p-coefficients need to be renormalised for each structure
-     allocate(pcoefftot(c))
      allocate(scoefftot(c))
      allocate(coms(3,mol))
      allocate(NN(mat,mat))
@@ -760,7 +773,7 @@ active_state = 1
      energy_adiabat = E_tp(active_state)
 
     !> DEALLOCATE
-    deallocate(scoefftot, pcoefftot)
+    deallocate(scoefftot)
     deallocate(pcoeffsrun)
     deallocate(ctin)
     deallocate(siteenergies)
