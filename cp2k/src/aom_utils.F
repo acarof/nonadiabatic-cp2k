@@ -370,7 +370,7 @@ END SUBROUTINE surf_hop_type
 
 
 subroutine diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, C1, cttm_ad, cstate_tm)
-
+!COMMENT: I wonder if Stt is useful
         implicit none
         REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C2
         REAL(KIND=dp), dimension(:,:), optional, intent(in) :: C1
@@ -417,7 +417,9 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
               sh_print_env, aom_env, adiab_section) !triv_threshold)
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
-
+!COMMENT: is Stt useful ?
+!COMMENT: follow CP2K usage for subroutine: declare argument variable first with
+!right order, then the name of the subroutine, the local variable
         implicit none
 
         REAL(KIND=dp), INTENT(IN) :: decohere_criterion
@@ -870,6 +872,8 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         deallocate(G)
 end subroutine surfacehop
 
+
+!COMMENT: init_random_seed() is not use anymore and could be removed
 subroutine init_random_seed()
 
         !this subroutine just initialises a random seed for the random_number subroutine
@@ -1027,6 +1031,8 @@ subroutine adiabaticity(H, mol, C, E, print, sh_env)
 
 end subroutine adiabaticity
 
+
+!COMMENT: calc_hop_nacv and calc_forces could be cleaned massively
 SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmetry, fast, &
                          exF_11, exF_1, exF_2, exF_3)
         !TYPE(aom_env_type), POINTER                            :: aom_env
@@ -1527,6 +1533,7 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, forces
                 
 end subroutine calcforces
 
+!COMMENT: calcTDT is not used anymore
 subroutine calcTDT(S, DS, T, DT, atoms, mol)
 
 
@@ -1769,7 +1776,7 @@ end subroutine calcTDT
    END SUBROUTINE simple_vel_rescaling
 
 
-
+!COMMENT: calc_velocities_prime is not used anymore
    SUBROUTINE calc_velocities_prime(velocities, forces_adiab, &
                                     atomic_kinds, deltatMD,   &
                                     local_particles,           &

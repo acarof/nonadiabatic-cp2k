@@ -226,6 +226,8 @@ CONTAINS
      CALL section_vals_val_get(coupling_section,"RANDOM_DERIVATIVE", l_val=do_random)
      CALL section_vals_val_get(coupling_section,"CENTER_OF_MASS", l_val=keyword_translate)
 
+!COMMENT: if possible, transform all the mol, atoms, orb etc. in nadian,
+!aom_atoms, norbitals, etc.
      !> Number of sites
      mol = nadiab ! CHANGE_AC
      !> Number of atoms per site
@@ -245,6 +247,9 @@ CONTAINS
 
      sh_print_env = aom_env%sh_print_env
      
+
+!COMMENT: one should check that all these arrays are used below (e.g. pcoefftot,
+!scoefftot and they are de-allocated at the end of the subroutine.
      ALLOCATE(sh_env%E_tp(mat))
      ALLOCATE(sh_env%E_t(mat))
      ALLOCATE(sh_env%cttm(mat))
@@ -310,6 +315,8 @@ CONTAINS
      !It gives us back the eigenvalues and eigenvectors
      !initialize Adiabatic energies that will be used for trivial hopping and
      !decoherence corrections
+!COMMENT: in fact, C_t and E_t are already known at the previous timestep, maybe
+!check aom_env%E_t, aom_env%C_t
      CALL adiabaticity(-AIMAG(aom_env%H_t), mat, C_t, E_t, .false.)
      sh_env%E_t = E_t
      CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, C_tp, E_tp, .true., sh_env)
@@ -317,6 +324,8 @@ CONTAINS
 
 
      !> ADIABATIC NACE CALCULATION
+!COMMENT: do we really need to calculate the full NACE matrix? I guess one only
+!need ADIAB_NACE(active_state, :)
      CALL calc_adiab_nace(C_t, C_tp, deltatMD, aom_env)
      
      !TEST
@@ -465,7 +474,9 @@ CONTAINS
 
 
 SUBROUTINE calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
-     
+!COMMENT: one should follow the CP2K structure for subroutine: all the argument
+!variable first, with a define INTENT, then the name of the subroutine and
+!finally the local variable
      TYPE(aom_env_type), INTENT(INOUT)     :: aom_env
      REAL(KIND=dp), intent (IN)            :: cutoff_sites
      integer                               :: mol, i, j, m, d, atoms, orb
@@ -535,7 +546,8 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cba
      
      ALLOCATE(PC_allrvecs(5,mol*atoms))
      ALLOCATE(PC_rvecs(3,atoms))
-
+!COMMENT: I guess Atm and Btm are only need for the first timestep (itimes = 1)
+!one could duplicate this subroutine and create one only for the first timestep
      !for each molecule i
      do i=1,mol
                !create the array of all its atomic coordinates at t

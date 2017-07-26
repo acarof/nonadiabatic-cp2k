@@ -146,7 +146,7 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
 END SUBROUTINE classically_forbidden_hops
 
 
-
+!COMMENT: IS THIS SUBROUTINE REDUNDANT WITH cal_delta_energy IN aom_utils.F?
    SUBROUTINE evaluate_delta_energy_nacv(velocities, local_particles, atomic_kinds, &
                                      nparticle_kind, atomic_kind_set, &
                                     aom_env,E_tp, hop_nacv, delta_energy, A, B, &
@@ -764,7 +764,7 @@ END SUBROUTINE classically_forbidden_hops
      !used to give correct commands to ZGEMX subroutines later
      zgemm_type = 'N'
 
-
+!COMMENT: INDENTATION
              Hdiff = (deltatE/deltatMD)*(aom_env%H_tp - aom_env%H_t)
              Sttdiff = (deltatE/deltatMD)*(aom_env%Stptp - aom_env%Stt)
              Sttpdiff = (deltatE/deltatMD)*(aom_env%Sttp - aom_env%Stmt)
@@ -873,7 +873,7 @@ END SUBROUTINE classically_forbidden_hops
                      H_0 = H_2
 
                     ctin = ctout
-
+!COMMENT: WHY CTOUT?
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
                     times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
@@ -1000,7 +1000,7 @@ END SUBROUTINE classically_forbidden_hops
      !used to give correct commands to ZGEMX subroutines later
      zgemm_type = 'N'
 
-
+!COMMENT: INDENTATION
              Hdiff = (deltatE/deltatMD)*(aom_env%H_tp - aom_env%H_t)
              Sttdiff = (deltatE/deltatMD)*(aom_env%Stptp - aom_env%Stt)
              Sttpdiff = (deltatE/deltatMD)*(aom_env%Sttp - aom_env%Stmt)
@@ -1013,7 +1013,13 @@ END SUBROUTINE classically_forbidden_hops
 
             !> LOOP TO BUILD INTERMEDIATE HAMILTONIANS AND CALCULATE 
             !> RESPECTIVE U MATRICES
-           
+!COMMENT: U_t, U_tp, Eig_val_t, Eig_val_tp are not already known?
+!WITH FIVE ELECTRONIC TIMESTEP, ONE NEEDS THE FOLLOWING HAMILTONIANS AND U:
+!H_t, H_t+deltaEL/2, H_t+deltaEL, H_t+1.5deltaEL, H_t+2deltaEL...
+!AT THE END: NINE MATRICES, IN THE LOOP BELOW ONE CALCULATES 15 MATRICES. 
+!INDEED: interm_hamil(3,1,:,:) = interm_hamil(1,2,:,:), etc.
+!PROBABLY interm_hamil and intemr_umatrix could be only: 
+!interm( 9, :, :)
             CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
             CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, U_tp, Eig_val_tp, .false.)
             do t2=1,int(deltatMD/deltatE)
@@ -1038,7 +1044,8 @@ END SUBROUTINE classically_forbidden_hops
             end do
 
      
-                
+!COMMENT: THE FOLLOWING LINES WILL ONLY WORK FOR 5 ELECTRONIC STEP PER MD
+!TIMESTEP                
              !> CONSTRUCT Udot MATRICES
              
              !> 1st and 3rd arraies of the super-array:
@@ -1218,7 +1225,8 @@ END SUBROUTINE classically_forbidden_hops
 
   END SUBROUTINE prop_wf_HS_corr                                                                
 
-
+!COMMENT: IF THIS SUBROUTINE IS ONLY TWO LINES, WHY NOT WRITE IT DIRECTLY IN THE
+!MAIN ONE
   SUBROUTINE hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, Ytot)
       
      COMPLEX(KIND=dp), DIMENSION(:,:,:,:), INTENT(IN)     :: interm_hamil
@@ -1259,7 +1267,7 @@ END SUBROUTINE classically_forbidden_hops
 
      !> CALCULATE MODIFIED ADIABATIC NACE 
      modified_ad_nace = 0.0D0
-
+!COOMENT: THE DO LOOP IS UNNECESSARY, BECAUSE ONLY i=active_state IS POSSIBLE
      do i=1,mat
          if (i .eq. active_state) then
              do j=1,mat
@@ -1299,6 +1307,8 @@ END SUBROUTINE classically_forbidden_hops
      !rotated_ad_nace = modified_ad_nace
 
      !> ROTATE BACK modified_ad_nace INTO DIABATIC BASIS
+!COMMENT: AS modified_ad_nace(k,l) = 0 IF k != active_state, A SHORTCUT FORMULA
+!CAN BE USED. THE LOOP OVER k IS PROBABLY NOT USEFUL. 
      do i=1,mat
          do j=1,mat
               rotated_ad_nace(i,j) = 0.0D0

@@ -106,6 +106,8 @@ IMPLICIT NONE
    END TYPE sh_print_env_type
 
 
+!COMMENT: one should check that all those variables are actually used somewhere
+!in the code
    TYPE aom_env_type
 !> To store the coordinates in step before and the one before
      REAL(KIND = dp), DIMENSION(:,:), POINTER         :: rm_t,&             ! position step min 1
