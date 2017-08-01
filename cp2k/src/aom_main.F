@@ -335,8 +335,12 @@ CONTAINS
 
      !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
      sh_env%cttm(:) = ctin(:)
+
+     aom_env%HS_propagation = .FALSE.
+      
      CALL section_vals_val_get(adiab_section,"RK_PROPAGATION", &
                                                   c_val=prop_wf_keyword)
+     
      SELECT CASE(prop_wf_keyword)                                 
      CASE("DIABATIC_RK")
            CALL propagate_wf(ctin, aom_env, nadiab,  norbitals, ELsteps, &
@@ -363,6 +367,7 @@ CONTAINS
 !end do
  
            aom_env%class_forbidden_hop_t = class_forbidden_hop_tp 
+           aom_env%HS_propagation = .TRUE.
      CASE DEFAULT                                           
            CPABORT("There is no method to propagate the wavefunction.") 
      END SELECT                                             
@@ -380,12 +385,43 @@ CONTAINS
         new_state = mod(active_state + 1, mat) 
         IF ((new_state).EQ.0) new_state = mat
      ELSE IF (.NOT.my_bo_keyword) THEN ! THEN IT IS A FSSH RUN
-        call surf_hop_type(adiab_section, aom_env%Stt, C_t, C_tp,   &
-                                  deltatMD, active_state, sh_env,  &
-                                  new_state, &
-                                  attempt_hop, &
-                                  decohere_criterion, &
-                                  sh_print_env, aom_env)
+            call surf_hop_type(adiab_section, aom_env%Stt, C_t, C_tp,   &
+                                 deltatMD, active_state, sh_env,  &
+                                 new_state, &
+                                 attempt_hop, &
+                                 decohere_criterion, &
+                                 sh_print_env, aom_env)
+
+!       CALL section_vals_val_get(adiab_section,"RK_PROPAGATION", &
+!                                                    c_val=prop_wf_keyword)
+!       SELECT CASE(prop_wf_keyword)                                 
+!       CASE("DIABATIC_RK")
+!             call surf_hop_type(adiab_section, aom_env%Stt, C_t, C_tp,   &
+!                                 deltatMD, active_state, sh_env,  &
+!                                 new_state, &
+!                                 attempt_hop, &
+!                                 decohere_criterion, &
+!                                 sh_print_env, aom_env)
+!       CASE("ADIABATIC_RK")
+!             call surf_hop_type(adiab_section, aom_env%Stt, C_t, C_tp,   &
+!                                 deltatMD, active_state, sh_env,  &
+!                                 new_state, &
+!                                 attempt_hop, &
+!                                 decohere_criterion, &
+!                                 sh_print_env, aom_env)
+!       CASE("HS_CORRECTED_RK")  
+!             !> ADIABATIC NACV EVALUATION FOR HS CORRECTION
+!                 
+!             call surf_hop_type(adiab_section, aom_env%Stt, C_t, C_tp,   &
+!                                 deltatMD, active_state, sh_env,  &
+!                                 new_state, &
+!                                 attempt_hop, &
+!                                 decohere_criterion, &
+!                                 sh_print_env, aom_env)
+!             
+!       CASE DEFAULT                                           
+!            CPABORT("There is no method to propagate the wavefunction.") 
+!       END SELECT                                             
      ENDIF
 
 

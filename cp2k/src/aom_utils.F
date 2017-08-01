@@ -327,7 +327,7 @@ end subroutine make_adiabX
 
 subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
            sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
-!Choose whether doing surface hopping with trivial hopping correction or witgout
+!Choose whether doing surface hopping with trivial hopping correction or without
 !it following the old code 
         
        implicit none
@@ -513,7 +513,16 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
                !other state
                 ak(i) = ct(i)*conjg(cstate)
                 akttm(i) = cttm_ad(i)*conjg(cstate_tm)
-                b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
+               ! b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
+      !>assign 0.0 to b(i) if the hop is forbidden
+                if (aom_env%HS_propagation .and. &
+                              (i .eq. aom_env%class_forbidden_hop_t(i))) then
+                   print *, "TRUE"
+                   b(i) = 0.0D0 
+                else 
+                   print *, "FALSE"
+                   b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
+                end if
         end do
 
 
