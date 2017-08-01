@@ -525,7 +525,8 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
                 end if
         end do
 
-
+print *, "aom_env%class_forbidden_hop_t", aom_env%class_forbidden_hop_t
+print *, "b_vector", b
     !calc exact total surface hopping probability (also termed g_tot) 
     !according to Prezhdo and Wang 2014
         ex_prob = (abs(akttm(old_state))- abs(ak(old_state)))/abs(akttm(old_state))
@@ -792,7 +793,15 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
 
         do i=1,mol
                 ak(i) = ct(i)*conjg(cstate)
+!                b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
+                if (aom_env%HS_propagation .and. &
+                              (i .eq. aom_env%class_forbidden_hop_t(i))) then
+                   print *, "TRUE"
+                   b(i) = 0.0D0 
+                else 
+                   print *, "FALSE"
                 b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
+                end if
         end do
 
         sumg = 0.0D0
