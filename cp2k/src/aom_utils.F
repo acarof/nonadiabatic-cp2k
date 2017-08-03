@@ -335,7 +335,7 @@ end subroutine make_adiabX
 !subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
  !          sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
 
-subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
+subroutine surf_hop_type(adiab_section, C1, C2, deltat, old_state, &
            sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
 !Choose whether doing surface hopping with trivial hopping correction or without
 !it following the old code 
@@ -345,7 +345,7 @@ subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
        integer, intent(in) :: old_state
        REAL(KIND=dp), intent(in) :: deltat
-       REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C1, C2
+       REAL(KIND=dp), dimension(:,:), intent(in) :: C1, C2
        INTEGER, INTENT(OUT)        :: new_state
        LOGICAL, INTENT(OUT)        :: attempt_hop
        TYPE(sh_print_env_type)     :: sh_print_env
@@ -366,11 +366,11 @@ subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
 
        SELECT CASE(surfhop_keyword)
        CASE("TRIVIAL_HOP_CORRECT")
-            CALL modified_surfacehop(Stt, C1, C2, deltat, old_state, &
+            CALL modified_surfacehop(C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
               sh_print_env, aom_env, adiab_section) !triv_threshold)
        CASE("UNMODIFIED_SURF_HOP")
-            CALL  surfacehop(deltat, old_state, Stt, C2, &
+            CALL  surfacehop(deltat, old_state, C2, &
               sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, &
                                               aom_env, adiab_section)
        CASE DEFAULT
@@ -379,10 +379,9 @@ subroutine surf_hop_type(adiab_section, Stt, C1, C2, deltat, old_state, &
 END SUBROUTINE surf_hop_type
 
 
-subroutine diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, C1, cttm_ad, cstate_tm)
-!COMMENT: I wonder if Stt is useful
+subroutine diab_to_adiab( C2, old_state, sh_env, mol, cstate, ct, C1, cttm_ad, cstate_tm)
         implicit none
-        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C2
+        REAL(KIND=dp), dimension(:,:), intent(in) :: C2
         REAL(KIND=dp), dimension(:,:), optional, intent(in) :: C1
         integer, intent(in) :: old_state
         TYPE(sh_env_type) :: sh_env
@@ -425,20 +424,17 @@ subroutine diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, C1, cttm_a
 
 end subroutine diab_to_adiab
 
-subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
+subroutine modified_surfacehop(C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
               sh_print_env, aom_env, adiab_section) !triv_threshold)
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
-!COMMENT: is Stt useful ?
-!COMMENT: follow CP2K usage for subroutine: declare argument variable first with
-!right order, then the name of the subroutine, the local variable
         implicit none
 
         REAL(KIND=dp), INTENT(IN) :: decohere_criterion
         integer, intent(in) :: old_state
         REAL(KIND=dp), intent(in) :: deltat
-        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C1, C2
+        REAL(KIND=dp), dimension(:,:), intent(in) :: C1, C2
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: attempt_hop
         TYPE(sh_print_env_type) :: sh_print_env
@@ -459,8 +455,8 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak, akttm
         COMPLEX(KIND=dp) :: cstate, cstate_tm
  
-
-        mol = size(Stt,1)
+        mol = size(aom_env%Stt,1)
+        !mol = size(Stt,1)
 
         !many allocations
         allocate(ak(mol))
@@ -514,7 +510,7 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
                                                      c_val=wfpropag_keyword)
         SELECT CASE(wfpropag_keyword)
         CASE("DIABATIC_BASIS")
-               CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, &
+               CALL diab_to_adiab(C2, old_state, sh_env, mol, cstate, ct, &
                                                    C1, cttm_ad, cstate_tm)
         CASE("ADIABATIC_BASIS")
                ct(:) = sh_env%ctt(:)
@@ -761,7 +757,7 @@ subroutine calc_adiab_nace(C1, C2, deltat, aom_env)
 
 end subroutine calc_adiab_nace
 
-subroutine surfacehop(deltat, old_state, Stt, C2, &
+subroutine surfacehop(deltat, old_state, C2, &
               sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, &
                                                      aom_env, adiab_section)
 
@@ -779,7 +775,7 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         TYPE(sh_env_type)          :: sh_env
         TYPE(aom_env_type), INTENT(IN)              :: aom_env
         TYPE(section_vals_type), POINTER               :: adiab_section
-        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C2
+        REAL(KIND=dp), dimension(:,:), intent(in) :: C2
 
        CHARACTER(len=*), PARAMETER :: routineN ='surfacehop', &
        routineP = moduleN//':'//routineN
@@ -792,8 +788,9 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         COMPLEX(KIND=dp), dimension(:), allocatable :: ct
         COMPLEX(KIND=dp), dimension(:), allocatable :: ak
         COMPLEX(KIND=dp) :: cstate
-
-        mol = size(Stt,1)
+        
+        mol = size(aom_env%Stt,1)
+        !mol = size(Stt,1)
 
         !many allocations
         allocate(ak(mol))
@@ -807,7 +804,7 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
 
         SELECT CASE(wfpropag_keyword)
         CASE("DIABATIC_BASIS")
-            CALL diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct)
+            CALL diab_to_adiab(C2, old_state, sh_env, mol, cstate, ct)
         CASE("ADIABATIC_BASIS")
             ct(:) = sh_env%ctt(:)
             cstate = sh_env%ctt(old_state)

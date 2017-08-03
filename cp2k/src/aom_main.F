@@ -396,7 +396,7 @@ CONTAINS
         new_state = mod(active_state + 1, mat) 
         IF ((new_state).EQ.0) new_state = mat
      ELSE IF (.NOT.my_bo_keyword) THEN ! THEN IT IS A FSSH RUN
-            call surf_hop_type(adiab_section, aom_env%Stt, aom_env%C_t, C_tp,   &
+            call surf_hop_type(adiab_section, aom_env%C_t, C_tp,   &
                                  deltatMD, active_state, sh_env,  &
                                  new_state, &
                                  attempt_hop, &
