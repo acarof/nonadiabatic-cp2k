@@ -184,8 +184,8 @@ CONTAINS
 !     REAL(kind=dp)                               :: A, B
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
-     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_t, C_tp
-     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_t, E_tp
+     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_tp
      LOGICAL                                      :: analytics
      INTEGER                                      :: new_state , ELsteps   
      REAL(KIND=dp)                                :: dR, times 
@@ -260,7 +260,7 @@ CONTAINS
      !ALLOCATE(energy_conservation(mat)) 
      !ALLOCATE(class_forbidden_hop(mat)) 
 
-     ALLOCATE(E_t(mat))
+     !ALLOCATE(E_t(mat))
      ALLOCATE(E_tp(mat))
      ALLOCATE(my_forces_adiab(3,natom))
      ALLOCATE(my_forces_adiab_new(3,natom))
@@ -317,16 +317,17 @@ CONTAINS
      !decoherence corrections
 !COMMENT: in fact, C_t and E_t are already known at the previous timestep, maybe
 !check aom_env%E_t, aom_env%C_t
-     CALL adiabaticity(-AIMAG(aom_env%H_t), mat, C_t, E_t, .false.)
-     sh_env%E_t = E_t
+!     CALL adiabaticity(-AIMAG(aom_env%H_t), mat, C_t, E_t, .false.)
+!print *, "C_t", C_t
+!print *, "E_t", E_t
+     sh_env%E_t = aom_env%E_t
      CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
-
 
      !> ADIABATIC NACE CALCULATION
 !COMMENT: do we really need to calculate the full NACE matrix? I guess one only
 !need ADIAB_NACE(active_state, :)
-     CALL calc_adiab_nace(C_t, C_tp, deltatMD, aom_env)
+     CALL calc_adiab_nace(aom_env%C_t, C_tp, deltatMD, aom_env)
      
      !TEST
      !CALL make_adiabX(mol, E_t, NACE_ad_t, X)
@@ -347,7 +348,7 @@ CONTAINS
                              itimes, adiab_section, deltatMD, deltatE , times,    &
                              mat)
      CASE("ADIABATIC_RK")
-           CALL propagate_adiab_wf(E_t, E_tp, ctin, aom_env, nadiab, norbitals, ELsteps, &
+           CALL propagate_adiab_wf(aom_env%E_t, E_tp, ctin, aom_env, nadiab, norbitals, ELsteps, &
                                    itimes, adiab_section, deltatMD, deltatE , times,  & 
                                    mat)
      CASE("HS_CORRECTED_RK")  
@@ -361,14 +362,14 @@ CONTAINS
            CALL classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
-!TEST!
-if (active_state .eq. 1) then 
-    class_forbidden_hop_tp(1) = -1
-    class_forbidden_hop_tp(2) = 2
-else if (active_state .eq. 2) then
-    class_forbidden_hop_tp(1) = -1
-    class_forbidden_hop_tp(2) = -1
-end if  
+!!TEST!
+!if (active_state .eq. 1) then 
+!    class_forbidden_hop_tp(1) = -1
+!    class_forbidden_hop_tp(2) = 2
+!else if (active_state .eq. 2) then
+!    class_forbidden_hop_tp(1) = -1
+!    class_forbidden_hop_tp(2) = -1
+!end if  
 !TEST!
 !do i =1,mat
 !class_forbidden_hop_tp(:) = -1
@@ -393,7 +394,7 @@ end if
         new_state = mod(active_state + 1, mat) 
         IF ((new_state).EQ.0) new_state = mat
      ELSE IF (.NOT.my_bo_keyword) THEN ! THEN IT IS A FSSH RUN
-            call surf_hop_type(adiab_section, aom_env%Stt, C_t, C_tp,   &
+            call surf_hop_type(adiab_section, aom_env%Stt, aom_env%C_t, C_tp,   &
                                  deltatMD, active_state, sh_env,  &
                                  new_state, &
                                  attempt_hop, &
@@ -481,7 +482,7 @@ end if
      aom_env%rm_tm      = aom_env%rm_t
      aom_env%rm_t       = positions_com_tp
      aom_env%energies_t = energies_tp
-     aom_env%adiab_energies_t = E_t
+     aom_env%adiab_energies_t = aom_env%E_t
      aom_env%ctin        = ctin
      aom_env%attempt_hop  = attempt_hop
      aom_env%H_t = aom_env%H_tp
@@ -491,6 +492,8 @@ end if
      aom_env%Stt   = aom_env%Stptp
      aom_env%Sttm  = aom_env%Stpt
      aom_env%Stmt  = aom_env%Sttp
+     aom_env%E_t = E_tp
+     aom_env%C_t = C_tp
 
      !aom_env%Stmtm = Stt
      IF (attempt_hop) THEN

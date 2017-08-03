@@ -177,7 +177,8 @@ CONTAINS
      !first column is now atomic number of atom (e.g. 6 for carbon)
      !Naming convention: At = A(t), Atp = A(t+1), Atm = A(t-1), etc
 
-
+     ALLOCATE(aom_env%E_t(mat))
+     ALLOCATE(aom_env%C_t(mat,mat))
      allocate(aom_env%dist(mol,mol))
      allocate(aom_env%F(3,natom,mol)) !array of diagonal atomic forces
      allocate(aom_env%crds(3,c,3))
@@ -610,6 +611,10 @@ CONTAINS
      !> THESE ASSOCIATIONS ARE NEEDED FOR THE NACV CALC
      nacv = cbar*nacv
      CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
+     aom_env%E_t = E_tp
+print *, "aom_env%E_t", aom_env%E_t
+     aom_env%C_t = C_tp
+print *, "aom_env%C_t", aom_env%C_t
      sh_env%E_tp = E_tp
      aom_env%adiab_energies_t = E_tp
      aom_env%eigenvector_matrix = C_tp
@@ -747,8 +752,8 @@ active_state = 1
 !do i =1,mat 
 !   class_forbidden_hop_tp = -1
 !end do
-class_forbidden_hop_tp(1) = -1
-class_forbidden_hop_tp(2) = 2         
+!class_forbidden_hop_tp(1) = -1
+!class_forbidden_hop_tp(2) = 2         
           
           aom_env%class_forbidden_hop_t = class_forbidden_hop_tp
      CASE DEFAULT                                           
