@@ -954,9 +954,9 @@ END SUBROUTINE classically_forbidden_hops
      
      !need to allocate these square matrices
      !first the real, S-related ones
-     allocate(interm_hamil(3,5,mat,mat))
-     allocate(interm_umatrix(3,5,mat,mat))
-     allocate(udot_matrices(3,5,mat,mat))
+     allocate(interm_hamil(3,int(deltatMD/deltatE),mat,mat))
+     allocate(interm_umatrix(3,int(deltatMD/deltatE),mat,mat))
+     allocate(udot_matrices(3,int(deltatMD/deltatE),mat,mat))
      allocate(Stptpdiff(mat,mat))
      allocate(Sttpdiff(mat,mat))
      allocate(Sttdiff(mat,mat))
@@ -1053,16 +1053,16 @@ END SUBROUTINE classically_forbidden_hops
                                     interm_umatrix(1,1,:,:))/(deltatE/2.0) !forwards
             ! udot_matrices(2,1,:,:) = (interm_umatrix(1,3,:,:) - &
              !                             interm_umatrix(1,1,:,:))/(deltatE) !centering
-             do i =1,4
+             do i =1,(int(deltatMD/deltatE)-1)
                    udot_matrices(3,i,:,:) =  (interm_umatrix(2,i+1,:,:) - & 
                                                      interm_umatrix(2,i,:,:))/(deltatE)
                    udot_matrices(1,i+1,:,:) = udot_matrices(3,i,:,:)
              end do 
                                                 
-             udot_matrices(3,5,:,:) = (interm_umatrix(3,5,:,:) - & 
-                                       interm_umatrix(2,5,:,:))/(deltatE/2.0) !backwards
+             udot_matrices(3,int(deltatMD/deltatE),:,:) = (interm_umatrix(3,int(deltatMD/deltatE),:,:) - & 
+                                       interm_umatrix(2,int(deltatMD/deltatE),:,:))/(deltatE/2.0) !backwards
              !> 2nd array of the super-array:
-             do i =1,5
+             do i =1,int(deltatMD/deltatE)
                    udot_matrices(2,i,:,:) = (interm_umatrix(3,i,:,:) - & 
                                          interm_umatrix(1,i,:,:))/(deltatE) !all centering
              end do
