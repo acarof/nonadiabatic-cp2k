@@ -160,6 +160,9 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         COMPLEX(KIND=dp), dimension(:,:), intent(out) :: X
         REAL(KIND=dp), dimension(:,:), intent(out), optional    :: NACE   
 
+       CHARACTER(len=*), PARAMETER :: routineN ='makeX', &
+                               routineP = moduleN//':'//routineN
+
         REAL(KIND=dp), dimension(:,:), allocatable     :: my_NACE   
 
         !allocate matrices
@@ -229,6 +232,9 @@ subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, deltat, NAC
        COMPLEX(KIND=dp), dimension(:,:), intent(out), optional :: X
        REAL(KIND=dp), dimension(:,:), intent(out), optional    :: NACE   
 
+       CHARACTER(len=*), PARAMETER :: routineN ='calc_diabatic_nace', &
+                               routineP = moduleN//':'//routineN
+
        REAL(KIND=dp), dimension(:,:), allocatable     :: diab_NACE   
 
        !allocate matrices
@@ -293,11 +299,15 @@ subroutine make_adiabX(mol, E_t, NACE_ad_t, X) !deltat, NACE)
         implicit none
 
         integer, intent(in) :: mol
-        integer :: i, j
         REAL(KIND=dp), dimension(:,:), intent(in)     :: NACE_ad_t
         REAL(KIND=dp), DIMENSION(:), intent(in)     :: E_t
         COMPLEX(KIND=dp), dimension(:,:), allocatable, intent(out) :: X
+
+       CHARACTER(len=*), PARAMETER :: routineN ='make_adiabX', &
+                               routineP = moduleN//':'//routineN
+
         COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H
+        integer :: i, j
         REAL(KIND=dp), dimension(:,:), allocatable     :: my_NACE   
 
         allocate(H(mol,mol))
@@ -384,6 +394,9 @@ subroutine diab_to_adiab(Stt, C2, old_state, sh_env, mol, cstate, ct, C1, cttm_a
         COMPLEX(KIND=dp), intent(out) :: cstate
         COMPLEX(KIND=dp), optional, intent(out) :: cstate_tm
 
+       CHARACTER(len=*), PARAMETER :: routineN ='diab_to_adiab', &
+                               routineP = moduleN//':'//routineN
+
         integer :: i, j!, mol!, k, l
 
 !        allocate(ct(mol))
@@ -433,6 +446,10 @@ subroutine modified_surfacehop(Stt, C1, C2, deltat, old_state, &
         TYPE(aom_env_type), INTENT(IN)             :: aom_env
         TYPE(section_vals_type), POINTER               :: adiab_section
         CHARACTER(LEN=default_string_length)         :: wfpropag_keyword
+
+       CHARACTER(len=*), PARAMETER :: routineN ='modified_surfacehop', &
+       routineP = moduleN//':'//routineN
+
 
         LOGICAL        :: trivial_correction, correct_for_negative 
         integer :: i, j, mol!, k, l
@@ -675,6 +692,9 @@ subroutine calc_adiab_nace(C1, C2, deltat, aom_env)
         REAL(KIND=dp), dimension(:,:), intent(in) :: C1, C2
         TYPE(aom_env_type)        :: aom_env
 
+       CHARACTER(len=*), PARAMETER :: routineN ='calc_adiab_nace', &
+       routineP = moduleN//':'//routineN
+
         integer :: i, j, mol, k, l
         REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
 
@@ -759,10 +779,13 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         TYPE(sh_env_type)          :: sh_env
         TYPE(aom_env_type), INTENT(IN)              :: aom_env
         TYPE(section_vals_type), POINTER               :: adiab_section
+        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C2
+
+       CHARACTER(len=*), PARAMETER :: routineN ='surfacehop', &
+       routineP = moduleN//':'//routineN
 
         !logical :: adiabatic_prop
         CHARACTER(LEN=default_string_length)         :: wfpropag_keyword
-        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, C2
         integer :: i, j, mol !, k, l
         REAL(KIND=dp) :: hop, sumg
         REAL(KIND=dp), dimension(:), allocatable :: b, g

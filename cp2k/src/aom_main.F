@@ -167,7 +167,7 @@ CONTAINS
      integer :: coord
      !integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
      integer :: mol, atoms, c, active_state, mat, orb
-     integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
+     !integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
      !integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      !REAL(KIND=dp) :: S
@@ -183,7 +183,7 @@ CONTAINS
      INTEGER, dimension(:), allocatable          :: class_forbidden_hop_tp
 !     REAL(kind=dp)                               :: A, B
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
-     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
+     !REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_tp
      LOGICAL                                      :: analytics
@@ -270,15 +270,15 @@ CONTAINS
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
      !ALLOCATE(PC_allrvecs(5,mol*atoms))
      !ALLOCATE(PC_rvecs(3,atoms))
-     allocate(pcoefftot(c))
-     allocate(scoefftot(c))
+     !allocate(pcoefftot(c))
+     !allocate(scoefftot(c))
      !these arrays are data for the non-adiabatic coupling calculation
      !they help efficiency by telling the program which atoms are connected
      !and thus which pairs to carry out the calculation for
-     allocate(aneighbour(0:atoms,0:atoms))
-     allocate(bneighbour(0:atoms,0:atoms))
-     aneighbour = 0
-     bneighbour = 0
+     !allocate(aneighbour(0:atoms,0:atoms))
+     !allocate(bneighbour(0:atoms,0:atoms))
+     !aneighbour = 0
+     !bneighbour = 0
      !allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
      !neighbourlist = 0
 
@@ -326,7 +326,9 @@ CONTAINS
 
      !> ADIABATIC NACE CALCULATION
 !COMMENT: do we really need to calculate the full NACE matrix? I guess one only
-!need ADIAB_NACE(active_state, :)
+!need ADIAB_NACE(active_state, :) ---> SAM: no we need the all matrix to the
+!adiabatic prograpagion (even if we never use it is a feature of the code)
+
      CALL calc_adiab_nace(aom_env%C_t, C_tp, deltatMD, aom_env)
      
      !TEST
@@ -514,7 +516,7 @@ CONTAINS
      !> DEALLOCATE
      !DEALLOCATE(energy_conservation, class_forbidden_hop)
      !DEALLOCATE(total_kin_array, total_pot_array)
-     deallocate(scoefftot, pcoefftot)
+     !deallocate(scoefftot, pcoefftot)
      deallocate(ctin)
      deallocate(exact_forces)
     END SUBROUTINE construct_ham_X_SH
@@ -526,6 +528,10 @@ SUBROUTINE calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
 !finally the local variable
      TYPE(aom_env_type), INTENT(INOUT)     :: aom_env
      REAL(KIND=dp), intent (IN)            :: cutoff_sites
+
+     CHARACTER(len=*), PARAMETER                     :: routineN ='calc_coms_and_nlist', &
+     routineP = moduleN//':'//routineN
+
      integer                               :: mol, i, j, m, d, atoms, orb
 
     
@@ -584,8 +590,11 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cba
      !real(kind=dp), INTENT(IN) :: PC_rvecs
      !real(kind=dp), DIMENSION(:,:), intent(inout) :: PC_allrvecs
      !real(kind=dp), DIMENSION(:,:), intent(inout) :: PC_rvecs
-     REAL(KIND=dp)                   :: S
 
+     CHARACTER(len=*), PARAMETER                     :: routineN ='calc_Xmatrix_elements', &
+     routineP = moduleN//':'//routineN
+
+     REAL(KIND=dp)                   :: S
      integer :: i, j, k, l, m, d, o
      real(kind=dp), DIMENSION(:,:), allocatable, intent(out) :: PC_allrvecs
      real(kind=dp), allocatable :: PC_rvecs(:,:)
@@ -689,6 +698,9 @@ SUBROUTINE diagonal_elem(i,k,orb,itimes,aom_env)
      INTEGER, POINTER                               :: itimes
      integer, intent(IN) :: i, k,orb
 
+     CHARACTER(len=*), PARAMETER :: routineN ='diagonal_elem', &
+     routineP = moduleN//':'//routineN
+
      integer ::  m, d
 
 
@@ -735,6 +747,9 @@ SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
      REAL(KIND=dp), intent(in) :: scaling
      !REAL(KIND=dp), dimension(:,:,:,:), intent(out) :: nacv
      REAL(KIND=dp), intent(out)                  :: S
+
+     CHARACTER(len=*), PARAMETER :: routineN ='off_diagonal_elem', &
+     routineP = moduleN//':'//routineN
 
      integer ::  m, d
      !symmetric matrices

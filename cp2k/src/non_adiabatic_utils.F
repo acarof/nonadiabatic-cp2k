@@ -1341,7 +1341,7 @@ END SUBROUTINE classically_forbidden_hops
      TYPE(aom_env_type), intent(in)                  :: aom_env
  
  
-     CHARACTER(len=*), PARAMETER                     :: routineN ='propagate_wf', &
+     CHARACTER(len=*), PARAMETER                     :: routineN ='propagate_adiab_wf', &
      routineP = moduleN//':'//routineN
  
      COMPLEX(KIND=dp), dimension(:), allocatable     :: ctout, ctotal
