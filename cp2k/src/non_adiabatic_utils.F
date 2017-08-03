@@ -530,7 +530,327 @@ print *, 'K_tot =', K_tot
                     end if
 
                     !update
-                    H_0 = H_2
+                     H_0 = H_2
+
+                    ctin = ctout
+!COMMENT: WHY CTOUT?
+                    ctout = cmplx(0.0D0, 0.0D0,dp)
+
+                    times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
+                    CALL adiab_print_nace(adiab_section, NACE, nadiab, norbitals, itimes, deltatMD, times)
+                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
+                                           times)
+                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes, deltatMD, &
+                                         times)
+                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes,deltatMD, &
+                                                    times)
+
+             end do
+       
+!END PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
+
+!DEALLOCATE
+       DEALLOCATE(NACE)
+       deallocate(H_0, Hdiff, H_1, H_2, X1, X2, X12, Ktot, K2, K3, K4)
+       deallocate(Sttdiff, Stptpdiff, Stmtmdiff, Sttpdiff, Sttmdiff)
+       deallocate(Stt_int, Sttp_int, Stptp_int, Sttm_int, Stmtm_int)
+       deallocate(Imat)
+!END DEALLOCATE
+
+  END SUBROUTINE propagate_wf    
+
+
+  SUBROUTINE prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
+                           itimes, adiab_section, deltatMD, deltatE , times,      &
+                            mat, class_forbidden_hop, active_state)
+
+     !COMPLEX(KIND=dp), dimension(:,:), INTENT(IN)    :: H_t, H_tp
+     !REAL(KIND=dp), dimension(:,:), INTENT(IN)       :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
+     COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)   :: ctin
+     INTEGER, INTENT(IN)                             :: nadiab,  norbitals 
+     INTEGER, dimension(:), INTENT(IN)               :: class_forbidden_hop
+     integer, INTENT(IN)                             :: active_state, mat 
+
+     CHARACTER(len=*), PARAMETER                     :: routineN ='propagate_wf', &
+     routineP = moduleN//':'//routineN
+
+     COMPLEX(KIND=dp), dimension(:), allocatable     :: ctout, ctotal
+     REAL(KIND=dp), dimension(:,:), allocatable      :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
+     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE , modified_diab_nace
+!     REAL(KIND=dp), dimension(:,:), allocatable      :: NACE1
+     COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12!, Ytot
+     COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
+     REAL(KIND=dp), dimension(:,:), allocatable      :: Imat 
+     REAL(KIND=dp), dimension(:,:), allocatable       :: Stt_int, Sttp_int, Stptp_int, &
+                                                          Sttm_int, Stmtm_int
+     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE       :: U_t, U_t1, U_t2, U_tp, U_t0 
+     COMPLEX(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: interm_hamil
+     REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: interm_umatrix, udot_matrices 
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE         :: Eig_val_t, Eig_val_t1, Eig_val_t2, Eig_val_t0,& 
+                                                          Eig_val_tp
+
+
+     INTEGER                                         :: ELsteps   
+     INTEGER, POINTER                                :: itimes
+     TYPE(section_vals_type), POINTER                :: adiab_section
+     TYPE(aom_env_type)                              :: aom_env
+     REAL(KIND=dp)                                   :: deltatMD, deltatE
+     REAL(KIND=dp)                                   :: ctmag
+     REAL(KIND=dp)                                   :: times 
+     COMPLEX(KIND=dp)                                :: alpha, beta, ctcomp
+     integer                                         :: t2, dim_
+     integer                                         :: i,j, inc 
+     character(len=1)                                :: zgemm_type
+
+
+     !Various Allocation
+
+
+     !Imat is an identity matrix of the dimensions of the other square matrices
+     allocate(Imat(mat,mat))
+     !define once, then use whenever
+     Imat = 0.0D0
+     FORALL(j = 1:mat) Imat(j,j) = 1     
+     
+     !need to allocate these square matrices
+     !first the real, S-related ones
+     allocate(interm_hamil(3,int(deltatMD/deltatE),mat,mat))
+     allocate(interm_umatrix(3,int(deltatMD/deltatE),mat,mat))
+     allocate(udot_matrices(3,int(deltatMD/deltatE),mat,mat))
+     allocate(Stptpdiff(mat,mat))
+     allocate(Sttpdiff(mat,mat))
+     allocate(Sttdiff(mat,mat))
+     allocate(Sttmdiff(mat,mat))
+     allocate(Stmtmdiff(mat,mat))
+     allocate(Stt_int(mat,mat)) 
+     !allocate(Stpt(mat,mat))
+     allocate(Sttp_int(mat,mat))
+     allocate(Stptp_int(mat,mat))
+     !allocate(Stmt(mat,mat))
+     allocate(Sttm_int(mat,mat))
+     allocate(Stmtm_int(mat,mat))
+
+     allocate(ctout(mat))
+     allocate(ctotal(mat))
+
+     !then the complex ones i.e. H matrices; combinations of H and S
+     !Note that in the solution to the Schroedinger equation, the H term is -i*H
+     !For ease of calculation therefore, in this program,
+     !H_t etc are always -i*H.
+     !This is why they're complex variables
+     allocate(NACE(mat,mat))
+     allocate(Hdiff(mat,mat))
+     allocate(H_0(mat,mat))
+     allocate(H_1(mat,mat))
+     allocate(H_2(mat,mat))
+     allocate(X1(mat,mat))
+     allocate(X2(mat,mat))
+     allocate(X12(mat,mat))
+    ! allocate(Ytot(mat,mat))
+     
+    
+     !finally the K matrices, which are the terms in the Runge-Kutta integration
+     !note K1 missing, because it's just a constant times X
+     !Ktot is the final constant by which c(t) is multiplied
+     allocate(Ktot(mat,mat))
+     allocate(K2(mat,mat))
+     allocate(K3(mat,mat))
+     allocate(K4(mat,mat))
+
+     !used to give correct commands to ZGEMX subroutines later
+     zgemm_type = 'N'
+
+!COMMENT: INDENTATION
+             Hdiff = (deltatE/deltatMD)*(aom_env%H_tp - aom_env%H_t)
+             Sttdiff = (deltatE/deltatMD)*(aom_env%Stptp - aom_env%Stt)
+             Sttpdiff = (deltatE/deltatMD)*(aom_env%Sttp - aom_env%Stmt)
+             Sttmdiff = (deltatE/deltatMD)*(aom_env%Stpt - aom_env%Sttm)
+             Stptpdiff = Sttdiff
+             Stmtmdiff = (deltatE/deltatMD)*(aom_env%Stt - aom_env%Stmtm)
+             H_0  = aom_env%H_t
+             H_2 = aom_env%H_tp
+
+
+            !> LOOP TO BUILD INTERMEDIATE HAMILTONIANS AND CALCULATE 
+            !> RESPECTIVE U MATRICES
+!COMMENT: U_t, U_tp, Eig_val_t, Eig_val_tp are not already known?
+!WITH FIVE ELECTRONIC TIMESTEP, ONE NEEDS THE FOLLOWING HAMILTONIANS AND U:
+!H_t, H_t+deltaEL/2, H_t+deltaEL, H_t+1.5deltaEL, H_t+2deltaEL...
+!AT THE END: NINE MATRICES, IN THE LOOP BELOW ONE CALCULATES 15 MATRICES. 
+!INDEED: interm_hamil(3,1,:,:) = interm_hamil(1,2,:,:), etc.
+!PROBABLY interm_hamil and intemr_umatrix could be only: 
+!interm( 9, :, :)
+            CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
+            CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, U_tp, Eig_val_tp, .false.)
+            do t2=1,int(deltatMD/deltatE)
+
+                   !create 3 others intermediate hamiltonians usefull to build the X
+                   !matrix in the following 
+                   interm_hamil(1,t2,:,:) = H_0(:,:)
+                   CALL adiabaticity(-AIMAG(H_0), mat, U_t0, Eig_val_t0, .false.)
+                   interm_umatrix(1,t2,:,:) = U_t0(:,:)
+
+                   H_1 = H_0 + 0.5D0*Hdiff
+                   interm_hamil(2,t2,:,:) = H_1(:,:)
+                   CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
+                   interm_umatrix(2,t2,:,:) = U_t1(:,:)
+
+                   H_2 = H_1 + 0.5D0*Hdiff
+                   interm_hamil(3,t2,:,:) = H_2(:,:)
+                   CALL adiabaticity(-AIMAG(H_2), mat, U_t2, Eig_val_t2, .false.)
+                   interm_umatrix(3,t2,:,:) = U_t2(:,:)
+
+                   H_0 = H_2
+            end do
+
+     
+             !> CONSTRUCT Udot MATRICES
+             
+             !> 1st and 3rd arraies of the super-array:
+             udot_matrices(1,1,:,:) = (interm_umatrix(2,1,:,:) - & 
+                                    interm_umatrix(1,1,:,:))/(deltatE/2.0) !forwards
+            ! udot_matrices(2,1,:,:) = (interm_umatrix(1,3,:,:) - &
+             !                             interm_umatrix(1,1,:,:))/(deltatE) !centering
+             do i =1,(int(deltatMD/deltatE)-1)
+                   udot_matrices(3,i,:,:) =  (interm_umatrix(2,i+1,:,:) - & 
+                                                     interm_umatrix(2,i,:,:))/(deltatE)
+                   udot_matrices(1,i+1,:,:) = udot_matrices(3,i,:,:)
+             end do 
+                                                
+             udot_matrices(3,int(deltatMD/deltatE),:,:) = (interm_umatrix(3,int(deltatMD/deltatE),:,:) - & 
+                                       interm_umatrix(2,int(deltatMD/deltatE),:,:))/(deltatE/2.0) !backwards
+             !> 2nd array of the super-array:
+             do i =1,int(deltatMD/deltatE)
+                   udot_matrices(2,i,:,:) = (interm_umatrix(3,i,:,:) - & 
+                                         interm_umatrix(1,i,:,:))/(deltatE) !all centering
+             end do
+
+
+
+             !H_0  = aom_env%H_t
+             !H_2 = aom_env%H_tp
+
+!Assignment internal variabls used in the RK
+             
+             Stt_int = aom_env%Stt 
+             Sttp_int = aom_env%Sttp
+             Stptp_int = aom_env%Stptp
+             !Stpt_int = Stpt!
+             !Stmt_int = Stmt!
+             Sttm_int = aom_env%Sttm
+             Stmtm_int = aom_env%Stmtm
+
+             do t2=1,int(deltatMD/deltatE)
+                 
+                    dim_ = 1
+                    !CALL adiabaticity(-AIMAG(aom_env%H_t), mat, U_t, Eig_val_t, .false.)
+                    CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, &
+                                                        Stptp_int, Stmtm_int, deltatMD, NACE)
+                    !CALL calc_diabatic_nace(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, &
+                     !                                   Stptp_int, Stmtm_int, X1, deltatMD, NACE)
+                    CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
+                          udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
+                    
+                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X1)
+
+
+!                    call makeX(mat, aom_env%H_t, Stt_int, Sttp_int, Sttm_int, Stptp_int, &
+!                                             Stmtm_int, X1, deltatMD, NACE)
+     
+                    !create timestepped equivalents
+                    !H_1 = H_0 + 0.5D0*Hdiff
+                    Stt_int = Stt_int + 0.5D0*Sttdiff
+                    Sttp_int = Sttp_int + 0.5D0*Sttpdiff
+                    Sttm_int = Sttm_int + 0.5D0*Sttmdiff
+                    Stptp_int = Stptp_int + 0.5D0*Stptpdiff
+                    Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
+                    
+                    dim_ = 2 
+!                    CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
+                    CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
+                                                       Stmtm_int, deltatMD, NACE)
+                    CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
+                          udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
+                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X12)
+
+                   ! H_2 = H_1 + 0.5D0*Hdiff
+                    Stt_int = Stt_int + 0.5D0*Sttdiff
+                    Sttp_int = Sttp_int + 0.5D0*Sttpdiff
+                    Sttm_int = Sttm_int + 0.5D0*Sttmdiff
+                    Stptp_int = Stptp_int + 0.5D0*Stptpdiff
+                    Stmtm_int = Stmtm_int + 0.5D0*Stmtmdiff
+                    
+                    dim_ = 3  
+!                    CALL adiabaticity(-AIMAG(H_2), mat, U_t2, Eig_val_t2, .false.)
+                    call calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, &
+                                                     Stmtm_int, deltatMD, NACE)
+                    CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
+                          udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
+
+                    CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X2)
+
+                    K2 = cmplx(0.0D0, 0.0D0,dp)
+                    K3 = cmplx(0.0D0, 0.0D0,dp)
+                    K4 = cmplx(0.0D0, 0.0D0,dp)
+          
+                    !now that X has been found, use 4th order Runge-Kutta numerical integration method
+                    !aiming to find operator such that c(t+1) = (1 + operator)*c
+          
+                    !there are four terms in X: each is an increasing multiple. so first term is proportional to X(t),
+                    !second term is as X(t+deltat/2)*X(t), third term is as X(t+deltat/2)*X(t+deltat/2)*X(t),
+                    !fourth term is as X(t+deltat)*X(t+deltat/2)*X(t+deltat/2)*X(t)
+                    !this means each term is some X matrix times the previous term,
+                    !so only three more calls to ZGEMM are needed
+                    !the K matrices are the second, third and fourth Runge-Kutta terms
+     
+                    alpha = cmplx(deltatE/2.0D0, 0.0D0,dp)
+                    beta = cmplx(0.0D0, 0.0D0,dp)
+     
+                    !second term
+                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X1, &
+                    &mat, beta, K2, mat)
+                    K2 = K2 + X12
+                    
+                    !third term
+                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, K2, &
+                    &mat, beta, K3, mat)
+                    K3 = K3 + X12
+     
+                    !fourth term
+                    alpha = cmplx(deltatE, 0.0D0,dp)
+                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X2, mat, K3, &
+                    &mat, beta, K4, mat)
+                    K4 = K4 + X2
+ 
+                    !put everything together
+                    Ktot = Imat + (deltatE/6.0D0)*(X1 + 2*K2 + 2*K3 + K4)
+     
+                    !timestep electron propagation and print out
+                    !alpha = dcmplx(1.0D0, 0.0D0)
+                    alpha = cmplx(1.0D0, 0.0D0,dp)
+                    inc = 1
+                    call ZGEMV(zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc)
+                    ctmag = 0.0D0
+                    ctcomp = cmplx(0.0D0, 0.0D0,dp)
+                    do i=1,mat
+                         ctotal(i) = conjg(ctout(i))*ctout(i)
+                         ctcomp = ctcomp + ctotal(i)
+                    end do
+                    ctmag = abs(ctcomp)
+                    !rescale to conserve norm = 1
+                    do i=1,mat
+                         ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
+                    end do
+                    do i=1,mat
+                         ctotal(i) = conjg(ctout(i))*ctout(i)
+                    end do
+                    if (t2 == int(deltatMD/deltatE)) then
+                                        aom_env%population(1:mat) =&
+                                            abs(ctotal(1:mat)) 
+                    end if
+
+                    !update
+                    !H_0 = H_2
 
                     ctin = ctout
 
@@ -557,7 +877,307 @@ print *, 'K_tot =', K_tot
        deallocate(Imat)
 !END DEALLOCATE
 
-  END SUBROUTINE propagate_wf                                                                
+  END SUBROUTINE prop_wf_HS_corr                                                                
+
+!COMMENT: IF THIS SUBROUTINE IS ONLY TWO LINES, WHY NOT WRITE IT DIRECTLY IN THE
+!MAIN ONE
+  SUBROUTINE hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, Ytot)
+      
+     COMPLEX(KIND=dp), DIMENSION(:,:,:,:), INTENT(IN)     :: interm_hamil
+     integer, INTENT(IN)                                  :: t2,dim_ 
+     !COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12
+     COMPLEX(KIND=dp), dimension(:,:), intent(out) :: Ytot
+     
+     REAL(KIND=dp), dimension(:,:)                 :: modified_diab_nace
+
+     modified_diab_nace = (modified_diab_nace - TRANSPOSE(modified_diab_nace)) / 2
+
+     Ytot = interm_hamil(dim_,t2,:,:) - modified_diab_nace
+
+
+  END SUBROUTINE hs_corrected_makeX
+                                                            
+  SUBROUTINE calc_modified_diab_nace(class_forbidden_hop, NACE, udot_matrices, interm_umatrix, & 
+                                            modified_diab_nace, mat, active_state, t2, dim_)
+
+
+     REAL(KIND=dp), DIMENSION(:,:,:,:), INTENT(IN)     :: interm_umatrix, udot_matrices 
+     INTEGER, dimension(:), INTENT(IN)          :: class_forbidden_hop
+     REAL(KIND=dp), dimension(:,:), INTENT(IN)      :: NACE
+     REAL(KIND=dp), dimension(:,:), allocatable, INTENT(OUT)     :: modified_diab_nace
+     integer, INTENT(IN)                                         :: active_state,mat,t2,dim_ 
+     
+
+     integer                                         :: i,j, k, l
+     REAL(KIND=dp), dimension(:,:), allocatable      :: modified_ad_nace
+     REAL(KIND=dp), dimension(:,:), allocatable      :: rotated_ad_nace
+     
+     
+
+     allocate(modified_ad_nace(mat,mat))
+     allocate(rotated_ad_nace(mat,mat))
+     allocate(modified_diab_nace(mat,mat))
+
+
+     !> CALCULATE MODIFIED ADIABATIC NACE 
+     modified_ad_nace = 0.0D0
+!COMMENT: THE DO LOOP IS UNNECESSARY, BECAUSE ONLY i=active_state IS POSSIBLE
+!     do i=1,mat
+!         if (i .eq. active_state) then
+             do j=1,mat
+                  if((j .ge. active_state) .and. (j .eq. class_forbidden_hop(j))) then
+                      modified_ad_nace(active_state,j) = 0.0D0
+                         do k=1,mat
+                             modified_ad_nace(active_state,j) = & 
+                                modified_ad_nace(active_state,j) + &
+                                           interm_umatrix(dim_,t2,k,active_state)*udot_matrices(dim_,t2,k,j)
+                             do l=1,mat
+                                modified_ad_nace(active_state,j) = & 
+                                   modified_ad_nace(active_state,j) + interm_umatrix(dim_,t2,k,active_state)* &
+                                        NACE(k,l)*interm_umatrix(dim_,t2,l,j)
+!print  *, "NACE(k,l)", NACE(k,l)
+ 
+                             end do
+                         end do
+                  !else 
+                      !modified_ad_nace(i,j) = -modified_ad_nace(j,i)
+                  end if 
+             end do
+         !else 
+          !   modified_ad_nace(i,j) = 0.0D0
+!         end if
+!     end do
+
+     !> SIMMETRIZATION OF modified_ad_nace
+     do i=1,mat
+         do j=1,mat
+              if(j .lt. i) then 
+                 modified_ad_nace(i,j) = -modified_ad_nace(j,i)
+              end if
+         end do
+     end do    
+  
+
+      
+     !rotated_ad_nace = modified_ad_nace
+
+     !> ROTATE BACK modified_ad_nace INTO DIABATIC BASIS
+!COMMENT: AS modified_ad_nace(k,l) = 0 IF k != active_state, A SHORTCUT FORMULA
+!CAN BE USED. THE LOOP OVER k IS PROBABLY NOT USEFUL. 
+   do i=1,mat
+       do j=1,mat
+            rotated_ad_nace(i,j) = 0.0D0
+               do k=1,mat
+                    do l=1,mat
+                         rotated_ad_nace(i,j) =  rotated_ad_nace(i,j) + &
+                   interm_umatrix(dim_,t2,i,k)*modified_ad_nace(k,l)*interm_umatrix(dim_,t2,j,l)
+!print *, "rotated_ad_nace", rotated_ad_nace
+                    end do
+               end do
+       end do
+   end do
+
+!print *, "ROTATED_ARRAY", rotated_ad_nace
+     !> CALCULATION OF THE NEW MODIFIED DIABATIC NACV
+     modified_diab_nace = rotated_ad_nace + NACE
+   
+ 
+ 
+     deallocate(modified_ad_nace, rotated_ad_nace)
+
+  END SUBROUTINE calc_modified_diab_nace
+
+  SUBROUTINE propagate_adiab_wf(E_t, E_tp, ctin, aom_env, nadiab,  norbitals, ELsteps, &
+                           itimes, adiab_section, deltatMD, deltatE , times,      &
+                            mat)
+     
+     REAL(KIND=dp), DIMENSION(:), INTENT(IN)         :: E_t, E_tp 
+     COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)   :: ctin
+     INTEGER, INTENT(IN)                             :: nadiab,  norbitals 
+     TYPE(aom_env_type), intent(in)                  :: aom_env
+ 
+ 
+     CHARACTER(len=*), PARAMETER                     :: routineN ='propagate_adiab_wf', &
+     routineP = moduleN//':'//routineN
+ 
+     COMPLEX(KIND=dp), dimension(:), allocatable     :: ctout, ctotal
+     REAL(KIND=dp), dimension(:,:), allocatable      :: NACEdiff
+     REAL(KIND=dp), dimension(:,:), allocatable     ::  NACEint
+     COMPLEX(KIND=dp), dimension(:,:), allocatable   :: X1, X2, X12
+     REAL(KIND=dp), DIMENSION(:), allocatable        :: E_1, Ediff, E_0, E_2
+ 
+     COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
+     REAL(KIND=dp), dimension(:,:), allocatable      :: Imat 
+ 
+ 
+     INTEGER                                         :: ELsteps   
+     INTEGER, POINTER                                :: itimes
+     TYPE(section_vals_type), POINTER                :: adiab_section
+     REAL(KIND=dp)                                   :: deltatMD, deltatE
+     REAL(KIND=dp)                                   :: ctmag
+     REAL(KIND=dp)                                   :: times 
+     COMPLEX(KIND=dp)                                :: alpha, beta, ctcomp
+     integer                                         :: t2
+     integer                                         :: i,j, inc, mat 
+     character(len=1)                                :: zgemm_type
+ 
+ 
+     !Various Allocation
+ 
+ 
+     !Imat is an identity matrix of the dimensions of the other square matrices
+     allocate(Imat(mat,mat))
+     !define once, then use whenever
+     Imat = 0.0D0
+     FORALL(j = 1:mat) Imat(j,j) = 1     
+     
+     allocate(NACEdiff(mat,mat))
+     allocate(NACEint(mat,mat)) 
+ 
+     allocate(ctout(mat))
+     allocate(ctotal(mat))
+ 
+     !then the complex ones i.e. H matrices; combinations of H and S
+     !Note that in the solution to the Schroedinger equation, the H term is -i*H
+     !For ease of calculation therefore, in this program,
+     !H_t etc are always -i*H.
+     !This is why they're complex variables
+     !allocate(NACE(mat,mat))
+     allocate(Ediff(mat))
+     allocate(E_0(mat))
+     allocate(E_1(mat))
+     allocate(E_2(mat))
+     allocate(X1(mat,mat))
+     allocate(X2(mat,mat))
+     allocate(X12(mat,mat))
+     
+    
+     !finally the K matrices, which are the terms in the Runge-Kutta integration
+     !note K1 missing, because it's just a constant times X
+     !Ktot is the final constant by which c(t) is multiplied
+     allocate(Ktot(mat,mat))
+     allocate(K2(mat,mat))
+     allocate(K3(mat,mat))
+     allocate(K4(mat,mat))
+ 
+     !used to give correct commands to ZGEMX subroutines later
+     zgemm_type = 'N'
+ 
+ 
+             Ediff = (deltatE/deltatMD)*(E_tp - E_t)
+             NACEdiff = (deltatE/deltatMD)*(aom_env%adiab_nace_tp - &
+                                             aom_env%adiab_nace_t)
+             
+ 
+             E_0  = E_t
+             E_2 = E_tp
+
+             NACEint = aom_env%adiab_nace_t
+ 
+             do t2=1,int(deltatMD/deltatE)
+                    call make_adiabX(mat, E_0, NACEint, X1)
+ 
+ 
+                    !create timestepped equivalents
+                    E_1 = E_0 + 0.5D0*Ediff
+                    NACEint = NACEint + 0.5D0*NACEdiff
+                    
+                    call make_adiabX(mat, E_1, NACEint, X12)
+
+     
+                    E_2 = E_1 + 0.5D0*Ediff
+                    NACEint = NACEint + 0.5D0*NACEdiff
+
+                    call make_adiabX(mat, E_2, NACEint, X2)
+     
+                    K2 = cmplx(0.0D0, 0.0D0,dp)
+                    K3 = cmplx(0.0D0, 0.0D0,dp)
+                    K4 = cmplx(0.0D0, 0.0D0,dp)
+          
+                    !now that X has been found, use 4th order Runge-Kutta numerical integration method
+                    !aiming to find operator such that c(t+1) = (1 + operator)*c
+          
+                    !there are four terms in X: each is an increasing multiple. so first term is proportional to X(t),
+                    !second term is as X(t+deltat/2)*X(t), third term is as X(t+deltat/2)*X(t+deltat/2)*X(t),
+                    !fourth term is as X(t+deltat)*X(t+deltat/2)*X(t+deltat/2)*X(t)
+                    !this means each term is some X matrix times the previous term,
+                    !so only three more calls to ZGEMM are needed
+                    !the K matrices are the second, third and fourth Runge-Kutta terms
+     
+                    alpha = cmplx(deltatE/2.0D0, 0.0D0,dp)
+                    beta = cmplx(0.0D0, 0.0D0,dp)
+     
+                    !second term
+                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, X1, &
+                    &mat, beta, K2, mat)
+                    K2 = K2 + X12
+                    
+                    !third term
+                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X12, mat, K2, &
+                    &mat, beta, K3, mat)
+                    K3 = K3 + X12
+     
+                    !fourth term
+                    alpha = cmplx(deltatE, 0.0D0,dp)
+                    call ZGEMM(zgemm_type, zgemm_type, mat, mat, mat, alpha, X2, mat, K3, &
+                    &mat, beta, K4, mat)
+                    K4 = K4 + X2
+ 
+                    !put everything together
+                    Ktot = Imat + (deltatE/6.0D0)*(X1 + 2*K2 + 2*K3 + K4)
+     
+                    !timestep electron propagation and print out
+                    !alpha = dcmplx(1.0D0, 0.0D0)
+                    alpha = cmplx(1.0D0, 0.0D0,dp)
+                    inc = 1
+                    call ZGEMV(zgemm_type, mat, mat, alpha, Ktot, mat, ctin, inc, beta, ctout, inc)
+                    ctmag = 0.0D0
+                    ctcomp = cmplx(0.0D0, 0.0D0,dp)
+                    do i=1,mat
+                         ctotal(i) = conjg(ctout(i))*ctout(i)
+                         ctcomp = ctcomp + ctotal(i)
+                    end do
+                    ctmag = abs(ctcomp)
+                    !rescale to conserve norm = 1
+                    do i=1,mat
+                         ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
+                    end do
+                    do i=1,mat
+                         ctotal(i) = conjg(ctout(i))*ctout(i)
+                    end do
+                    if (t2 == int(deltatMD/deltatE)) then
+                                        aom_env%population(1:mat) =&
+                                            abs(ctotal(1:mat)) 
+                    end if
+ 
+                    !update
+                    E_0 = E_2
+ 
+                    ctin = ctout
+ 
+                    ctout = cmplx(0.0D0, 0.0D0,dp)
+ 
+                    times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
+                    CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
+                                           times)
+                    CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes, deltatMD, &
+                                         times)
+                    CALL adiab_print_matrix_density(adiab_section, ctin, nadiab,norbitals,itimes,deltatMD, &
+                                                    times)
+ 
+             end do
+ 
+ !END PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
+ 
+ !DEALLOCATE
+       !DEALLOCATE(NACE)
+       deallocate(E_0, Ediff, E_1, E_2, X1, X2, X12, Ktot, K2, K3, K4)
+       deallocate(Imat)
+ !END DEALLOCATE
+ 
+  END SUBROUTINE propagate_adiab_wf                                                                
+
+
 
 END MODULE non_adiabatic_utils 
                        
