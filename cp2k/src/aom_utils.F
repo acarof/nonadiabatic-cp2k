@@ -544,7 +544,8 @@ print *, "b_vector", b
                         sumg = sumg + g(i)
                 end if
         end do
-  
+print *, "g_PROBABILITY", g
+print *, "sumg_BEFORE", sumg 
         sh_print_env%sumflux   = sumg
 
 !EFFECTIVE TRIVIAL CROSSINGS CORRECTION
@@ -596,6 +597,7 @@ print *, "b_vector", b
 !> CHANGE_AC
         sh_print_env%proba     = g
 
+print *, "g_AFTER_TRIVIAL", g
 !to move on in the trivial hopping correction we use rescaled g to avoid
 !unphysical number larger than 1. 
 
@@ -608,7 +610,13 @@ print *, "b_vector", b
         do i=1,mol
                 sumg = sumg + g(i)
                 if (hop <= sumg) then
+print *, "sumg_AFTER", sumg
+print *, "RANDOM_NUMBER", hop
                         if (i .ne. old_state) then
+print *, "OLD_STATE", old_state
+!print *, "ACTIVE STATE", active_state
+print *, "i =", i
+print *, "ATTEMPTED_HOP_HERE"
                                 new_state = i
 !                                write(24,*) i                        
                                ! decohere = .FALSE.
@@ -791,6 +799,8 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
  !              cstate = sh_env%ctt(old_state)
 !        end if 
 
+print *, "aom_env%class_forbidden_hop_t", aom_env%class_forbidden_hop_t
+print *, "b_vector", b
         do i=1,mol
                 ak(i) = ct(i)*conjg(cstate)
 !                b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
@@ -816,6 +826,9 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
                         sumg = sumg + g(i)
                 end if
         end do
+print *, "g_PROBABILITY", g
+print *, "sumg_BEFORE", sumg 
+
         !due to finite timestep, sometimes the probabilities may sum to greater than 1
         !if this happens, rescale them down to sum = 1
         if (sumg > 1.0D0) then
@@ -833,7 +846,7 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
                 g(old_state) = 1.0D0 - sumg
         end if
 
-
+print *, "g_AFTER", g
 !> CHANGE_AC
         sh_print_env%proba     = g
 
@@ -846,7 +859,10 @@ subroutine surfacehop(deltat, old_state, Stt, C2, &
         do i=1,mol
                 sumg = sumg + g(i)
                 if (hop <= sumg) then
+print *, "sumg_AFTER", sumg
+print *, "RANDOM_NUMBER", hop
                         if (i .ne. old_state) then
+print *, "ATTEMPTED_HOP_HERE"
                                 new_state = i
                                ! decohere = .FALSE.
                                 sh_env%decohere = .FALSE.

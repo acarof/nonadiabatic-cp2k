@@ -746,7 +746,9 @@ active_state = 1
 !TEST!
 !do i =1,mat 
 !   class_forbidden_hop_tp = -1
-!end do         
+!end do
+class_forbidden_hop_tp(1) = -1
+class_forbidden_hop_tp(2) = 2         
           
           aom_env%class_forbidden_hop_t = class_forbidden_hop_tp
      CASE DEFAULT                                           

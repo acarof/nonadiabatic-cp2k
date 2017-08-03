@@ -362,6 +362,14 @@ CONTAINS
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
 !TEST!
+if (active_state .eq. 1) then 
+    class_forbidden_hop_tp(1) = -1
+    class_forbidden_hop_tp(2) = 2
+else if (active_state .eq. 2) then
+    class_forbidden_hop_tp(1) = -1
+    class_forbidden_hop_tp(2) = -1
+end if  
+!TEST!
 !do i =1,mat
 !class_forbidden_hop_tp(:) = -1
 !end do
