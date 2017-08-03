@@ -1044,8 +1044,6 @@ END SUBROUTINE classically_forbidden_hops
             end do
 
      
-!COMMENT: THE FOLLOWING LINES WILL ONLY WORK FOR 5 ELECTRONIC STEP PER MD
-!TIMESTEP                
              !> CONSTRUCT Udot MATRICES
              
              !> 1st and 3rd arraies of the super-array:
@@ -1267,18 +1265,19 @@ END SUBROUTINE classically_forbidden_hops
 
      !> CALCULATE MODIFIED ADIABATIC NACE 
      modified_ad_nace = 0.0D0
-!COOMENT: THE DO LOOP IS UNNECESSARY, BECAUSE ONLY i=active_state IS POSSIBLE
-     do i=1,mat
-         if (i .eq. active_state) then
+!COMMENT: THE DO LOOP IS UNNECESSARY, BECAUSE ONLY i=active_state IS POSSIBLE
+!     do i=1,mat
+!         if (i .eq. active_state) then
              do j=1,mat
-                  if((j .ge. i) .and. (j .eq. class_forbidden_hop(j))) then
-                      modified_ad_nace(i,j) = 0.0D0
+                  if((j .ge. active_state) .and. (j .eq. class_forbidden_hop(j))) then
+                      modified_ad_nace(active_state,j) = 0.0D0
                          do k=1,mat
-                             modified_ad_nace(i,j) = & 
-                                modified_ad_nace(i,j) + interm_umatrix(dim_,t2,k,i)*udot_matrices(dim_,t2,k,j)
+                             modified_ad_nace(active_state,j) = & 
+                                modified_ad_nace(active_state,j) + &
+                                           interm_umatrix(dim_,t2,k,active_state)*udot_matrices(dim_,t2,k,j)
                              do l=1,mat
-                                modified_ad_nace(i,j) = & 
-                                   modified_ad_nace(i,j) + interm_umatrix(dim_,t2,k,i)* &
+                                modified_ad_nace(active_state,j) = & 
+                                   modified_ad_nace(active_state,j) + interm_umatrix(dim_,t2,k,active_state)* &
                                         NACE(k,l)*interm_umatrix(dim_,t2,l,j)
 !print  *, "NACE(k,l)", NACE(k,l)
  
@@ -1290,8 +1289,8 @@ END SUBROUTINE classically_forbidden_hops
              end do
          !else 
           !   modified_ad_nace(i,j) = 0.0D0
-         end if
-     end do
+!         end if
+!     end do
 
      !> SIMMETRIZATION OF modified_ad_nace
      do i=1,mat
@@ -1309,19 +1308,20 @@ END SUBROUTINE classically_forbidden_hops
      !> ROTATE BACK modified_ad_nace INTO DIABATIC BASIS
 !COMMENT: AS modified_ad_nace(k,l) = 0 IF k != active_state, A SHORTCUT FORMULA
 !CAN BE USED. THE LOOP OVER k IS PROBABLY NOT USEFUL. 
-     do i=1,mat
-         do j=1,mat
-              rotated_ad_nace(i,j) = 0.0D0
-                 do k=1,mat
-                      do l=1,mat
-                           rotated_ad_nace(i,j) =  rotated_ad_nace(i,j) + &
-                     interm_umatrix(dim_,t2,i,k)*modified_ad_nace(k,l)*interm_umatrix(dim_,t2,j,l)
-                      end do
-                 end do
-         end do
-     end do
+   do i=1,mat
+       do j=1,mat
+            rotated_ad_nace(i,j) = 0.0D0
+               do k=1,mat
+                    do l=1,mat
+                         rotated_ad_nace(i,j) =  rotated_ad_nace(i,j) + &
+                   interm_umatrix(dim_,t2,i,k)*modified_ad_nace(k,l)*interm_umatrix(dim_,t2,j,l)
+!print *, "rotated_ad_nace", rotated_ad_nace
+                    end do
+               end do
+       end do
+   end do
 
-
+!print *, "ROTATED_ARRAY", rotated_ad_nace
      !> CALCULATION OF THE NEW MODIFIED DIABATIC NACV
      modified_diab_nace = rotated_ad_nace + NACE
    
