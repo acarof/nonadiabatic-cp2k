@@ -356,7 +356,7 @@ CONTAINS
      CASE("HS_CORRECTED_RK")  
            !> ADIABATIC NACV EVALUATION FOR HS CORRECTION
                
-           
+print *, "Ctin_BEFORE", ctin           
            CALL prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times, &
                             mat, aom_env%class_forbidden_hop_t, active_state)
@@ -364,7 +364,10 @@ CONTAINS
            CALL classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
-!!TEST!
+
+print *, "Ctin_AFTER", ctin
+print *, "class_forbidden_hop_tp", class_forbidden_hop_tp
+!TEST!!
 !if (active_state .eq. 1) then 
 !    class_forbidden_hop_tp(1) = -1
 !    class_forbidden_hop_tp(2) = 2

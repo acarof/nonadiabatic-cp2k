@@ -114,6 +114,7 @@ CONTAINS
     LOGICAL                                  :: my_bo_keyword
     LOGICAL                                  :: my_test_keyword
 
+
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_tp(3,natom))
     ALLOCATE(velocities_tp(3,natom))

@@ -942,7 +942,12 @@ END SUBROUTINE classically_forbidden_hops
      integer                                         :: i,j, inc 
      character(len=1)                                :: zgemm_type
 
-
+!TEST
+     COMPLEX(KIND=dp), dimension(:), allocatable     :: pop
+     COMPLEX(KIND=dp), dimension(:), allocatable     :: ctin_adiab
+     REAL(KIND=dp), dimension(:,:), allocatable      :: Sterm1, UU, UDU, Sterm2, UDU_old_nace
+!     integer :: k
+!END TEST
      !Various Allocation
 
 
@@ -986,8 +991,17 @@ END SUBROUTINE classically_forbidden_hops
      allocate(X1(mat,mat))
      allocate(X2(mat,mat))
      allocate(X12(mat,mat))
+
+!TEST
+     allocate(ctin_adiab(mat))
+     allocate(pop(mat))
     ! allocate(Ytot(mat,mat))
-     
+     allocate(Sterm1(mat,mat)) 
+     allocate(UU(mat,mat)) 
+     allocate(UDU(mat,mat)) 
+     allocate(UDU_old_nace(mat,mat)) 
+     allocate(Sterm2(mat,mat)) 
+!END TEST
     
      !finally the K matrices, which are the terms in the Runge-Kutta integration
      !note K1 missing, because it's just a constant times X
@@ -1000,6 +1014,7 @@ END SUBROUTINE classically_forbidden_hops
      !used to give correct commands to ZGEMX subroutines later
      zgemm_type = 'N'
 
+print *, "class_forbidden_hop", class_forbidden_hop
 !COMMENT: INDENTATION
              Hdiff = (deltatE/deltatMD)*(aom_env%H_tp - aom_env%H_t)
              Sttdiff = (deltatE/deltatMD)*(aom_env%Stptp - aom_env%Stt)
@@ -1109,6 +1124,8 @@ END SUBROUTINE classically_forbidden_hops
 !                    CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
                     CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
                                                        Stmtm_int, deltatMD, NACE)
+print *, "NACE2", NACE
+
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
                     CALL hs_corrected_makeX(interm_hamil, modified_diab_nace, t2, dim_, X12)
@@ -1124,6 +1141,7 @@ END SUBROUTINE classically_forbidden_hops
 !                    CALL adiabaticity(-AIMAG(H_2), mat, U_t2, Eig_val_t2, .false.)
                     call calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, &
                                                      Stmtm_int, deltatMD, NACE)
+print *, "NACE3", NACE
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
 
@@ -1197,6 +1215,49 @@ END SUBROUTINE classically_forbidden_hops
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
                     times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
+!!TEST!
+
+call DGEMM('N', 'N', mat, mat, mat, 1.0D0, interm_umatrix(dim_,t2,:,:), mat, modified_diab_nace, mat, 0.0D0, Sterm1, mat)
+call DGEMM('N', 'N', mat, mat, mat, 1.0D0, Sterm1, mat, interm_umatrix(dim_,t2,:,:), mat, 0.0D0, UDU, mat)
+
+print *, "UDU", UDU
+call DGEMM('N', 'N', mat, mat, mat, 1.0D0, interm_umatrix(dim_,t2,:,:), mat, NACE, mat, 0.0D0, Sterm2, mat)
+call DGEMM('N', 'N', mat, mat, mat, 1.0D0, Sterm2, mat, interm_umatrix(dim_,t2,:,:), mat, 0.0D0, UDU_old_nace, mat)
+print *, "UDU_old_nace", UDU_old_nace
+
+call DGEMM('N', 'N', mat, mat, mat, 1.0D0, interm_umatrix(dim_,t2,:,:), mat, & 
+                                         udot_matrices(dim_,t2,:,:), mat, 0.0D0, UU, mat)
+
+print *, "UU", UU
+print *, "NEW_NACE_IN_ADIAB", UDU+UU
+print *, "OLD_NACE_IN_ADIAB", UDU_old_nace+UU
+
+!do i=1,mat
+!  do j=1,mat
+!    Sterm2(i,j)=0
+!    do k=1,mat
+!    Sterm2(i,j) = Sterm2(i,j) + interm_umatrix(dim_,t2,i,k)*modified_diab_nace(k,j)
+!    end do
+!  end do
+!end do
+
+!print *, "Sterm2", Sterm2
+
+do i = 1,mat
+   pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
+   ctin_adiab(i) = cmplx(0.0D0, 0.0D0,dp)
+   do j = 1, mat
+
+       ctin_adiab(i) = ctin_adiab(i) + cmplx(interm_umatrix(dim_,t2,j,i), 0.0D0,dp)*ctin(j)
+   end do
+   pop(i) = ctin_adiab(i)*conjg(ctin_adiab(i))
+end do
+
+print *, "ct_ADIAB", ctin_adiab
+print *, "ct_SECOND_STATE", ctin_adiab(2)
+print *, "POP_SECOND", pop(2)
+print *, "POP_SECOND_REAL", REAL(pop(2))
+
                     CALL adiab_print_nace(adiab_section, NACE, nadiab, norbitals, itimes, deltatMD, times)
                     CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
                                            times)
@@ -1235,6 +1296,8 @@ END SUBROUTINE classically_forbidden_hops
      REAL(KIND=dp), dimension(:,:)                 :: modified_diab_nace
 
      modified_diab_nace = (modified_diab_nace - TRANSPOSE(modified_diab_nace)) / 2
+
+print *, "modified_diab_nace_MOD", modified_diab_nace
 
      Ytot = interm_hamil(dim_,t2,:,:) - modified_diab_nace
 
@@ -1301,7 +1364,7 @@ END SUBROUTINE classically_forbidden_hops
          end do
      end do    
   
-
+print *, "modified_ad_nace", modified_ad_nace
       
      !rotated_ad_nace = modified_ad_nace
 
@@ -1321,9 +1384,16 @@ END SUBROUTINE classically_forbidden_hops
        end do
    end do
 
-!print *, "ROTATED_ARRAY", rotated_ad_nace
+print *, "ROTATED_ARRAY", rotated_ad_nace
      !> CALCULATION OF THE NEW MODIFIED DIABATIC NACV
-     modified_diab_nace = rotated_ad_nace + NACE
+!NB:THERE WAS A PROBLEM WITH THE SIGN IN THE CORRECTION I JUST CHANGE THIS SIGN
+!HERE IN THE modified_diab_nace, BUT I STILL HAVE TO FIND WHERE THE EFFECTIVE
+!ERROR IS
+!     modified_diab_nace = rotated_ad_nace + NACE 
+     modified_diab_nace = NACE - rotated_ad_nace
+
+print *, "NACE", NACE
+print *, "modified_diab_nace_NEW", modified_diab_nace
    
  
  
@@ -1502,6 +1572,7 @@ END SUBROUTINE classically_forbidden_hops
                     ctout = cmplx(0.0D0, 0.0D0,dp)
  
                     times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
+
                     CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
                                            times)
                     CALL adiab_print_pop(adiab_section, abs(ctotal),nadiab,norbitals,itimes, deltatMD, &
