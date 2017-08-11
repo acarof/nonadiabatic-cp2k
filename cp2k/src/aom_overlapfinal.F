@@ -19,6 +19,12 @@ module aom_overlapfinal
                                              dp
   USE parallel_rng_types,              ONLY: next_random_number
   USE aom_types,                       ONLY: aom_env_type
+  USE cp_parser_methods,               ONLY: parser_get_next_line
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_release
+
+
 
 #include "./base/base_uses.f90"
 
@@ -42,26 +48,66 @@ contains
 
 !--------PC added functino to build S lookuptable----------
 
-  subroutine build_s_tables()
+  subroutine build_s_tables(file_name_s_psigma, file_name_s_ppi)
+      CHARACTER(LEN=default_string_length)     :: file_name_s_psigma, file_name_s_ppi  
+      !CHARACTER(len=*), PARAMETER :: routineN = 'build_s_tables', &
+      !   routineP = moduleN//':'//routineN
 
       REAL(kind=dp) :: Bohr
       !INTEGER :: nrows,i
       INTEGER :: nrows
+      TYPE(cp_parser_type), POINTER            :: parser
+      LOGICAL                                  :: my_end
+ 
+ 
       Bohr = 5.29177E-011
 
-      open(1, file="S_psigma.txt")
-      read(1,*) s_psigma_table_dims
+      NULLIFY (parser)
+      CALL parser_create(parser, file_name_s_psigma)
+      print*, "HOY"
+      CALL parser_get_next_line(parser,1)
+      print*, "HOY HOY"
+      READ (parser%input_line, *)  s_psigma_table_dims
       nrows = NINT((s_psigma_table_dims(2)-s_psigma_table_dims(1))/s_psigma_table_dims(3))
-      allocate(s_psigma_table(nrows))
-      read(1,*) s_psigma_table
+      Lookup: DO
+          CALL parser_get_next_line(parser,1,at_end=my_end)
+          IF (my_end) THEN
+             EXIT Lookup
+          ELSE
+             READ (parser%input_line,*) s_psigma_table
+          ENDIF
+      END DO Lookup 
+      CALL parser_release(parser)
 
-
-      open(2, file="S_ppi.txt")
-      read(2,*) s_ppi_table_dims
+      NULLIFY (parser)
+      CALL parser_create(parser, file_name_s_ppi)
+      CALL parser_get_next_line(parser,1)
+      READ (parser%input_line, *)  s_ppi_table_dims
       nrows = NINT((s_ppi_table_dims(2)-s_ppi_table_dims(1))/s_ppi_table_dims(3))
-      allocate(s_ppi_table(nrows))
-      read(2,*) s_ppi_table
-  
+      Lookup_sppi: DO
+          CALL parser_get_next_line(parser,1,at_end=my_end)
+          IF (my_end) THEN
+             EXIT Lookup_sppi
+          ELSE
+             READ (parser%input_line,*) s_ppi_table
+          ENDIF
+      END DO Lookup_sppi 
+      CALL parser_release(parser)
+
+      !open(1, file="S_psigma.txt")
+      !open(1, file=file_name_s_psigma)
+      !read(1,*) s_psigma_table_dims
+      !nrows = NINT((s_psigma_table_dims(2)-s_psigma_table_dims(1))/s_psigma_table_dims(3))
+      !allocate(s_psigma_table(nrows))
+      !read(1,*) s_psigma_table
+
+
+      !open(2, file="S_ppi.txt")
+      !open(2, file=file_name_s_ppi)
+      !read(2,*) s_ppi_table_dims
+      !nrows = NINT((s_ppi_table_dims(2)-s_ppi_table_dims(1))/s_ppi_table_dims(3))
+      !allocate(s_ppi_table(nrows))
+      !read(2,*) s_ppi_table
   end subroutine 
 
   subroutine center_of_mass(xyz, mass, com)
