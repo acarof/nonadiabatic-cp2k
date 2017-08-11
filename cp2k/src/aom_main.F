@@ -196,6 +196,7 @@ CONTAINS
      TYPE(sh_print_env_type)                      :: sh_print_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
      CHARACTER(LEN=default_string_length)           :: deco_keyword, prop_wf_keyword 
+     CHARACTER(LEN=default_string_length)          :: reversal_keyword
      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
       !real(kind=dp), allocatable :: PC_rvecs(:,:)
       !integer :: o
@@ -381,7 +382,16 @@ print *, "class_forbidden_hop_tp", class_forbidden_hop_tp
 !end do
  
            aom_env%class_forbidden_hop_t = class_forbidden_hop_tp 
-           aom_env%HS_propagation = .TRUE.
+!           aom_env%HS_propagation = .TRUE.
+!TEST
+
+           CALL section_vals_val_get(coupling_section,"METHOD_REVERSAL",c_val=reversal_keyword)
+           if (reversal_keyword .eq. "ALWAYS") then
+                aom_env%HS_propagation = .FALSE.
+           else 
+                aom_env%HS_propagation = .TRUE.
+           end if
+
      CASE DEFAULT                                           
            CPABORT("There is no method to propagate the wavefunction.") 
      END SELECT                                             
