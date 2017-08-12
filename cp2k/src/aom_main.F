@@ -233,12 +233,14 @@ CONTAINS
      mol = nadiab ! CHANGE_AC
      !> Number of atoms per site
      atoms = aom_atoms ! CHANGE_AC
+    ! sh_env%atoms = atoms
      !> Number of orbitals per atom
      orb = norbitals ! CHANGE_AC
      !> Size of the vectorial space where the wavefunctions are projected
      mat = orb*mol
      !> Numbers of active atoms 
      c = mol*atoms
+     sh_env%active_atoms = c 
      !> Numbers of atoms
      natom = SIZE(global_forces(1)%forces,2)
      !> Find deltaMD, nuclear timestep, in atomic units

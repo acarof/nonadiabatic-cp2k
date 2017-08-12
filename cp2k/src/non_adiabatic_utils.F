@@ -527,7 +527,7 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
     CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
     routineP = moduleN//':'//routineN   
                                                         
-    INTEGER  :: j,i
+    INTEGER  :: j,i, deg_of_freedom
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau
     REAL(KIND=dp)      :: sum!, sum1 
     COMPLEX(KIND=dp), dimension(:), allocatable :: ct
@@ -538,6 +538,12 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
     allocate(ct(mol))  ! adiabatic states
     allocate(tau(mol)) ! decoherence time (EDC method)
     allocate(sh_print_env%tau_deco(mol))
+
+
+    !>number of degrees of freedom intensive EDC
+    deg_of_freedom = (sh_env%active_atoms*3-6)
+print *, "deg_of_freedom", deg_of_freedom
+print *, "atoms", sh_env%active_atoms
 
     sum = 0.0D0
 !TEST WITHOUT KINETIC: useful if statment when E_0=0 and FROZEN HAMILTONIAN are
@@ -551,7 +557,8 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
                pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
                ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
                tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
-                                        (C_param +(E_0_param/K_tot))
+                                        (C_param+((E_0_param/K_tot)*deg_of_freedom))
+print *, "tau", tau(i)
                 print*, tau(i)
                 do j=1,mol
                         ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
@@ -571,6 +578,7 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
            end if
     end do
 
+print *, "tau_vector", tau
     sh_print_env%tau_deco = tau
 !transfor the active diabatic state into the active adiabatic state
     pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
