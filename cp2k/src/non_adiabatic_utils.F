@@ -112,6 +112,7 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
 
      CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                   nparticle_kind, atomic_kind_set, K_tot)
+print *, "K_TOT_CLASSS", K_tot
      E_cutoff = 0.0D0
      E_cutoff = E_tp(active_state) + K_tot  !THIS CUTOFF IS TO LARGE ALL THE
                                             !STATE ARE BELOW IT
@@ -314,6 +315,7 @@ END SUBROUTINE classically_forbidden_hops
               CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
               CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                                     nparticle_kind, atomic_kind_set, K_tot, ext_pres)
+print *, "K_TOT_BEFORE_DAMP", K_tot
               CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
@@ -425,7 +427,7 @@ END SUBROUTINE classically_forbidden_hops
     REAL(kind=dp)                              :: K_tot
     TYPE(sh_print_env_type)                    :: sh_print_env
 
-    CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
+    CHARACTER(len=*), PARAMETER :: routineN ='wf_damping_adiab_prop', &         
     routineP = moduleN//':'//routineN   
                                                         
     !INTEGER  :: j,i
@@ -633,6 +635,7 @@ END SUBROUTINE classically_forbidden_hops
         INTEGER                                  :: nparticle_local
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
+        logical                                  :: qsys_only
 
            IF (PRESENT(atomic_kinds)) THEN
               my_nparticle_kind = atomic_kinds%n_els
@@ -643,6 +646,15 @@ END SUBROUTINE classically_forbidden_hops
                  my_atomic_kind_set => atomic_kind_set
               END IF
            END IF
+
+           qsys_only = .FALSE.
+           if (PRESENT(ext_pres)) then 
+               qsys_only = .TRUE.
+print *, "qysy_only", qsys_only
+           else 
+               qsys_only = .FALSE.
+print *, "qsys_only", qsys_only
+           end if
      
            K_tot = 0.0D0
            DO iparticle_kind= 1, my_nparticle_kind
@@ -651,14 +663,17 @@ END SUBROUTINE classically_forbidden_hops
               nparticle_local = local_particles%n_el(iparticle_kind)
 !calculate kinetic energy according to the COM since the array is velocities_COM
               DO iparticle_local= 1, nparticle_local
-                 if ((PRESENT(ext_pres)) .and. (ext_pres(iparticle_local))) then
+                 if (qsys_only) then 
+                      if (ext_pres(iparticle_local)) then
+!print *, "ext_pres", ext_pres
                         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                         K_tot = K_tot + mass*( &
                                    array(1, iparticle)**2 + &
                                    array(2, iparticle)**2 + &
                                    array(3, iparticle)**2  ) 
-                     ! end if
+                      end if
                  else 
+!print *, "NOT_PRESENT"
                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                      K_tot = K_tot + mass*( &
                                 array(1, iparticle)**2 + &

@@ -2529,6 +2529,7 @@ print *, "REVERSAL_HERE"
            END DO
           kinetic_energy_qsys = 0.5*kinetic_energy_qsys
 
+print *, "kinetic_energy_qsys", kinetic_energy_qsys
            new_state = force_env%mixed_env%aom_env%new_state
            old_state = force_env%mixed_env%aom_env%active_state
            delta_energy = kinetic_energy_qsys-( &
