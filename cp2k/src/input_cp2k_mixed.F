@@ -222,6 +222,12 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
     
+    CALL keyword_create(keyword, name="DECO_TIME",&
+         description="Defines the decoherence time used by the damping",&
+         usage="DECO_TIME: BASIC EXACT", type_of_var=char_t,&
+         n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
     
     CALL keyword_create(keyword, name="EDC_C",&
          description="C parameter in the Energy-based deco. correction formula",&

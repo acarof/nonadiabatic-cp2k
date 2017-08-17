@@ -283,7 +283,7 @@ END SUBROUTINE classically_forbidden_hops
                                        routineP = moduleN//':'//routineN
 
         CHARACTER(LEN=default_string_length)           :: deco_keyword
-        CHARACTER(LEN=default_string_length)           :: wfprop_keyword
+        CHARACTER(LEN=default_string_length)           :: wfprop_keyword, tau_param
         INTEGER, POINTER                               :: itimes
         INTEGER                                        :: mol
 
@@ -296,6 +296,7 @@ END SUBROUTINE classically_forbidden_hops
                   POINTER, OPTIONAL                        :: atomic_kind_set
 
         REAL(kind=dp), INTENT(OUT)                         :: K_tot
+        logical                                            :: edc_deco_time
 
         CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
                                                      c_val=wfprop_keyword)
@@ -311,13 +312,23 @@ END SUBROUTINE classically_forbidden_hops
             CASE("TRESH_ONLY_COLLAPSE")  
               CALL  wf_tresh_collaps(sh_print_env, sh_env, itimes)
             CASE("DAMPING")
+              CALL section_vals_val_get(adiab_section,"DECO_TIME",c_val=tau_param)
+              SELECT CASE(tau_param)
+              CASE("EDC")
+                  edc_deco_time = .TRUE. 
+              CASE("FORCES_BASED")
+                  edc_deco_time = .FALSE.
+              CASE DEFAULT
+                  CPABORT("There is no method to choose decoherence time.")
+
+              END SELECT
               CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
               CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
               CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                                     nparticle_kind, atomic_kind_set, K_tot, ext_pres)
 print *, "K_TOT_BEFORE_DAMP", K_tot
-              CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
-                                   local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)
+              CALL wf_damping(edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
+                               local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
             END SELECT
@@ -517,9 +528,10 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
   END SUBROUTINE wf_damping_adiab_prop 
 
 
-  SUBROUTINE  wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
+  SUBROUTINE  wf_damping(edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
                           local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)                    
     REAL(KIND=dp), INTENT(IN)                  :: C_param, E_0_param
+    LOGICAL, INTENT(IN)                        :: edc_deco_time
     TYPE(sh_env_type)                          :: sh_env
     INTEGER, INTENT(IN)                        :: mol
     REAL(KIND=dp), INTENT(IN)                  :: deltatMD
@@ -546,7 +558,7 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
 
                                                         
     INTEGER  :: j,i, deg_of_freedom
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau, tau_forces
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau!, tau_forces
     REAL(KIND=dp)      :: sum, KbT, Temp, alpha 
     COMPLEX(KIND=dp), dimension(:), allocatable :: ct
     COMPLEX(KIND=dp), dimension(:), allocatable :: pop
@@ -559,7 +571,7 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
     ALLOCATE(my_forces_adiab(3,sh_env%natom))
     allocate(ct(mol))  ! adiabatic states
     allocate(tau(mol)) ! decoherence time (EDC method)
-    allocate(tau_forces(mol))
+!    allocate(tau_forces(mol))
 !    allocate(numerator(mol))
     allocate(sh_print_env%tau_deco(mol))
 
@@ -592,7 +604,7 @@ print *, "atoms", sh_env%active_atoms
 !Boltzmann factor to use in alpha parameter
     KbT = (2*K_tot)/(3*sh_env%active_atoms)
 print *, "BOLTZAMNN", KbT
-    Temp = 0.0009444571
+    Temp = 0.0009444571  !KbT at 298 K
 
 !TEST
     call calcforces(sh_env%active_state,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
@@ -604,39 +616,44 @@ print *, "BOLTZAMNN", KbT
 print *, "FORCES_TEST", my_forces_adiab
 print *, "FORCE_TEST_ACTIVE", sh_env%forces_active_state
 
+!test
+!sh_env%forces_active_state = 0.0D0
+
+
     do i=1,mol 
            if (i .ne. sh_env%active_state) then
                pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
-               ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
-               tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
+               ct(i) = cmplx(0.0D0, 0.0D0,dp) 
+               !> if statement to choose the decoherence time
+               if (edc_deco_time) then
+                      tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param+((E_0_param/K_tot)*deg_of_freedom))
 print *, "tau", tau(i)
-
-               call calcforces(i ,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
-                      sh_env%NN, sh_env%atoms, &
-                      sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
-                      sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
-                
+               else 
+                     call calcforces(i ,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
+                          sh_env%NN, sh_env%atoms, &
+                          sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
+                         sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
+!test
+!my_forces_adiab = 0.0D0
 print *, "EXCITED_STATE_FORCES", my_forces_adiab
-               tau_forces = 0.0D0
-               DO iparticle_kind= 1, my_nparticle_kind
-                      atomic_kind => my_atomic_kind_set(iparticle_kind)
-                      CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-                      nparticle_local = local_particles%n_el(iparticle_kind)
-                      DO iparticle_local= 1, nparticle_local
-                         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-               !do iparticle=1, sh_env%natom
-                         alpha = 6*mass*Temp                      
+                     tau = 0.0D0
+                     DO iparticle_kind= 1, my_nparticle_kind
+                            atomic_kind => my_atomic_kind_set(iparticle_kind)
+                            CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+                            nparticle_local = local_particles%n_el(iparticle_kind)
+                            DO iparticle_local= 1, nparticle_local
+                               iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                               alpha = 6*mass*Temp                      
 print *, "alpha", alpha
-                         tau_forces(i) = tau_forces(i) + &
-                         (sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
-                                 (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)))))/(2*sqrt(alpha))
-               !end do
-                      END DO
-               END DO    
-               tau_forces(i) = 1/tau_forces(i) 
-print *, "tau_forces", tau_forces(i)
-
+                               tau(i) = tau(i) + &
+                               (sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
+                                (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)))))/(2*sqrt(alpha))
+                            END DO
+                     END DO    
+               tau(i) = 1/tau(i) 
+print *, "tau_forces", tau(i)
+               end if
                 
 
                 do j=1,mol
@@ -658,7 +675,6 @@ print *, "tau_forces", tau_forces(i)
     end do
 
 print *, "tau_vector", tau
-print *, "tau_vector_forces", tau_forces
     sh_print_env%tau_deco = tau
 !transfor the active diabatic state into the active adiabatic state
     pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
