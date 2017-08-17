@@ -527,19 +527,22 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
     CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
     routineP = moduleN//':'//routineN   
                                                         
-    INTEGER  :: j,i, deg_of_freedom
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau
+    INTEGER  :: j,i, deg_of_freedom, iparticle
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau, tau_forces, numerator
     REAL(KIND=dp)      :: sum!, sum1 
     COMPLEX(KIND=dp), dimension(:), allocatable :: ct
     COMPLEX(KIND=dp), dimension(:), allocatable :: pop
-    REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
+    !REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: my_forces_adiab
+    REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
 
 
-    allocate(exact_forces(3, sh_env%natom))
+    !allocate(exact_forces(3, sh_env%natom))
     allocate(pop(mol)) !TEST
-
+    ALLOCATE(my_forces_adiab(3,sh_env%natom))
     allocate(ct(mol))  ! adiabatic states
     allocate(tau(mol)) ! decoherence time (EDC method)
+    allocate(tau_forces(mol))
+    allocate(numerator(mol))
     allocate(sh_print_env%tau_deco(mol))
 
 
@@ -555,14 +558,17 @@ print *, "atoms", sh_env%active_atoms
           K_tot = 1.0D0
     end if
 !transfor the diabatic into the adiabatic coefficients and calculate tau
-!test
 
+!TEST
      call calcforces(sh_env%active_state,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
                       sh_env%NN, sh_env%atoms, &
-                      sh_env%scaling, sh_env%cbar, sh_env%F, sh_env%my_forces_adiab, &
-                      sh_env%ext_pres, sh_env%analytics, exact_forces)
+                      sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
+                      sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
+!ENDTEST
 
-print *, "FORCES_TEST", exact_forces
+print *, "FORCES_TEST", my_forces_adiab
+print *, "FORCE_TEST_ACTIVE", sh_env%forces_active_state
+
     do i=1,mol 
            if (i .ne. sh_env%active_state) then
                pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
@@ -570,6 +576,22 @@ print *, "FORCES_TEST", exact_forces
                tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param+((E_0_param/K_tot)*deg_of_freedom))
 print *, "tau", tau(i)
+
+               call calcforces(i ,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
+                      sh_env%NN, sh_env%atoms, &
+                      sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
+                      sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
+                
+print *, "EXCITED_STATE_FORCES", my_forces_adiab
+               numerator = 0.0D0
+               do iparticle=1, sh_env%natom
+                       numerator(i) = numerator(i) + &
+                       sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
+                                       (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle))))
+               end do
+               tau_forces(i) = numerator(i) 
+print *, "tau_forces", tau_forces(i)
+
                 
 
                 do j=1,mol

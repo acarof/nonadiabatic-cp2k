@@ -37,7 +37,7 @@ IMPLICIT NONE
      !REAL(KIND=dp), dimension(:,:), POINTER      :: dphi_tp, dphi_t                                                                           
      logical                                    ::  analytics 
      LOGICAL, DIMENSION(:), POINTER             :: ext_pres
-     REAL(kind=dp), DIMENSION(:,:),POINTER      :: my_forces_adiab
+     REAL(kind=dp), DIMENSION(:,:),POINTER      :: exact_forces, forces_active_state
      INTEGER, DIMENSION(:,:), POINTER           :: NN
      COMPLEX(KIND=dp), DIMENSION(:,:), POINTER  ::  H_tp
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER   :: F

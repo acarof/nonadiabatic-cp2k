@@ -464,7 +464,10 @@ print *, "class_forbidden_hop_tp", class_forbidden_hop_tp
                             NN=aom_env%NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=aom_env%F, forces_adiab=my_forces_adiab, &
                            ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
-print *, "FORCES_ACTIVE", exact_forces
+print *, "FORCES_ACTIVE", my_forces_adiab
+ALLOCATE(sh_env%forces_active_state(3,natom))
+     sh_env%forces_active_state = my_forces_adiab  
+
      IF (attempt_hop) THEN
          call calcforces(state=new_state,Hin=-AIMAG(aom_env%H_tp), C=C_tp, nacv=aom_env%nacv, &
                                NN=aom_env%NN, atoms=atoms, & 
@@ -484,7 +487,9 @@ ALLOCATE(sh_env%NN(mat, mat))
 ALLOCATE(sh_env%H_tp(mat,mat))
 allocate(sh_env%F(3,natom,mol))
 ALLOCATE(sh_env%ext_pres(natom))
-ALLOCATE(sh_env%my_forces_adiab(3,natom))
+allocate(sh_env%exact_forces(3,natom))
+!ALLOCATE(exact_forces())
+!ALLOCATE(sh_env%my_forces_adiab(3,natom))
 
      sh_env%nacv = aom_env%nacv
      sh_env%NN  = aom_env%NN
@@ -492,7 +497,8 @@ ALLOCATE(sh_env%my_forces_adiab(3,natom))
      sh_env%scaling = scaling
      sh_env%cbar = cbar
      sh_env%F = aom_env%F
-     sh_env%my_forces_adiab = my_forces_adiab
+!     sh_env%my_forces_adiab = my_forces_adiab
+     sh_env%exact_forces = exact_forces
      sh_env%ext_pres  = aom_env%ext_pres
      sh_env%analytics = analytics 
      sh_env%H_tp = aom_env%H_tp
