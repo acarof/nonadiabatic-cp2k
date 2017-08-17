@@ -532,7 +532,10 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
     REAL(KIND=dp)      :: sum!, sum1 
     COMPLEX(KIND=dp), dimension(:), allocatable :: ct
     COMPLEX(KIND=dp), dimension(:), allocatable :: pop
+    REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: exact_forces
 
+
+    allocate(exact_forces(3, sh_env%natom))
     allocate(pop(mol)) !TEST
 
     allocate(ct(mol))  ! adiabatic states
@@ -552,6 +555,14 @@ print *, "atoms", sh_env%active_atoms
           K_tot = 1.0D0
     end if
 !transfor the diabatic into the adiabatic coefficients and calculate tau
+!test
+
+     call calcforces(sh_env%active_state,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
+                      sh_env%NN, sh_env%atoms, &
+                      sh_env%scaling, sh_env%cbar, sh_env%F, sh_env%my_forces_adiab, &
+                      sh_env%ext_pres, sh_env%analytics, exact_forces)
+
+print *, "FORCES_TEST", exact_forces
     do i=1,mol 
            if (i .ne. sh_env%active_state) then
                pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
@@ -559,7 +570,8 @@ print *, "atoms", sh_env%active_atoms
                tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param+((E_0_param/K_tot)*deg_of_freedom))
 print *, "tau", tau(i)
-                print*, tau(i)
+                
+
                 do j=1,mol
                         ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
                 end do

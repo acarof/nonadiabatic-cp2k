@@ -243,6 +243,7 @@ CONTAINS
      sh_env%active_atoms = c 
      !> Numbers of atoms
      natom = SIZE(global_forces(1)%forces,2)
+     sh_env%natom = natom
      !> Find deltaMD, nuclear timestep, in atomic units
      deltatMD = MDtimestep !CHANGE_AC
      !> electronic timestep is a fraction of the molecular timestep
@@ -463,6 +464,7 @@ print *, "class_forbidden_hop_tp", class_forbidden_hop_tp
                             NN=aom_env%NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=aom_env%F, forces_adiab=my_forces_adiab, &
                            ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
+print *, "FORCES_ACTIVE", exact_forces
      IF (attempt_hop) THEN
          call calcforces(state=new_state,Hin=-AIMAG(aom_env%H_tp), C=C_tp, nacv=aom_env%nacv, &
                                NN=aom_env%NN, atoms=atoms, & 
@@ -472,9 +474,29 @@ print *, "class_forbidden_hop_tp", class_forbidden_hop_tp
 
 
      !> APPLY DECOHERENCE CORRECTION
-     !> initialize derived type variables
+     !> initialize derived type variables used in the decohere_wf subroutine
      sh_env%ctin=ctin
      sh_env%active_state=active_state
+
+
+ALLOCATE(sh_env%nacv(3,mat, mat*aom_atoms))
+ALLOCATE(sh_env%NN(mat, mat))
+ALLOCATE(sh_env%H_tp(mat,mat))
+allocate(sh_env%F(3,natom,mol))
+ALLOCATE(sh_env%ext_pres(natom))
+ALLOCATE(sh_env%my_forces_adiab(3,natom))
+
+     sh_env%nacv = aom_env%nacv
+     sh_env%NN  = aom_env%NN
+     sh_env%atoms = atoms
+     sh_env%scaling = scaling
+     sh_env%cbar = cbar
+     sh_env%F = aom_env%F
+     sh_env%my_forces_adiab = my_forces_adiab
+     sh_env%ext_pres  = aom_env%ext_pres
+     sh_env%analytics = analytics 
+     sh_env%H_tp = aom_env%H_tp
+
      CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, &
                                     deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
                                     atomic_kind_set, K_tot, aom_env%ext_pres)

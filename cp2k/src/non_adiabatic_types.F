@@ -35,8 +35,16 @@ IMPLICIT NONE
      INTEGER                                     :: active_state, state_min, active_atoms  
      REAL(KIND=dp), dimension(:), POINTER        :: E_tp, E_t, enerdiff
      !REAL(KIND=dp), dimension(:,:), POINTER      :: dphi_tp, dphi_t                                                                           
-
-
+     logical                                    ::  analytics 
+     LOGICAL, DIMENSION(:), POINTER             :: ext_pres
+     REAL(kind=dp), DIMENSION(:,:),POINTER      :: my_forces_adiab
+     INTEGER, DIMENSION(:,:), POINTER           :: NN
+     COMPLEX(KIND=dp), DIMENSION(:,:), POINTER  ::  H_tp
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER   :: F
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER   :: nacv
+     REAL(KIND=dp)                              :: cbar, scaling
+     integer                                    :: atoms, natom
+     
                     
    END TYPE sh_env_type
   
