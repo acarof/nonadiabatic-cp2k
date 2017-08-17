@@ -316,7 +316,8 @@ END SUBROUTINE classically_forbidden_hops
               CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                                     nparticle_kind, atomic_kind_set, K_tot, ext_pres)
 print *, "K_TOT_BEFORE_DAMP", K_tot
-              CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)
+              CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
+                                   local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
             END SELECT
@@ -516,20 +517,37 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
   END SUBROUTINE wf_damping_adiab_prop 
 
 
-  SUBROUTINE  wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)                    
+  SUBROUTINE  wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
+                          local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)                    
     REAL(KIND=dp), INTENT(IN)                  :: C_param, E_0_param
     TYPE(sh_env_type)                          :: sh_env
     INTEGER, INTENT(IN)                        :: mol
     REAL(KIND=dp), INTENT(IN)                  :: deltatMD
     REAL(kind=dp)                              :: K_tot
     TYPE(sh_print_env_type)                    :: sh_print_env
+    TYPE(distribution_1d_type), POINTER                :: local_particles
+    TYPE(atomic_kind_list_type), POINTER, OPTIONAL     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+                POINTER, OPTIONAL                             :: atomic_kind_set
+    INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
+
 
     CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
     routineP = moduleN//':'//routineN   
+
+   TYPE(atomic_kind_type), DIMENSION(:), &
+             POINTER                             :: my_atomic_kind_set
+   INTEGER                                  :: my_nparticle_kind
+   REAL(kind=dp)                            :: mass
+   INTEGER                                  :: iparticle_kind
+   INTEGER                                  :: nparticle_local
+   INTEGER                                  :: iparticle_local, iparticle
+   TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
                                                         
-    INTEGER  :: j,i, deg_of_freedom, iparticle
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau, tau_forces, numerator
-    REAL(KIND=dp)      :: sum!, sum1 
+    INTEGER  :: j,i, deg_of_freedom
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau, tau_forces
+    REAL(KIND=dp)      :: sum, KbT, Temp, alpha 
     COMPLEX(KIND=dp), dimension(:), allocatable :: ct
     COMPLEX(KIND=dp), dimension(:), allocatable :: pop
     !REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: my_forces_adiab
@@ -542,15 +560,27 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
     allocate(ct(mol))  ! adiabatic states
     allocate(tau(mol)) ! decoherence time (EDC method)
     allocate(tau_forces(mol))
-    allocate(numerator(mol))
+!    allocate(numerator(mol))
     allocate(sh_print_env%tau_deco(mol))
 
 
     !>number of degrees of freedom intensive EDC
     deg_of_freedom = (sh_env%active_atoms*3-6)
+
 print *, "deg_of_freedom", deg_of_freedom
 print *, "atoms", sh_env%active_atoms
 
+    IF (PRESENT(atomic_kinds)) THEN
+       my_nparticle_kind = atomic_kinds%n_els
+       my_atomic_kind_set => atomic_kinds%els
+    ELSE
+       IF ((PRESENT(nparticle_kind)).AND.(PRESENT(atomic_kind_set))) THEN
+          my_nparticle_kind = nparticle_kind
+          my_atomic_kind_set => atomic_kind_set
+       END IF
+    END IF
+
+    
     sum = 0.0D0
 !TEST WITHOUT KINETIC: useful if statment when E_0=0 and FROZEN HAMILTONIAN are
 !used
@@ -559,8 +589,13 @@ print *, "atoms", sh_env%active_atoms
     end if
 !transfor the diabatic into the adiabatic coefficients and calculate tau
 
+!Boltzmann factor to use in alpha parameter
+    KbT = (2*K_tot)/(3*sh_env%active_atoms)
+print *, "BOLTZAMNN", KbT
+    Temp = 0.0009444571
+
 !TEST
-     call calcforces(sh_env%active_state,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
+    call calcforces(sh_env%active_state,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
                       sh_env%NN, sh_env%atoms, &
                       sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
                       sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
@@ -583,13 +618,23 @@ print *, "tau", tau(i)
                       sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
                 
 print *, "EXCITED_STATE_FORCES", my_forces_adiab
-               numerator = 0.0D0
-               do iparticle=1, sh_env%natom
-                       numerator(i) = numerator(i) + &
-                       sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
-                                       (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle))))
-               end do
-               tau_forces(i) = numerator(i) 
+               tau_forces = 0.0D0
+               DO iparticle_kind= 1, my_nparticle_kind
+                      atomic_kind => my_atomic_kind_set(iparticle_kind)
+                      CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+                      nparticle_local = local_particles%n_el(iparticle_kind)
+                      DO iparticle_local= 1, nparticle_local
+                         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+               !do iparticle=1, sh_env%natom
+                         alpha = 6*mass*Temp                      
+print *, "alpha", alpha
+                         tau_forces(i) = tau_forces(i) + &
+                         (sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
+                                 (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)))))/(2*sqrt(alpha))
+               !end do
+                      END DO
+               END DO    
+               tau_forces(i) = 1/tau_forces(i) 
 print *, "tau_forces", tau_forces(i)
 
                 
@@ -613,6 +658,7 @@ print *, "tau_forces", tau_forces(i)
     end do
 
 print *, "tau_vector", tau
+print *, "tau_vector_forces", tau_forces
     sh_print_env%tau_deco = tau
 !transfor the active diabatic state into the active adiabatic state
     pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
