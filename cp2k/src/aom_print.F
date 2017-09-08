@@ -531,7 +531,8 @@ CONTAINS
    SUBROUTINE adiab_print_nacv(adiab_section, nacv, nadiab, &
               norbitals,ext_atoms, itimes, deltatMD)
     TYPE(section_vals_type), POINTER          :: adiab_section
-    REAL(KIND=dp), DIMENSION(:,:,:,:)         :: nacv
+    !REAL(KIND=dp), DIMENSION(:,:,:,:)         :: nacv
+    REAL(KIND=dp), DIMENSION(:,:,:)         :: nacv
     INTEGER, INTENT(IN)                       :: nadiab, norbitals, ext_atoms
     INTEGER, POINTER                          :: itimes
     REAL(KIND=dp), INTENT(IN)                 :: deltatMD
@@ -570,7 +571,8 @@ CONTAINS
            DO j=1,3
               WRITE( unit_nr, *) "Atom = ",i,"Dimension = ", j
               DO k=1,norbitals*nadiab
-                 WRITE( unit_nr, *) unit_conv*nacv(j, k, 1:(norbitals*nadiab), i)
+                 !WRITE( unit_nr, *) unit_conv*nacv(j, k, 1:(norbitals*nadiab), i)
+                 WRITE( unit_nr, *) unit_conv*nacv(j, k, i)
               ENDDO
            ENDDO
         ENDDO

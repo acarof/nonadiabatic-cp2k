@@ -3,3 +3,13 @@ Adiab. Energies (hartree);  nadiab =       3
    1         0.0171637121
    2         0.0254551887
    3         0.0286727234
+Adiab. Energies (hartree);  nadiab =       3
+ i = 5001, time =             2500.500 (fs)
+   1         0.0159432424
+   2         0.0171049174
+   3         0.0206682234
+Adiab. Energies (hartree);  nadiab =       3
+ i = 10001, time =             5000.500 (fs)
+   1         0.0218289639
+   2         0.0278434779
+   3         0.0289952903

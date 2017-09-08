@@ -16,18 +16,6 @@
 
 MODULE non_adiabatic_methods
 
-  USE cp_parser_methods,               ONLY: read_float_object
-
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr,&
-                                             cp_print_key_finished_output
-  USE cp_log_handling,                 ONLY: cp_logger_type,&
-                                             cp_logger_release,&
-                                             cp_get_default_logger,&
-                                             cp_to_string
-  USE cp_result_methods,               ONLY: cp_results_erase,&
-                                             get_results,&
-                                             put_results,&
-                                             test_for_result
   USE cp_result_types,                 ONLY: cp_result_p_type,&
                                              cp_result_type
   USE input_section_types,             ONLY: section_vals_get,&
@@ -50,22 +38,11 @@ MODULE non_adiabatic_methods
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
-  USE cp_linked_list_val,              ONLY: &
-       cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, &
-       cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
-       cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
-       cp_sll_val_set_el_at, cp_sll_val_type
 
   USE aom_types,                       ONLY: aom_env_type 
-  USE non_adiabatic_types,             ONLY: sh_env_type
 
   USE aom_main,                        ONLY: construct_ham_X_SH
-  USE cp_units,                        ONLY: cp_unit_from_cp2k
 
-!  USE aom_print,                       ONLY: adiab_print_hamiltonian, &
-!                                             adiab_print_nace,        &
-!                                             adiab_print_nacv,        &
-!                                             adiab_print_stateno
   USE distribution_1d_types,           ONLY: distribution_1d_type
 
   USE aom_utils,                       ONLY: read_listcoeff
@@ -74,7 +51,8 @@ MODULE non_adiabatic_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-
+  USE aom_initialization,              ONLY: create_aom_env,   &
+                                             propagate_aom_namd_first_step
 
 #include "./base/base_uses.f90"
 
@@ -124,17 +102,13 @@ CONTAINS
     INTEGER                                  :: norbitals, aom_atoms, init
     REAL(KIND=dp)                            :: MDtimestep
     REAL(kind=dp), DIMENSION(:,:),POINTER    :: positions_tp
+    REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_tp
     REAL(kind=dp), DIMENSION(:,:),POINTER    :: forces_adiab
     REAL(kind=dp)                            :: factor
     TYPE(section_vals_type), POINTER         :: coupling_section
     CHARACTER(LEN=default_string_length)     :: coupling_keyword
     TYPE(aom_env_type)                       :: aom_env
-    TYPE(sh_env_type)                        :: sh_env
-!    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: hamiltonian
-!    REAL(KIND=dp), DIMENSION(:,:),POINTER    :: nace
-!    REAL(KIND=dp), DIMENSION(:,:,:,:),POINTER :: nacv
     INTEGER, POINTER                         :: itimes
-    !INTEGER                                  :: old_state, new_state
     REAL(KIND=dp)                            :: energy_adiabat
     LOGICAL                                  :: is_hop
     LOGICAL                                  :: my_bo_keyword
@@ -142,8 +116,10 @@ CONTAINS
 
     natom = SIZE(global_forces(1)%forces,2)
     ALLOCATE(positions_tp(3,natom))
+    ALLOCATE(velocities_tp(3,natom))
     ALLOCATE(forces_adiab(3,natom))
     factor = 1
+
 
     my_bo_keyword = .TRUE.
     my_test_keyword = .FALSE.
@@ -155,30 +131,13 @@ CONTAINS
     ENDIF
 
 
-!> Find the method to calculate the off-diagonal elements
+    !> Find the method to calculate the off-diagonal elements
     CALL section_vals_val_get(adiab_section,"METHOD_COUPLING",c_val=coupling_keyword)
     CALL get_subsys_map_index(mapping_section, natom, 1, nforce_eval, map_index)
-!> Choose the method to calculate the off-diagonal elements
+    !> Choose the method to calculate the off-diagonal elements
     SELECT CASE(coupling_keyword)
     CASE("AOM")
-!> Get the information for the previous timesteps
-        aom_env = mixed_env%aom_env
-        IF (my_itimes.eq.0) THEN
-           ALLOCATE(aom_env%velocities_t(3, natom))
-        ENDIF
-        DO iparticle = 1, natom
-           jparticle = map_index(iparticle)
-           positions_tp(:,jparticle)        = particles_mix%els(jparticle)%r(:)
-           IF (my_itimes.eq.0) THEN 
-              SELECT CASE(method_keyword)
-              CASE("FROZEN_HAMILTONIAN")
-                  aom_env%velocities_t(:, jparticle) = 0.0D0
-              CASE DEFAULT
-                  aom_env%velocities_t(:, jparticle) = particles_mix%els(jparticle)%v(:)
-              END SELECT
-            ENDIF
-        END DO
-!> Get the coupling section and all the information 
+        !> Get the coupling section and all the information 
         coupling_section => section_vals_get_subs_vals(adiab_section, "AOM")
         CALL section_vals_val_get(coupling_section,"NUMBER_DIABATIC_STATES",&
              i_val=nadiab)
@@ -189,45 +148,53 @@ CONTAINS
         CALL section_vals_val_get(coupling_section,"NUCLEAR_TIMESTEP",&
              r_val=MDtimestep)
         itimes => my_itimes
-!> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
-        CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
-             positions_tp, energies_tp, aom_env, sh_env, itimes, &
-             is_hop, global_forces, coupling_section, adiab_section,& 
-             my_bo_keyword, energy_adiabat, atomic_kinds, &
-             local_particles, my_test_keyword)
-            
-        !PRINT COEFFICIENTS, POPULATIONS AND HAMILTONIAN
-!        ALLOCATE(hamiltonian(norbitals*nadiab, norbitals*nadiab))
-!        ALLOCATE(nace(norbitals*nadiab, norbitals*nadiab))
-!        ALLOCATE(nacv(3, norbitals*nadiab, norbitals*nadiab,norbitals*nadiab*aom_atoms))
-
-!        IF (.NOT.aom_env%successful_hop) THEN
-!> Get the renewed information from aom_env
-!           hamiltonian  = aom_env%hamiltonian
-!           nace         = aom_env%nace
-!           nacv         = aom_env%nacv
-           !new_state    = aom_env%new_state
-           !old_state    = aom_env%old_state
-!> Print the coefficients, the populations, the Hamiltonian, the density matrix
-!> and the NACV
-!           CALL adiab_print_hamiltonian(adiab_section, hamiltonian, nadiab,norbitals,itimes, MDtimestep)
-!           CALL adiab_print_nace(adiab_section, nace, nadiab,norbitals,itimes, MDtimestep)
-!           CALL adiab_print_nacv(adiab_section, nacv, nadiab, norbitals, aom_atoms,itimes, MDtimestep)        
-           !CALL adiab_print_stateno(adiab_section, new_state, aom_atoms,itimes, MDtimestep)
-!        ELSE
-!        IF (.NOT.aom_env%successful_hop) THEN
-!           aom_env%successful_hop = .FALSE.
-!        ENDIF
-
-!> IMPORTANT: store all aom_env for the future timesteps
+        DO iparticle = 1, natom
+           jparticle = map_index(iparticle)
+           positions_tp(:,jparticle)   = particles_mix%els(jparticle)%r(:)
+           IF (my_itimes.eq.0) THEN
+                velocities_tp(:, jparticle) = particles_mix%els(jparticle)%v(:)
+           ENDIF
+        END DO
+        IF (my_itimes.eq.0) THEN
+           CALL create_aom_env(nadiab, aom_atoms, norbitals, natom, &
+                               positions_tp, coupling_section, adiab_section, & 
+                               aom_env)
+           CALL propagate_aom_namd_first_step(nadiab, aom_atoms, norbitals, MDtimestep, &
+                     positions_tp, velocities_tp, energies_tp, aom_env, itimes, &
+                     is_hop, global_forces, coupling_section, adiab_section,& 
+                     my_bo_keyword, energy_adiabat, atomic_kinds, &
+                     local_particles, my_test_keyword, method_keyword)
+        ELSE
+           !> Get the information for the previous timesteps
+           aom_env = mixed_env%aom_env
+           !> Velocities are taken directly from the integrator, note from
+           !> velocities_tp
+           !aom_env%velocities_t = velocities_tp
+           IF (aom_env%successful_hop) THEN
+              aom_env%forces_adiab = aom_env%forces_adiab_new
+              energy_adiabat = aom_env%energy_new
+              aom_env%futur_decohere = .TRUE.
+              aom_env%successful_hop = .FALSE.
+              aom_env%forces_adiab_new = 0.0D0
+              aom_env%new_state = -1
+              aom_env%old_state = -1
+           ELSE
+              !> Main CALL: calculate the Hamiltonian, propagate the electronic dynamics
+              CALL construct_ham_X_SH(nadiab, aom_atoms, norbitals, MDtimestep, &
+                            positions_tp, energies_tp, aom_env, itimes, &
+                            is_hop, global_forces, coupling_section, adiab_section,& 
+                            my_bo_keyword, energy_adiabat, atomic_kinds, &
+                            local_particles, my_test_keyword)
+           ENDIF
+        ENDIF
+        !> IMPORTANT: store all aom_env for the future timesteps
         mixed_env%aom_env=aom_env
-!> IMPORTANT
-
     CASE DEFAULT
         CPABORT("There is no method to calculate the coupling")
     END SELECT
 
-!> IMPORTANT : GIVE BACK THE FORCES TO FIST
+
+    !> IMPORTANT : GIVE BACK THE FORCES TO FIST
     forces_adiab = aom_env%forces_adiab
     DO iparticle = 1, natom
       jparticle = map_index(iparticle)
@@ -262,7 +229,6 @@ CONTAINS
     !Probably useless
     ! But overwrite is useless
     IF (virial_mix%pv_availability) THEN
-!       IF (overwrite) CALL zero_virial(virial_mix,reset=.FALSE.)
        virial_mix%pv_total      = virial_mix%pv_total + factor*virials(iforce_eval)%virial%pv_total
        virial_mix%pv_kinetic    = virial_mix%pv_kinetic + factor*virials(iforce_eval)%virial%pv_kinetic
        virial_mix%pv_virial     = virial_mix%pv_virial + factor*virials(iforce_eval)%virial%pv_virial
@@ -275,10 +241,7 @@ CONTAINS
     IF (ASSOCIATED(map_index)) THEN
        DEALLOCATE(map_index)
     END IF
-    
-!    DEALLOCATE(hamiltonian, nacv, nace)
-    DEALLOCATE(positions_tp, forces_adiab)
-
+    DEALLOCATE(positions_tp, velocities_tp, forces_adiab)
    END SUBROUTINE adiab_fssh_routines
 
 END MODULE non_adiabatic_methods
