@@ -326,7 +326,7 @@ END SUBROUTINE classically_forbidden_hops
               !CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes)
               CALL wf_collapse_adiab_prop(aom_env,sh_print_env, sh_env, itimes)
             CASE("TRESH_ONLY_COLLAPSE")  
-              print *, "NOT IMPLEMENTED"
+              CPABORT("NOT IMPLEMENTED")
             CASE("DAMPING")
               CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
               CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
@@ -454,7 +454,7 @@ END SUBROUTINE classically_forbidden_hops
               ! ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
                tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param +(E_0_param/K_tot))
-                print*, tau(i)
+                !print*, tau(i)
                 !do j=1,mol
                 !        ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
                 !end do
@@ -550,7 +550,7 @@ END SUBROUTINE classically_forbidden_hops
                ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
                tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param +(E_0_param/K_tot))
-                print*, tau(i)
+                !print*, tau(i)
                 do j=1,mol
                         ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
                 end do

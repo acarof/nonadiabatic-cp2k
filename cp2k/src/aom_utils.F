@@ -530,16 +530,16 @@ subroutine modified_surfacehop(C1, C2, deltat, old_state, &
       !>assign 0.0 to b(i) if the hop is forbidden
                 if (aom_env%HS_propagation .and. &
                               (i .eq. aom_env%class_forbidden_hop_t(i))) then
-                   print *, "TRUE"
+                   !print *, "TRUE"
                    b(i) = 0.0D0 
                 else 
-                   print *, "FALSE"
+                   !print *, "FALSE"
                    b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
                 end if
         end do
 
-print *, "aom_env%class_forbidden_hop_t", aom_env%class_forbidden_hop_t
-print *, "b_vector", b
+!print *, "aom_env%class_forbidden_hop_t", aom_env%class_forbidden_hop_t
+!print *, "b_vector", b
     !calc exact total surface hopping probability (also termed g_tot) 
     !according to Prezhdo and Wang 2014
         ex_prob = (abs(akttm(old_state))- abs(ak(old_state)))/abs(akttm(old_state))
@@ -557,8 +557,8 @@ print *, "b_vector", b
                         sumg = sumg + g(i)
                 end if
         end do
-print *, "g_PROBABILITY", g
-print *, "sumg_BEFORE", sumg 
+!print *, "g_PROBABILITY", g
+!print *, "sumg_BEFORE", sumg 
         sh_print_env%sumflux   = sumg
 
 !EFFECTIVE TRIVIAL CROSSINGS CORRECTION
@@ -610,7 +610,7 @@ print *, "sumg_BEFORE", sumg
 !> CHANGE_AC
         sh_print_env%proba     = g
 
-print *, "g_AFTER_TRIVIAL", g
+!print *, "g_AFTER_TRIVIAL", g
 !to move on in the trivial hopping correction we use rescaled g to avoid
 !unphysical number larger than 1. 
 
@@ -623,13 +623,13 @@ print *, "g_AFTER_TRIVIAL", g
         do i=1,mol
                 sumg = sumg + g(i)
                 if (hop <= sumg) then
-print *, "sumg_AFTER", sumg
-print *, "RANDOM_NUMBER", hop
+!print *, "sumg_AFTER", sumg
+!print *, "RANDOM_NUMBER", hop
                         if (i .ne. old_state) then
-print *, "OLD_STATE", old_state
+!print *, "OLD_STATE", old_state
 !print *, "ACTIVE STATE", active_state
-print *, "i =", i
-print *, "ATTEMPTED_HOP_HERE"
+!print *, "i =", i
+!print *, "ATTEMPTED_HOP_HERE"
                                 new_state = i
 !                                write(24,*) i                        
                                ! decohere = .FALSE.
@@ -819,17 +819,17 @@ subroutine surfacehop(deltat, old_state, C2, &
  !              cstate = sh_env%ctt(old_state)
 !        end if 
 
-print *, "aom_env%class_forbidden_hop_t", aom_env%class_forbidden_hop_t
-print *, "b_vector", b
+!print *, "aom_env%class_forbidden_hop_t", aom_env%class_forbidden_hop_t
+!print *, "b_vector", b
         do i=1,mol
                 ak(i) = ct(i)*conjg(cstate)
 !                b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
                 if (aom_env%HS_propagation .and. &
                               (i .eq. aom_env%class_forbidden_hop_t(i))) then
-                   print *, "TRUE"
+                   !print *, "TRUE"
                    b(i) = 0.0D0 
                 else 
-                   print *, "FALSE"
+                   !print *, "FALSE"
                 b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
                 end if
         end do
@@ -846,8 +846,8 @@ print *, "b_vector", b
                         sumg = sumg + g(i)
                 end if
         end do
-print *, "g_PROBABILITY", g
-print *, "sumg_BEFORE", sumg 
+!print *, "g_PROBABILITY", g
+!print *, "sumg_BEFORE", sumg 
 
         !due to finite timestep, sometimes the probabilities may sum to greater than 1
         !if this happens, rescale them down to sum = 1
@@ -866,7 +866,7 @@ print *, "sumg_BEFORE", sumg
                 g(old_state) = 1.0D0 - sumg
         end if
 
-print *, "g_AFTER", g
+!print *, "g_AFTER", g
 !> CHANGE_AC
         sh_print_env%proba     = g
 
@@ -879,10 +879,10 @@ print *, "g_AFTER", g
         do i=1,mol
                 sumg = sumg + g(i)
                 if (hop <= sumg) then
-print *, "sumg_AFTER", sumg
-print *, "RANDOM_NUMBER", hop
+!print *, "sumg_AFTER", sumg
+!print *, "RANDOM_NUMBER", hop
                         if (i .ne. old_state) then
-print *, "ATTEMPTED_HOP_HERE"
+!print *, "ATTEMPTED_HOP_HERE"
                                 new_state = i
                                ! decohere = .FALSE.
                                 sh_env%decohere = .FALSE.

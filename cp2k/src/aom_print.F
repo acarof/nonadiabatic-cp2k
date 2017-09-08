@@ -112,7 +112,7 @@ CONTAINS
        
        DO imol=1, nadiab
         DO iatoms=1, atoms
-                print *, allrvecs(:,((imol-1)*atoms)+iatoms)
+                !print *, allrvecs(:,((imol-1)*atoms)+iatoms)
                 my_format="(I4,1X,I4,"
                 WRITE(unit_nr,TRIM(my_format)//"1X,3F20.10)") int(allrvecs(1,((imol-1)*atoms)+iatoms)),&
                         int(allrvecs(2,((imol-1)*atoms)+iatoms)), allrvecs(3:5,((imol-1)*atoms)+iatoms)

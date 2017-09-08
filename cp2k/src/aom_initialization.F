@@ -612,9 +612,9 @@ CONTAINS
      nacv = cbar*nacv
      CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
      aom_env%E_t = E_tp
-print *, "aom_env%E_t", aom_env%E_t
+!print *, "aom_env%E_t", aom_env%E_t
      aom_env%C_t = C_tp
-print *, "aom_env%C_t", aom_env%C_t
+!print *, "aom_env%C_t", aom_env%C_t
      sh_env%E_tp = E_tp
      aom_env%adiab_energies_t = E_tp
      aom_env%eigenvector_matrix = C_tp
