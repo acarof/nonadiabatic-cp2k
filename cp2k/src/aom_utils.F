@@ -1119,6 +1119,7 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
         LOGICAL, dimension(:), allocatable         :: ext_pres
         LOGICAL                                    :: my_fast
         REAL(KIND=dp) :: total_norm, error
+        REAL(KIND=dp)                           :: convert_nacv 
 
         mat    = SIZE(aom_env%Stptp, 1)
         natom  = SIZE(aom_env%diabatic_forces, 2)
