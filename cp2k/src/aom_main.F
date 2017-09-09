@@ -328,7 +328,6 @@ CONTAINS
      CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
 
-print *, "DELTAE_ADIAB", (E_tp(2)-E_tp(1))
      !> ADIABATIC NACE CALCULATION
 !COMMENT: do we really need to calculate the full NACE matrix? I guess one only
 !need ADIAB_NACE(active_state, :) ---> SAM: no we need the all matrix in the
@@ -336,7 +335,6 @@ print *, "DELTAE_ADIAB", (E_tp(2)-E_tp(1))
 
      CALL calc_adiab_nace(aom_env%C_t, C_tp, deltatMD, aom_env)
      
-print *, "ADIAB_NACE", aom_env%adiab_nace_tp
      !TEST
      !CALL make_adiabX(mol, E_t, NACE_ad_t, X)
      !ENDTEST
@@ -362,7 +360,6 @@ print *, "ADIAB_NACE", aom_env%adiab_nace_tp
      CASE("HS_CORRECTED_RK")  
            !> ADIABATIC NACV EVALUATION FOR HS CORRECTION
                
-print *, "Ctin_BEFORE", ctin           
            CALL prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times, &
                             mat, aom_env%class_forbidden_hop_t, active_state)
@@ -371,8 +368,6 @@ print *, "Ctin_BEFORE", ctin
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
 
-print *, "Ctin_AFTER", ctin
-print *, "class_forbidden_hop_tp", class_forbidden_hop_tp
 !TEST!!
 !if (active_state .eq. 1) then 
 !    class_forbidden_hop_tp(1) = -1
@@ -466,7 +461,6 @@ print *, "class_forbidden_hop_tp", class_forbidden_hop_tp
                             NN=aom_env%NN, atoms=atoms, & 
                            scaling=scaling, cbar=cbar, Fin=aom_env%F, forces_adiab=my_forces_adiab, &
                            ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
-print *, "FORCES_ACTIVE", my_forces_adiab
 ALLOCATE(sh_env%forces_active_state(3,natom))
      sh_env%forces_active_state = my_forces_adiab  
 

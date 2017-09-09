@@ -112,7 +112,6 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
 
      CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                   nparticle_kind, atomic_kind_set, K_tot)
-print *, "K_TOT_CLASSS", K_tot
      E_cutoff = 0.0D0
      E_cutoff = E_tp(active_state) + K_tot  !THIS CUTOFF IS TO LARGE ALL THE
                                             !STATE ARE BELOW IT
@@ -326,7 +325,6 @@ END SUBROUTINE classically_forbidden_hops
               CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
               CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                                     nparticle_kind, atomic_kind_set, K_tot, ext_pres)
-print *, "K_TOT_BEFORE_DAMP", K_tot
               CALL wf_damping(edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
                                local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)
             CASE DEFAULT                                           
@@ -575,12 +573,9 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
 !    allocate(numerator(mol))
     allocate(sh_print_env%tau_deco(mol))
 
-print *, "DECOHERENCE_IS_HEREEEE"
     !>number of degrees of freedom intensive EDC
     deg_of_freedom = (sh_env%active_atoms*3-6)
 
-print *, "deg_of_freedom", deg_of_freedom
-print *, "atoms", sh_env%active_atoms
 
     IF (PRESENT(atomic_kinds)) THEN
        my_nparticle_kind = atomic_kinds%n_els
@@ -603,7 +598,8 @@ print *, "atoms", sh_env%active_atoms
 
 !Boltzmann factor to use in alpha parameter
     KbT = (2*K_tot)/(3*sh_env%active_atoms)
-print *, "BOLTZAMNN", KbT
+!instead of using the exact boltzmann factor, at the moment the code uses Temp =
+!298 K, maybe this point should be modified in future
     Temp = 0.0009444571  !KbT at 298 K
 
 !TEST
@@ -613,8 +609,6 @@ print *, "BOLTZAMNN", KbT
                       sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
 !ENDTEST
 
-print *, "FORCES_TEST", my_forces_adiab
-print *, "FORCE_TEST_ACTIVE", sh_env%forces_active_state
 
 !test
 !sh_env%forces_active_state = 0.0D0
@@ -628,7 +622,6 @@ print *, "FORCE_TEST_ACTIVE", sh_env%forces_active_state
                if (edc_deco_time) then
                       tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param+((E_0_param/K_tot)*deg_of_freedom))
-print *, "tau", tau(i)
                else 
                      call calcforces(i ,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
                           sh_env%NN, sh_env%atoms, &
@@ -636,7 +629,6 @@ print *, "tau", tau(i)
                          sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
 !test
 !my_forces_adiab = 0.0D0
-print *, "EXCITED_STATE_FORCES", my_forces_adiab
                      tau = 0.0D0
                      DO iparticle_kind= 1, my_nparticle_kind
                             atomic_kind => my_atomic_kind_set(iparticle_kind)
@@ -645,14 +637,12 @@ print *, "EXCITED_STATE_FORCES", my_forces_adiab
                             DO iparticle_local= 1, nparticle_local
                                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                                alpha = 6*mass*Temp                      
-print *, "alpha", alpha
                                tau(i) = tau(i) + &
                                (sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
                                 (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)))))/(2*sqrt(alpha))
                             END DO
                      END DO    
                tau(i) = 1/tau(i) 
-print *, "tau_forces", tau(i)
                end if
                 
 
@@ -674,7 +664,6 @@ print *, "tau_forces", tau(i)
            end if
     end do
 
-print *, "tau_vector", tau
     sh_print_env%tau_deco = tau
 !transfor the active diabatic state into the active adiabatic state
     pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
@@ -754,10 +743,8 @@ print *, "tau_vector", tau
            qsys_only = .FALSE.
            if (PRESENT(ext_pres)) then 
                qsys_only = .TRUE.
-print *, "qysy_only", qsys_only
            else 
                qsys_only = .FALSE.
-print *, "qsys_only", qsys_only
            end if
      
            K_tot = 0.0D0
@@ -1133,7 +1120,6 @@ print *, "qsys_only", qsys_only
      !used to give correct commands to ZGEMX subroutines later
      zgemm_type = 'N'
 
-print *, "class_forbidden_hop", class_forbidden_hop
 !COMMENT: INDENTATION
              Hdiff = (deltatE/deltatMD)*(aom_env%H_tp - aom_env%H_t)
              Sttdiff = (deltatE/deltatMD)*(aom_env%Stptp - aom_env%Stt)
@@ -1243,7 +1229,6 @@ print *, "class_forbidden_hop", class_forbidden_hop
 !                    CALL adiabaticity(-AIMAG(H_1), mat, U_t1, Eig_val_t1, .false.)
                     CALL calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, & 
                                                        Stmtm_int, deltatMD, NACE)
-print *, "NACE2", NACE
 
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
@@ -1260,7 +1245,6 @@ print *, "NACE2", NACE
 !                    CALL adiabaticity(-AIMAG(H_2), mat, U_t2, Eig_val_t2, .false.)
                     call calc_diabatic_nace(mat, interm_hamil(dim_,t2,:,:), Stt_int, Sttp_int, Sttm_int, Stptp_int, &
                                                      Stmtm_int, deltatMD, NACE)
-print *, "NACE3", NACE
                     CALL calc_modified_diab_nace(class_forbidden_hop, NACE, & 
                           udot_matrices, interm_umatrix, modified_diab_nace, mat, active_state, t2, dim_)
 
@@ -1334,48 +1318,52 @@ print *, "NACE3", NACE
                     ctout = cmplx(0.0D0, 0.0D0,dp)
 
                     times = DBLE(itimes) + (t2-1)*1/DBLE(ELsteps)
-!!TEST!
 
-call DGEMM('N', 'N', mat, mat, mat, 1.0D0, interm_umatrix(dim_,t2,:,:), mat, modified_diab_nace, mat, 0.0D0, Sterm1, mat)
-call DGEMM('N', 'N', mat, mat, mat, 1.0D0, Sterm1, mat, interm_umatrix(dim_,t2,:,:), mat, 0.0D0, UDU, mat)
 
-print *, "UDU", UDU
-call DGEMM('N', 'N', mat, mat, mat, 1.0D0, interm_umatrix(dim_,t2,:,:), mat, NACE, mat, 0.0D0, Sterm2, mat)
-call DGEMM('N', 'N', mat, mat, mat, 1.0D0, Sterm2, mat, interm_umatrix(dim_,t2,:,:), mat, 0.0D0, UDU_old_nace, mat)
-print *, "UDU_old_nace", UDU_old_nace
+!!TEST> TO COMPARE OLD AND NEW NACE!
 
-call DGEMM('N', 'N', mat, mat, mat, 1.0D0, interm_umatrix(dim_,t2,:,:), mat, & 
-                                         udot_matrices(dim_,t2,:,:), mat, 0.0D0, UU, mat)
+!call DGEMM('N', 'N', mat, mat, mat, 1.0D0, interm_umatrix(dim_,t2,:,:), mat, modified_diab_nace, mat, 0.0D0, Sterm1, mat)
+!call DGEMM('N', 'N', mat, mat, mat, 1.0D0, Sterm1, mat, interm_umatrix(dim_,t2,:,:), mat, 0.0D0, UDU, mat)
 
-print *, "UU", UU
-print *, "NEW_NACE_IN_ADIAB", UDU+UU
-print *, "OLD_NACE_IN_ADIAB", UDU_old_nace+UU
+!print *, "UDU", UDU
+!call DGEMM('N', 'N', mat, mat, mat, 1.0D0, interm_umatrix(dim_,t2,:,:), mat, NACE, mat, 0.0D0, Sterm2, mat)
+!call DGEMM('N', 'N', mat, mat, mat, 1.0D0, Sterm2, mat, interm_umatrix(dim_,t2,:,:), mat, 0.0D0, UDU_old_nace, mat)
+!print *, "UDU_old_nace", UDU_old_nace
 
-!do i=1,mat
-!  do j=1,mat
-!    Sterm2(i,j)=0
-!    do k=1,mat
-!    Sterm2(i,j) = Sterm2(i,j) + interm_umatrix(dim_,t2,i,k)*modified_diab_nace(k,j)
-!    end do
-!  end do
+!call DGEMM('N', 'N', mat, mat, mat, 1.0D0, interm_umatrix(dim_,t2,:,:), mat, & 
+!                                         udot_matrices(dim_,t2,:,:), mat, 0.0D0, UU, mat)
+
+!print *, "UU", UU
+!print *, "NEW_NACE_IN_ADIAB", UDU+UU
+!print *, "OLD_NACE_IN_ADIAB", UDU_old_nace+UU
+
+!!do i=1,mat
+!!  do j=1,mat
+!!    Sterm2(i,j)=0
+!!    do k=1,mat
+!!    Sterm2(i,j) = Sterm2(i,j) + interm_umatrix(dim_,t2,i,k)*modified_diab_nace(k,j)
+!!    end do
+!!  end do
+!!end do
+
+!!print *, "Sterm2", Sterm2
+
+!do i = 1,mat
+!   pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
+!   ctin_adiab(i) = cmplx(0.0D0, 0.0D0,dp)
+!   do j = 1, mat
+
+!       ctin_adiab(i) = ctin_adiab(i) + cmplx(interm_umatrix(dim_,t2,j,i), 0.0D0,dp)*ctin(j)
+!   end do
+!   pop(i) = ctin_adiab(i)*conjg(ctin_adiab(i))
 !end do
 
-!print *, "Sterm2", Sterm2
+!print *, "ct_ADIAB", ctin_adiab
+!print *, "ct_SECOND_STATE", ctin_adiab(2)
+!print *, "POP_SECOND", pop(2)
+!print *, "POP_SECOND_REAL", REAL(pop(2))
 
-do i = 1,mat
-   pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
-   ctin_adiab(i) = cmplx(0.0D0, 0.0D0,dp)
-   do j = 1, mat
-
-       ctin_adiab(i) = ctin_adiab(i) + cmplx(interm_umatrix(dim_,t2,j,i), 0.0D0,dp)*ctin(j)
-   end do
-   pop(i) = ctin_adiab(i)*conjg(ctin_adiab(i))
-end do
-
-print *, "ct_ADIAB", ctin_adiab
-print *, "ct_SECOND_STATE", ctin_adiab(2)
-print *, "POP_SECOND", pop(2)
-print *, "POP_SECOND_REAL", REAL(pop(2))
+!END_TEST
 
                     CALL adiab_print_nace(adiab_section, NACE, nadiab, norbitals, itimes, deltatMD, times)
                     CALL adiab_print_coeff(adiab_section, ctin,nadiab, norbitals,itimes, deltatMD, &
@@ -1416,7 +1404,7 @@ print *, "POP_SECOND_REAL", REAL(pop(2))
 
      modified_diab_nace = (modified_diab_nace - TRANSPOSE(modified_diab_nace)) / 2
 
-print *, "modified_diab_nace_MOD", modified_diab_nace
+!print *, "modified_diab_nace_MOD", modified_diab_nace
 
      Ytot = interm_hamil(dim_,t2,:,:) - modified_diab_nace
 
@@ -1483,7 +1471,7 @@ print *, "modified_diab_nace_MOD", modified_diab_nace
          end do
      end do    
   
-print *, "modified_ad_nace", modified_ad_nace
+!print *, "modified_ad_nace", modified_ad_nace
       
      !rotated_ad_nace = modified_ad_nace
 
@@ -1503,16 +1491,16 @@ print *, "modified_ad_nace", modified_ad_nace
        end do
    end do
 
-print *, "ROTATED_ARRAY", rotated_ad_nace
+!print *, "ROTATED_ARRAY", rotated_ad_nace
      !> CALCULATION OF THE NEW MODIFIED DIABATIC NACV
 !NB:THERE WAS A PROBLEM WITH THE SIGN IN THE CORRECTION I JUST CHANGE THIS SIGN
 !HERE IN THE modified_diab_nace, BUT I STILL HAVE TO FIND WHERE THE EFFECTIVE
-!ERROR IS
+!ERROR IN SIGN IS
 !     modified_diab_nace = rotated_ad_nace + NACE 
      modified_diab_nace = NACE - rotated_ad_nace
 
-print *, "NACE", NACE
-print *, "modified_diab_nace_NEW", modified_diab_nace
+!print *, "NACE", NACE
+!print *, "modified_diab_nace_NEW", modified_diab_nace
    
  
  
