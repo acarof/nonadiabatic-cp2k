@@ -328,13 +328,15 @@ CONTAINS
      CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
 
+print *, "DELTAE_ADIAB", (E_tp(2)-E_tp(1))
      !> ADIABATIC NACE CALCULATION
 !COMMENT: do we really need to calculate the full NACE matrix? I guess one only
-!need ADIAB_NACE(active_state, :) ---> SAM: no we need the all matrix to the
+!need ADIAB_NACE(active_state, :) ---> SAM: no we need the all matrix in the
 !adiabatic prograpagion (even if we never use it is a feature of the code)
 
      CALL calc_adiab_nace(aom_env%C_t, C_tp, deltatMD, aom_env)
      
+print *, "ADIAB_NACE", aom_env%adiab_nace_tp
      !TEST
      !CALL make_adiabX(mol, E_t, NACE_ad_t, X)
      !ENDTEST

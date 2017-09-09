@@ -575,7 +575,7 @@ print *, "K_TOT_BEFORE_DAMP", K_tot
 !    allocate(numerator(mol))
     allocate(sh_print_env%tau_deco(mol))
 
-
+print *, "DECOHERENCE_IS_HEREEEE"
     !>number of degrees of freedom intensive EDC
     deg_of_freedom = (sh_env%active_atoms*3-6)
 

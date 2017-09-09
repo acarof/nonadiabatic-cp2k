@@ -535,6 +535,8 @@ subroutine modified_surfacehop(C1, C2, deltat, old_state, &
                 else 
                    print *, "FALSE"
                    b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
+print *, "COFF_COEFF", ak(i)
+print *, "NUM_PROB", b(i)
                 end if
         end do
 
