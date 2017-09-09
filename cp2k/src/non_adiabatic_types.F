@@ -38,6 +38,7 @@ IMPLICIT NONE
      logical                                    ::  analytics 
      LOGICAL, DIMENSION(:), POINTER             :: ext_pres
      REAL(kind=dp), DIMENSION(:,:),POINTER      :: exact_forces, forces_active_state
+          REAL(KIND=dp), dimension(:,:), POINTER      :: adiab_nace
      INTEGER, DIMENSION(:,:), POINTER           :: NN
      COMPLEX(KIND=dp), DIMENSION(:,:), POINTER  ::  H_tp
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER   :: F

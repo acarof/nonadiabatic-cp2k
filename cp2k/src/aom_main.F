@@ -201,6 +201,8 @@ CONTAINS
       !real(kind=dp), allocatable :: PC_rvecs(:,:)
       !integer :: o
       LOGICAL    :: do_random
+!     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: var, var2
+!     integer :: i,j
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -259,6 +261,7 @@ CONTAINS
      ALLOCATE(sh_env%cttm(mat))
      ALLOCATE(sh_env%ctt(mat))
      ALLOCATE(sh_env%ctin(mat))
+     ALLOCATE(sh_env%adiab_nace(mat,mat))
      !ALLOCATE(total_pot_array(mat)) 
      !ALLOCATE(total_kin_array(mat)) 
      !ALLOCATE(energy_conservation(mat)) 
@@ -334,6 +337,25 @@ CONTAINS
 !adiabatic prograpagion (even if we never use it is a feature of the code)
 
      CALL calc_adiab_nace(aom_env%C_t, C_tp, deltatMD, aom_env)
+     sh_env%adiab_nace = aom_env%adiab_nace_tp 
+print *, "aom_env%adiab_nace_tp(i,j)", sh_env%adiab_nace 
+
+!allocate(var(mat))
+!do i = 1,mat
+!    if (i .eq. active_state) then
+!        do j =1, mat
+!            var(j) = aom_env%adiab_nace_tp(i,j)
+!        end do
+!    end if
+!end do
+
+!print *, "var", var
+
+!allocate(var2(mat))
+!var2(:) = aom_env%adiab_nace_tp(active_state,:)
+
+!print *, "var2", var2
+
      
      !TEST
      !CALL make_adiabX(mol, E_t, NACE_ad_t, X)

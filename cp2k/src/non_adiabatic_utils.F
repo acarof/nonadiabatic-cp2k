@@ -551,12 +551,14 @@ END SUBROUTINE classically_forbidden_hops
    REAL(kind=dp)                            :: mass
    INTEGER                                  :: iparticle_kind
    INTEGER                                  :: nparticle_local
+   REAL(kind=dp)                            :: mixing_threshold
    INTEGER                                  :: iparticle_local, iparticle
    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
                                                         
     INTEGER  :: j,i, deg_of_freedom
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau!, tau_forces
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: adiab_nace_vector
     REAL(KIND=dp)      :: sum, KbT, Temp, alpha 
     COMPLEX(KIND=dp), dimension(:), allocatable :: ct
     COMPLEX(KIND=dp), dimension(:), allocatable :: pop
@@ -601,17 +603,24 @@ END SUBROUTINE classically_forbidden_hops
 !instead of using the exact boltzmann factor, at the moment the code uses Temp =
 !298 K, maybe this point should be modified in future
     Temp = 0.0009444571  !KbT at 298 K
+    mixing_threshold = 2.0D0
+
 
 !TEST
-    call calcforces(sh_env%active_state,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
-                      sh_env%NN, sh_env%atoms, &
-                      sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
-                      sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
+!    call calcforces(sh_env%active_state,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
+!                      sh_env%NN, sh_env%atoms, &
+!                      sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
+!                      sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
 !ENDTEST
 
 
 !test
-!sh_env%forces_active_state = 0.0D0
+!sh_env%forces_active_state = 0.0D0 
+
+print *, "aom_env%adiab_nace_tp_INSIDE_SUBROUTINE", sh_env%adiab_nace
+    allocate(adiab_nace_vector(mol))
+    adiab_nace_vector(:) = sh_env%adiab_nace(sh_env%active_state,:)
+print *, "adiab_nace_vector", adiab_nace_vector
 
 
     do i=1,mol 
@@ -619,30 +628,35 @@ END SUBROUTINE classically_forbidden_hops
                pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
                ct(i) = cmplx(0.0D0, 0.0D0,dp) 
                !> if statement to choose the decoherence time
-               if (edc_deco_time) then
+               if (edc_deco_time) then 
                       tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param+((E_0_param/K_tot)*deg_of_freedom))
                else 
-                     call calcforces(i ,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
-                          sh_env%NN, sh_env%atoms, &
-                          sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
-                         sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
-!test
-!my_forces_adiab = 0.0D0
-                     tau = 0.0D0
-                     DO iparticle_kind= 1, my_nparticle_kind
-                            atomic_kind => my_atomic_kind_set(iparticle_kind)
-                            CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-                            nparticle_local = local_particles%n_el(iparticle_kind)
-                            DO iparticle_local= 1, nparticle_local
-                               iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                               alpha = 6*mass*Temp                      
-                               tau(i) = tau(i) + &
-                               (sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
-                                (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)))))/(2*sqrt(alpha))
-                            END DO
-                     END DO    
-               tau(i) = 1/tau(i) 
+                     if ((abs(adiab_nace_vector(i))/(abs(sh_env%E_tp(i)-sh_env%E_tp(sh_env%active_state)))) & 
+                                         .ge. mixing_threshold) then
+                         !if there is mixing then we use force otherwise we use !pure dephasing
+                         call calcforces(i ,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
+                              sh_env%NN, sh_env%atoms, &
+                              sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
+                             sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
+                         tau = 0.0D0
+                         DO iparticle_kind= 1, my_nparticle_kind
+                                atomic_kind => my_atomic_kind_set(iparticle_kind)
+                                CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+                                nparticle_local = local_particles%n_el(iparticle_kind)
+                                DO iparticle_local= 1, nparticle_local
+                                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                                   alpha = 6*mass*Temp                      
+                                   tau(i) = tau(i) + &
+                                   (sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
+                                    (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)))))/(2*sqrt(alpha))
+                                END DO
+                         END DO    
+                         tau(i) = 1/tau(i)
+                     else
+print *, "PURE_DEPHA"
+                         tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))
+                     end if
                end if
                 
 
@@ -699,7 +713,7 @@ END SUBROUTINE classically_forbidden_hops
    CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
     
     deallocate(ct) 
-    deallocate(tau)
+    deallocate(tau, adiab_nace_vector)
     deallocate(sh_print_env%tau_deco)
     deallocate(pop)
   END SUBROUTINE wf_damping 
