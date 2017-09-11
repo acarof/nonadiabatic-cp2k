@@ -1089,7 +1089,6 @@ end subroutine adiabaticity
 !COMMENT: calc_hop_nacv and calc_forces could be cleaned massively
 SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmetry, fast, &
                          exF_11, exF_1, exF_2, exF_3)
-        !TYPE(aom_env_type), POINTER                            :: aom_env
         TYPE(aom_env_type)                                       :: aom_env
         REAL(kind=dp), DIMENSION(:,:), INTENT(OUT), ALLOCATABLE  :: hop_nacv
         INTEGER, OPTIONAL                                        :: ext_old_state, ext_new_state
@@ -1693,6 +1692,8 @@ end subroutine calcTDT
              IF (start_c > LEN_TRIM(line_att)) EXIT
           END DO
       END DO
+
+      DEALLOCATE(val)
    END SUBROUTINE read_listcoeff
 
 
@@ -1736,11 +1737,9 @@ end subroutine calcTDT
 
 
    SUBROUTINE simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime, rescale_factor)
-        !TYPE(tmp_variables_type), POINTER        :: tmp
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
         REAL(kind=dp), INTENT(IN)                :: delta_energy
         REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime
-         !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
         REAL(kind=dp), INTENT(OUT)               :: rescale_factor
 
         CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
@@ -1807,6 +1806,8 @@ end subroutine calcTDT
     END DO
     kinetic_energy_prime = 0.5*kinetic_energy_prime
 
+    IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
+    IF (ASSOCIATED(atomic_kind_set)) NULLIFY(atomic_kind_set)
    END SUBROUTINE calc_velocities_prime
 
 
@@ -2036,6 +2037,9 @@ ENDIF
                 CPABORT("There is no method to do the rescaling of the velocities.")
         END SELECT
 
+        !DEALLOCATE(mixed_section, adiab_section, coupling_section, force_env_section)
+        DEALLOCATE(velocities_com)
+
    END SUBROUTINE check_hop_attempt
 
    SUBROUTINE hop_nacv_vel_reversing(nparticle_kind, velocities, forces_old, forces_new, hop_nacv, atomic_kind_set, &
@@ -2127,6 +2131,9 @@ ENDIF
         sh_print_env%product_pd = product_pd
         sh_print_env%product_dfn = product_dfn
         sh_print_env%product_dfo = product_dfo
+
+
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE hop_nacv_vel_reversing
 
 
@@ -2176,6 +2183,7 @@ ENDIF
               ENDIF
            ENDDO
         END DO
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE hop_nacv_vel_rescaling
 
 !  SUBROUTINE cal_delta_energy_nacv(nparticle_kind, velocities, aom_env, atomic_kind_set, &
@@ -2361,6 +2369,7 @@ ENDIF
            delta_energy = B**2 - 4 * A * (  &
                      aom_env%adiab_energies_t(new_state) - &
                      aom_env%adiab_energies_t(old_state))
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE cal_delta_energy_nacv
 
 
@@ -2407,6 +2416,7 @@ ENDIF
            delta_energy = kinetic_energy_prime-( &
                      force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
                      force_env%mixed_env%aom_env%adiab_energies_t(old_state))
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE cal_delta_energy
 
 
@@ -2458,6 +2468,7 @@ ENDIF
            delta_energy = kinetic_energy_qsys-( &
                      force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
                      force_env%mixed_env%aom_env%adiab_energies_t(old_state))
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE cal_delta_ene_QSYS
 
    SUBROUTINE simple_vel_resc_qsys(atomic_kind_set,local_particles, force_env, nparticle_kind, & 
@@ -2536,6 +2547,7 @@ ENDIF
               END DO
            END DO
            print*, "MOMENTUM = ", MOMENTUM
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE total_momentum
          
    SUBROUTINE translate_com(array, keyword_translate, translate_array, &
@@ -2563,7 +2575,7 @@ ENDIF
         REAL(kind=dp), DIMENSION(3)              :: sum_array
         REAL(KIND=dp)                            :: sum_mass
 
-
+        NULLIFY(my_atomic_kind_set, atomic_kind)
         IF (keyword_translate) THEN
            IF (PRESENT(atomic_kinds)) THEN
               my_nparticle_kind = atomic_kinds%n_els
@@ -2601,7 +2613,9 @@ ENDIF
         ELSE
            translate_array = array
         ENDIF 
-
+      
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
+        IF (ASSOCIATED(my_atomic_kind_set)) NULLIFY(my_atomic_kind_set)
    END SUBROUTINE translate_com
 
 
