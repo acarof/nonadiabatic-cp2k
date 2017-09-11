@@ -158,6 +158,8 @@ CONTAINS
      INTEGER    :: input_seed
      TYPE(rng_stream_type), POINTER           :: rng_stream
      LOGICAL                                  :: continue_while
+     CHARACTER(LEN=default_string_length)     :: file_name_s_psigma, file_name_s_ppi
+
 
      !> Number of sites
      mol = nadiab ! CHANGE_AC
@@ -228,7 +230,13 @@ CONTAINS
      allocate(aom_env%adiab_nace_tp(mat,mat))
      ALLOCATE(aom_env%velocities_t(3, natom))
      aom_env%futur_decohere = .FALSE.
-     CALL build_s_tables()
+     CALL section_vals_val_get(coupling_section,"PSIGMA_FILE_NAME",&
+             c_val=file_name_s_psigma)
+     CALL section_vals_val_get(coupling_section,"PPI_FILE_NAME",&
+             c_val=file_name_s_ppi)
+
+     
+     CALL build_s_tables(file_name_s_psigma, file_name_s_ppi)
      allocate(aom_env%elements(c))
      !allocate(aom_env%adiab_nace_t(mat,mat))
 
