@@ -1072,7 +1072,6 @@ end subroutine adiabaticity
 !COMMENT: calc_hop_nacv and calc_forces could be cleaned massively
 SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmetry, fast, &
                          exF_11, exF_1, exF_2, exF_3)
-        !TYPE(aom_env_type), POINTER                            :: aom_env
         TYPE(aom_env_type)                                       :: aom_env
         REAL(kind=dp), DIMENSION(:,:), INTENT(OUT), ALLOCATABLE  :: hop_nacv
         INTEGER, OPTIONAL                                        :: ext_old_state, ext_new_state
@@ -1100,11 +1099,9 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
         REAL(KIND=dp), dimension(:), allocatable ::   Sdiag
         REAL(KIND=dp), dimension(:,:), allocatable :: S, C, T, X, LL, Y
         LOGICAL, dimension(:), allocatable         :: ext_pres
-        REAL(KIND=dp)                              :: contribf1, contribf11, contribf2, contribf3
-        REAL(KIND=dp)                              :: normf1, normf2, normf22, normf3, normf11, normnacv
         LOGICAL                                    :: my_fast
-        REAL(KIND = dp)                            :: error_f1, error_f11, error_f2, error_f22, error_f3
-        REAL(KIND = dp)                            :: convert_nacv
+        REAL(KIND=dp) :: total_norm, error
+        REAL(KIND=dp)                           :: convert_nacv 
 
         mat    = SIZE(aom_env%Stptp, 1)
         natom  = SIZE(aom_env%diabatic_forces, 2)
@@ -1165,7 +1162,7 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
            diff_energy = 1 / (E_new_state - E_old_state)
         ENDIF  
 
-    IF (.NOT.my_fast) THEN
+     IF (.NOT.my_fast) THEN
         T = S
         CALL matinvsqrt(mat, .FALSE., T)
         X = matmul(T, C)
@@ -1174,30 +1171,6 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
 
 !CALCULATE Y = L^{dagger} U
         Y = matmul( transpose(LL), C)
-
-!CALCULATE GRADIENT OF S: my_DP
-        !aom_iatom = 0
-        !do iatom=1, natom
-        !   if (ext_pres(iatom)) then
-        !      aom_iatom = aom_iatom +1
-        !      do d=1,3
-        !          my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
-        !       enddo
-        !   else 
-        !      my_DP(:,:,iatom,:) = 0.0D0
-        !   endif
-        !enddo
-        !CPASSERT(aom_iatom.EQ.SIZE(nacv,4))
-
-        !do i=1,mat
-        !        do j=1,mat
-        !                if (j > i) then
-        !                        my_DP(i,j,:,:) = my_DP(i,j,:,:) + my_DP(j,i,:,:)
-        !                else
-        !                        my_DP(i,j,:,:) = my_DP(j,i,:,:)
-        !                end if
-        !        end do
-        !end do
 
         !CALCULATE W'
         do d=1,3
@@ -1224,41 +1197,6 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
               ENDDO
            ENDDO
         ENDDO          
-
-        !i is over each site
-        !do i=1,mat
-        !        do j=1,mat
-        !                do k=1, natom
-        !                        do d=1,3
-        !                                if (NN(i,j) == 1) then
-        !                                        if (i == j) then
-        !                                                DH(i,j,k,d) = Fin(d,k,i)
-        !                                        else
-!> Correct the nacv
-        !                                                DH(i,j,k,d) = - scaling*my_DP(i,j,k,d)/cbar
-        !                                        end if
-        !                                else
-        !                                        DH(i,j,k,d) = 0.0D0
-        !                                end if
-        !                        end do
-        !                end do
-        !        end do
-        !end do
-     !ELSE
-     !   DH = 0.0D0
-     !   do i=1,mat
-     !           do j=1,mat
-     !                   do k=1, natom
-     !                           do d=1,3
-     !                                   if (NN(i,j) == 1) then
-     !                                           if (i == j) then
-     !                                                   DH(i,j,k,d) = Fin(d,k,i)
-     !                                           end if
-     !                                   end if
-     !                           end do
-     !                   end do
-     !           end do
-     !   end do
      ENDIF
 
 
@@ -1312,82 +1250,55 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
            IF (PRESENT(exF_3))  exF_3  = F_3
            IF (PRESENT(exF_1)) THEN
               F_22 = F_2 + F_3
-              DO j=1, natom
-                 normf1 = 0
-                 normf11 = 0
-                 normf22 = 0
-                 normnacv = 0
-                 contribf1 = 0
-                 contribf11 = 0
-                 contribf2 = 0
-                 contribf3 = 0
-                 DO d=1,3
-                    IF ( mod(j,3).eq.1 ) THEN
-                    print*, "NACVTOTCARBON = ", d, j, hop_nacv(d,j)
-                    print*, "NACVF1CARBON   = ", d, j, F_1(d,j)
-                    print*, "NACVFF1CARBON   = ", d, j, F_1(d,j) + F_11(d,j)
-print*, "ERRORF1CARBON", SQRT( ( hop_nacv(d,j) - F_1(d,j) )**2 / hop_nacv(d,j)**2 )
-print*, "ERRORFF1CARBON", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / hop_nacv(d,j)**2 )
-                    ELSE 
-                    print*, "NACVTOTHYDROGEN = ", d, j, hop_nacv(d,j)
-                    print*, "NACVF1HYDROGEN   = ", d, j, F_1(d,j)
-                    print*, "NACVFF1HYDROGEN   = ", d, j, F_1(d,j) + F_11(d,j)
-print*, "ERRORF1HYRDOGEN", SQRT( ( hop_nacv(d,j) - F_1(d,j) )**2 /  hop_nacv(d,j)**2 )
-print*, "ERRORFF1HYDROGEN", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / hop_nacv(d,j)**2 )
-                    ENDIF 
-                    !print*, "NACVF11  = ", d, j, F_11(d,j), symmetry
-                    !print*, "NACVF2   = ", d, j, F_2(d,j), symmetry
-                    !print*, "NACVF3   = ", d, j, F_3(d,j), symmetry
-                    !print*, "NACVFtot = ", d, j, hop_nacv(d,j), symmetry
-                    contribf1 = contribf1 + F_1(d,j) * hop_nacv(d,j)
-                    normf1 = normf1 + F_1(d,j)*F_1(d,j)
-                    contribf11 = contribf11 + F_11(d,j) * hop_nacv(d,j)
-                    normf11 = normf11 + F_11(d,j)*F_11(d,j)
-                    contribf2 = contribf2 + F_2(d,j) * hop_nacv(d,j)
-                    normf2 = normf2 + F_2(d,j)*F_2(d,j)
-                    normf22 = normf22 + F_22(d,j)*F_22(d,j)
-                    contribf3 = contribf3 + F_3(d,j) * hop_nacv(d,j)
-                    normf3 = normf3 + F_3(d,j)*F_3(d,j)
-                    normnacv = normnacv + hop_nacv(d,j)*hop_nacv(d,j)
+              total_norm = 0.0D0
+              error = 0.0D0
+              DO j=1, 12
+                 !DO d=1,3
+                 DO d=1, 3
+                       error = error + ( hop_nacv(d,j) - (F_1(d,j) + F_11(d,j)))**2 
+                       total_norm = total_norm +  (hop_nacv(d,j))**2
+                       print*, "hop_nacv", hop_nacv(d,j)
+                       print*, "d_1_term", F_1(d,j) + F_11(d,j)
+                       print*, "total_norm = ", total_norm
+                       print*, "error = ", error
                  ENDDO
-                 normnacv = SQRT(normnacv)
-                 normf1 = SQRT(normf1)
-                 normf11 = SQRT(normf11)
-                 normf2 = SQRT(normf2)
-                 normf22 = SQRT(normf22)
-                 normf3 = SQRT(normf3)
-                 error_f1 = SUM((hop_nacv(:,j)/normnacv - F_1(:,j)/normf1)**2) / 3
-                 !print*, "ERRORF1 ATOM", j, error_f1
-                 error_f1 = SUM((hop_nacv(:,j) - F_1(:,j))**2) / 3
-                 !print*, "ERRORTOTF1 ATOM", j, error_f1
-                 error_f1 = SUM((hop_nacv(:,j) - (F_1(:,j) + F_11(:,j)))**2) / 3
-                 !print*, "ERRORTOTFF1 ATOM", j, error_f1
-                 error_f11 = SUM((hop_nacv(:,j)/normnacv - F_11(:,j)/normf11)**2)  /3
-                 error_f22 = SUM((hop_nacv(:,j)/normnacv - F_22(:,j)/normf22)**2)  /3
-                 error_f2 = SUM((hop_nacv(:,j)/normnacv - F_2(:,j)/normf2)**2)     /3
-                 error_f3 = SUM((hop_nacv(:,j)/normnacv - F_3(:,j)/normf3)**2)     /3
-                 !print*, "ERRORF11 ATOM", j, error_f11
-                 !print*, "ERRORF22 ATOM", j, error_f22
-                 !print*, "ERRORF2 ATOM", j, error_f2
-                 !print*, "ERRORF3 ATOM", j, error_f3
-                 !print*, "CONTRIBF1 = ", contribf1 / normnacv,  "ATOM", j
-                 !print*, "CONTRIBF11 = ", contribf11 / normnacv, "ATOM", j
-                 !print*, "CONTRIBF2 = ", contribf2 / normnacv, "ATOM", j
-                 !print*, "CONTRIBF3 = ", contribf3 / normnacv, "ATOM", j
+                 IF (( mod(j,3).eq.1 ).AND. (j < 12)) THEN
+                       print*, "NACVTOTCARBON = ", j, NORM2(hop_nacv(:,j))
+                       print*, "NACVFF1CARBON   = ", j, NORM2(F_1(:,j) + F_11(:,j))
+                 ELSE 
+                       print*, "NACVTOTHYDROGEN = ", j, NORM2(hop_nacv(:,j))
+                       print*, "NACVFF1HYDROGEN   = ", j, NORM2(F_1(:,j) + F_11(:,j))
+                 ENDIF 
               ENDDO
+              print*, "TOTALNORM = ", sqrt(total_norm)
+              print*, "ERROR =  ", sqrt(error/total_norm)
            ENDIF
         ELSE
+           num_mol = 0
            do d=1,3
-                      do j=1,natom
+              num_j = 0
+              do j=1,natom
                  F_1(d,j) = 0.0D0
+                 F_11(d,j) = 0.0D0
+                 IF (ext_pres(j)) THEN
+                    num_j   = num_j + 1
+                    num_mol = int((num_j-1)/atoms) + 1 
+                 ENDIF
                  do i=1,mat
                     !F_1(d,j) = F_1(d,j) + C(i,old_state)*DH(i,i,j,d)*C(i,new_state)*diff_energy
                     F_1(d,j) = F_1(d,j) + C(i,old_state)*Fin(d,j,i)*C(i,new_state)*diff_energy
+                    IF (ext_pres(j)) THEN
+                       IF (i.ne.num_mol) THEN
+                         F_11(d,j) = F_11(d,j) + diff_energy * convert_nacv*nacv(d, i, num_j) * (              &
+                                                 C(num_mol, new_state) * C(i, old_state) +   &
+                                                 C(num_mol, old_state) * C(i,new_state) )
+                       ENDIF
+                    ENDIF
                  ENDDO
               ENDDO
            ENDDO 
 
-           hop_nacv = F_1 
+           hop_nacv = F_1 + F_11 
         ENDIF
  
         deallocate(T)
@@ -1399,6 +1310,19 @@ print*, "ERRORFF1HYDROGEN", SQRT( ( hop_nacv(d,j) - (F_1(d,j)+F_11(d,j) ))**2 / 
         deallocate(F_22)
         deallocate(F_3)
 END SUBROUTINE calc_hop_nacv
+
+FUNCTION NORM2(array) RESULT(norm)
+         REAL(kind=dp), dimension(:), INTENT(IN) :: array
+        
+         INTEGER       :: i
+         REAL(KIND=dp) :: norm
+ 
+         norm = 0
+         DO i=1, SIZE(array)
+            norm = norm + array(i)*array(i)
+         ENDDO
+         norm = SQRT(norm)
+END FUNCTION NORM2
 
 subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, forces_adiab, & 
                   ext_pres, analytics,  exact_forces)
@@ -1751,6 +1675,8 @@ end subroutine calcTDT
              IF (start_c > LEN_TRIM(line_att)) EXIT
           END DO
       END DO
+
+      DEALLOCATE(val)
    END SUBROUTINE read_listcoeff
 
 
@@ -1794,11 +1720,9 @@ end subroutine calcTDT
 
 
    SUBROUTINE simple_vel_rescaling(velocities, delta_energy, kinetic_energy_prime, rescale_factor)
-        !TYPE(tmp_variables_type), POINTER        :: tmp
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
         REAL(kind=dp), INTENT(IN)                :: delta_energy
         REAL(kind=dp), INTENT(IN)                :: kinetic_energy_prime
-         !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
         REAL(kind=dp), INTENT(OUT)               :: rescale_factor
 
         CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
@@ -1865,6 +1789,8 @@ end subroutine calcTDT
     END DO
     kinetic_energy_prime = 0.5*kinetic_energy_prime
 
+    IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
+    IF (ASSOCIATED(atomic_kind_set)) NULLIFY(atomic_kind_set)
    END SUBROUTINE calc_velocities_prime
 
 
@@ -1978,7 +1904,7 @@ end subroutine calcTDT
 
         CASE("NACV")
            CALL section_vals_val_get(coupling_section,"METHOD_ADIABATIC_NACV",c_val=nacv_keyword)
-           CALL cal_delta_energy(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
+           CALL cal_delta_ene_QSYS(nparticle_kind, velocities_com, force_env, atomic_kind_set, &
                                  local_particles, delta_energy, kinetic_energy_prime)
            sh_print_env%kinetic_energy   = kinetic_energy_prime
            sh_print_env%old_state        = force_env%mixed_env%aom_env%active_state
@@ -2094,6 +2020,9 @@ ENDIF
                 CPABORT("There is no method to do the rescaling of the velocities.")
         END SELECT
 
+        !DEALLOCATE(mixed_section, adiab_section, coupling_section, force_env_section)
+        DEALLOCATE(velocities_com)
+
    END SUBROUTINE check_hop_attempt
 
    SUBROUTINE hop_nacv_vel_reversing(nparticle_kind, velocities, forces_old, forces_new, hop_nacv, atomic_kind_set, &
@@ -2186,6 +2115,9 @@ print *, "REVERSAL_HERE"
         sh_print_env%product_pd = product_pd
         sh_print_env%product_dfn = product_dfn
         sh_print_env%product_dfo = product_dfo
+
+
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE hop_nacv_vel_reversing
 
 
@@ -2235,6 +2167,7 @@ print *, "REVERSAL_HERE"
               ENDIF
            ENDDO
         END DO
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE hop_nacv_vel_rescaling
 
 !  SUBROUTINE cal_delta_energy_nacv(nparticle_kind, velocities, aom_env, atomic_kind_set, &
@@ -2420,6 +2353,7 @@ print *, "REVERSAL_HERE"
            delta_energy = B**2 - 4 * A * (  &
                      aom_env%adiab_energies_t(new_state) - &
                      aom_env%adiab_energies_t(old_state))
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE cal_delta_energy_nacv
 
 
@@ -2466,6 +2400,7 @@ print *, "REVERSAL_HERE"
            delta_energy = kinetic_energy_prime-( &
                      force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
                      force_env%mixed_env%aom_env%adiab_energies_t(old_state))
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE cal_delta_energy
 
 
@@ -2518,6 +2453,7 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
            delta_energy = kinetic_energy_qsys-( &
                      force_env%mixed_env%aom_env%adiab_energies_t(new_state) - &
                      force_env%mixed_env%aom_env%adiab_energies_t(old_state))
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE cal_delta_ene_QSYS
 
    SUBROUTINE simple_vel_resc_qsys(atomic_kind_set,local_particles, force_env, nparticle_kind, & 
@@ -2596,6 +2532,7 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
               END DO
            END DO
            print*, "MOMENTUM = ", MOMENTUM
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE total_momentum
          
    SUBROUTINE translate_com(array, keyword_translate, translate_array, &
@@ -2623,7 +2560,7 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
         REAL(kind=dp), DIMENSION(3)              :: sum_array
         REAL(KIND=dp)                            :: sum_mass
 
-
+        NULLIFY(my_atomic_kind_set, atomic_kind)
         IF (keyword_translate) THEN
            IF (PRESENT(atomic_kinds)) THEN
               my_nparticle_kind = atomic_kinds%n_els
@@ -2632,7 +2569,6 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
               IF ((PRESENT(nparticle_kind)).AND.(PRESENT(atomic_kind_set))) THEN
                  my_nparticle_kind = nparticle_kind
                  my_atomic_kind_set => atomic_kind_set
-print*, "HERE"
               ENDIF
            ENDIF
            sum_array = 0.0D0
@@ -2662,7 +2598,9 @@ print*, "HERE"
         ELSE
            translate_array = array
         ENDIF 
-
+      
+        IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
+        IF (ASSOCIATED(my_atomic_kind_set)) NULLIFY(my_atomic_kind_set)
    END SUBROUTINE translate_com
 
 

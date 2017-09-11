@@ -104,6 +104,8 @@
 			REPRESENTATION                        DIABATIC_BASIS
 			RK_PROPAGATION			      DIABATIC_RK	
                         &AOM
+		             PSIGMA_FILE_NAME                 ../topologies/S_psigma.txt
+			     PPI_FILE_NAME                    ../topologies/S_ppi.txt
                              NUMBER_DIABATIC_STATES                3
                              NUMBER_ATOMS_PER_SITE                 6
                              NUMBER_ORBITALS                       1

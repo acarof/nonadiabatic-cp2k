@@ -158,6 +158,8 @@ CONTAINS
      INTEGER    :: input_seed
      TYPE(rng_stream_type), POINTER           :: rng_stream
      LOGICAL                                  :: continue_while
+     CHARACTER(LEN=default_string_length)     :: file_name_s_psigma, file_name_s_ppi
+
 
      !> Number of sites
      mol = nadiab ! CHANGE_AC
@@ -228,7 +230,13 @@ CONTAINS
      allocate(aom_env%adiab_nace_tp(mat,mat))
      ALLOCATE(aom_env%velocities_t(3, natom))
      aom_env%futur_decohere = .FALSE.
-     CALL build_s_tables()
+     CALL section_vals_val_get(coupling_section,"PSIGMA_FILE_NAME",&
+             c_val=file_name_s_psigma)
+     CALL section_vals_val_get(coupling_section,"PPI_FILE_NAME",&
+             c_val=file_name_s_ppi)
+
+     
+     CALL build_s_tables(file_name_s_psigma, file_name_s_ppi)
      allocate(aom_env%elements(c))
      !allocate(aom_env%adiab_nace_t(mat,mat))
 
@@ -288,6 +296,8 @@ CONTAINS
      ALLOCATE(Atp(4,aom_atoms))
      Atp(2:4,1:aom_atoms) = crds(1:3,1:aom_atoms)
      call connect_list2(Atp(2:4,:), aom_env%atomlist, aom_env%connlist1, aom_env%connlist2, cutoff_connect)
+
+     DEALLOCATE(rng_stream)
   END SUBROUTINE create_aom_env
 
   SUBROUTINE propagate_aom_namd_first_step(nadiab, aom_atoms, norbitals, MDtimestep, &
@@ -364,6 +374,9 @@ CONTAINS
      INTEGER                                    :: nparticle_kind
      REAL(KIND=dp), dimension(:), allocatable    :: energy_conservation
      INTEGER, dimension(:), allocatable          :: class_forbidden_hop_tp
+
+
+     NULLIFY(my_forces_adiab, positions_com_tp, velocities_com_tp)
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -612,9 +625,9 @@ CONTAINS
      nacv = cbar*nacv
      CALL adiabaticity(-AIMAG(H_tp), mat, C_tp, E_tp, .true., sh_env)
      aom_env%E_t = E_tp
-print *, "aom_env%E_t", aom_env%E_t
+!print *, "aom_env%E_t", aom_env%E_t
      aom_env%C_t = C_tp
-print *, "aom_env%C_t", aom_env%C_t
+!print *, "aom_env%C_t", aom_env%C_t
      sh_env%E_tp = E_tp
      aom_env%adiab_energies_t = E_tp
      aom_env%eigenvector_matrix = C_tp
@@ -794,6 +807,10 @@ active_state = 1
     deallocate(nacv, dist)
     deallocate(exact_forces)
     deallocate(F)
+
+    DEALLOCATE(my_forces_adiab)
+    DEALLOCATE(positions_com_tp)
+    DEALLOCATE(velocities_com_tp)
   END SUBROUTINE propagate_aom_namd_first_step
 
   SUBROUTINE nacv_first_ts(aom_env, natom, mat, velocities_com_tp)

@@ -19,6 +19,12 @@ module aom_overlapfinal
                                              dp
   USE parallel_rng_types,              ONLY: next_random_number
   USE aom_types,                       ONLY: aom_env_type
+  USE cp_parser_methods,               ONLY: parser_get_next_line
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_release
+
+
 
 #include "./base/base_uses.f90"
 
@@ -34,6 +40,7 @@ module aom_overlapfinal
 ! _PC_
 
 DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: s_ppi_table, s_psigma_table 
+DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: s_ppi_table2, s_psigma_table2
 REAL(kind=dp), DIMENSION(3) :: s_ppi_table_dims, s_psigma_table_dims
 REAL(kind=dp), PARAMETER :: factorials(13) = (/1.0d0, 1.0d0, 2.0d0, 6.0d0, 24.0d0, &
             & 120.0d0, 720.0d0, 5040.0d0, 40320.0d0, 362880.0d0, 3628800.0d0, 39916800.0d0, 47900160.0d0 /)
@@ -42,26 +49,87 @@ contains
 
 !--------PC added functino to build S lookuptable----------
 
-  subroutine build_s_tables()
+  subroutine build_s_tables(file_name_s_psigma, file_name_s_ppi)
+      CHARACTER(LEN=default_string_length)     :: file_name_s_psigma, file_name_s_ppi  
+      !CHARACTER(len=*), PARAMETER :: routineN = 'build_s_tables', &
+      !   routineP = moduleN//':'//routineN
 
       REAL(kind=dp) :: Bohr
       !INTEGER :: nrows,i
-      INTEGER :: nrows
+      INTEGER :: nrows, i
+      TYPE(cp_parser_type), POINTER            :: parser
+      LOGICAL                                  :: my_end
+ 
+ 
       Bohr = 5.29177E-011
 
-      open(1, file="S_psigma.txt")
-      read(1,*) s_psigma_table_dims
+      !open(1, file="S_psigma.txt")
+      !read(1,*) s_psigma_table_dims
+      !nrows = NINT((s_psigma_table_dims(2)-s_psigma_table_dims(1))/s_psigma_table_dims(3))
+      ! print*, "NROWS", nrows
+      !allocate(s_psigma_table2(nrows))
+      !read(1,*) s_psigma_table2
+
+
+      !open(2, file="S_ppi.txt")
+      !read(2,*) s_ppi_table_dims
+      !nrows = NINT((s_ppi_table_dims(2)-s_ppi_table_dims(1))/s_ppi_table_dims(3))
+      !allocate(s_ppi_table2(nrows))
+      !read(2,*) s_ppi_table2
+
+      NULLIFY (parser)
+      CALL parser_create(parser, file_name_s_psigma)
+      !print*, "HOY"
+      CALL parser_get_next_line(parser,1)
+      !print*, "HOY HOY"
+      READ (parser%input_line, *)  s_psigma_table_dims
       nrows = NINT((s_psigma_table_dims(2)-s_psigma_table_dims(1))/s_psigma_table_dims(3))
-      allocate(s_psigma_table(nrows))
-      read(1,*) s_psigma_table
+      ! print*, "NROWS", nrows
+      allocate(s_psigma_table(nrows)) 
+      i = 1
+      Lookup: DO
+!          print*, "NEXT"
+          CALL parser_get_next_line(parser,1,at_end=my_end)
+!print*, "MY_END", my_end
+          IF (my_end) THEN
+             EXIT Lookup
+          ELSE
+             !print*, parser%input_line
+             READ (parser%input_line,*) s_psigma_table(i)
+             i = i + 1
+          ENDIF
+      END DO Lookup 
+      CALL parser_release(parser)
 
+      !IF (ALL(s_psigma_table.ne.s_psigma_table2)) THEN
+      !   CPABORT("NOT EQUAL")
+      !ELSE
+      !   print*, "S_PSIGMA EQUAL"
+      !ENDIF
 
-      open(2, file="S_ppi.txt")
-      read(2,*) s_ppi_table_dims
+      NULLIFY (parser)
+      CALL parser_create(parser, file_name_s_ppi)
+      CALL parser_get_next_line(parser,1)
+      READ (parser%input_line, *)  s_ppi_table_dims
       nrows = NINT((s_ppi_table_dims(2)-s_ppi_table_dims(1))/s_ppi_table_dims(3))
-      allocate(s_ppi_table(nrows))
-      read(2,*) s_ppi_table
-  
+      allocate(s_ppi_table(nrows)) 
+      i = 1
+      Lookup_sppi: DO
+          CALL parser_get_next_line(parser,1,at_end=my_end)
+          IF (my_end) THEN
+             EXIT Lookup_sppi
+          ELSE
+             READ (parser%input_line,*) s_ppi_table(i)
+             i = i + 1
+          ENDIF
+      END DO Lookup_sppi 
+      CALL parser_release(parser)
+      !IF (ALL(s_ppi_table.ne.s_ppi_table2)) THEN
+      !   CPABORT("NOT EQUAL")
+      !ELSE
+      !   print*, "S_PPI EQUAL"
+      !ENDIF
+
   end subroutine 
 
   subroutine center_of_mass(xyz, mass, com)

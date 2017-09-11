@@ -578,6 +578,12 @@ allocate(sh_env%exact_forces(3,natom))
      !DEALLOCATE(energy_conservation, class_forbidden_hop)
      !DEALLOCATE(total_kin_array, total_pot_array)
      !deallocate(scoefftot, pcoefftot)
+
+     DEALLOCATE(my_forces_adiab)
+     DEALLOCATE(my_forces_adiab_new)
+     DEALLOCATE(positions_com_tp) 
+     DEALLOCATE(velocities_com_tp)
+
      deallocate(ctin)
      deallocate(exact_forces)
     END SUBROUTINE construct_ham_X_SH
