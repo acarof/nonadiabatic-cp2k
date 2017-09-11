@@ -62,6 +62,22 @@ contains
  
       Bohr = 5.29177E-011
 
+      open(1, file="S_psigma.txt")
+      open(1, file=file_name_s_psigma)
+      read(1,*) s_psigma_table_dims
+      nrows = NINT((s_psigma_table_dims(2)-s_psigma_table_dims(1))/s_psigma_table_dims(3))
+       print*, "NROWS"
+      allocate(s_psigma_table(nrows))
+      read(1,*) s_psigma_table
+
+
+      open(2, file="S_ppi.txt")
+      open(2, file=file_name_s_ppi)
+      read(2,*) s_ppi_table_dims
+      nrows = NINT((s_ppi_table_dims(2)-s_ppi_table_dims(1))/s_ppi_table_dims(3))
+      allocate(s_ppi_table(nrows))
+      read(2,*) s_ppi_table
+
       NULLIFY (parser)
       CALL parser_create(parser, file_name_s_psigma)
       print*, "HOY"
@@ -69,6 +85,8 @@ contains
       print*, "HOY HOY"
       READ (parser%input_line, *)  s_psigma_table_dims
       nrows = NINT((s_psigma_table_dims(2)-s_psigma_table_dims(1))/s_psigma_table_dims(3))
+       print*, "NROWS"
+      allocate(s_psigma_table(nrows)) 
       Lookup: DO
           CALL parser_get_next_line(parser,1,at_end=my_end)
           IF (my_end) THEN
@@ -84,6 +102,7 @@ contains
       CALL parser_get_next_line(parser,1)
       READ (parser%input_line, *)  s_ppi_table_dims
       nrows = NINT((s_ppi_table_dims(2)-s_ppi_table_dims(1))/s_ppi_table_dims(3))
+      allocate(s_ppi_table(nrows)) 
       Lookup_sppi: DO
           CALL parser_get_next_line(parser,1,at_end=my_end)
           IF (my_end) THEN
@@ -94,20 +113,6 @@ contains
       END DO Lookup_sppi 
       CALL parser_release(parser)
 
-      !open(1, file="S_psigma.txt")
-      !open(1, file=file_name_s_psigma)
-      !read(1,*) s_psigma_table_dims
-      !nrows = NINT((s_psigma_table_dims(2)-s_psigma_table_dims(1))/s_psigma_table_dims(3))
-      !allocate(s_psigma_table(nrows))
-      !read(1,*) s_psigma_table
-
-
-      !open(2, file="S_ppi.txt")
-      !open(2, file=file_name_s_ppi)
-      !read(2,*) s_ppi_table_dims
-      !nrows = NINT((s_ppi_table_dims(2)-s_ppi_table_dims(1))/s_ppi_table_dims(3))
-      !allocate(s_ppi_table(nrows))
-      !read(2,*) s_ppi_table
   end subroutine 
 
   subroutine center_of_mass(xyz, mass, com)

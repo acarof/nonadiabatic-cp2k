@@ -419,6 +419,19 @@ CONTAINS
     CALL section_add_keyword(sub2section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="PPI_FILE_NAME",&
+         description="Specifies the filename that contains the lookup table",&
+         usage="PPI_FILE_NAME <FILENAME>",type_of_var=lchar_t)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="PSIGMA_FILE_NAME",&
+         description="Specifies the filename that contains the lookup table",&
+         usage="PPI_FILE_NAME <FILENAME>",type_of_var=lchar_t)
+    CALL section_add_keyword(sub2section,keyword)
+    CALL keyword_release(keyword)
+
+
 
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
          description="The HOMO coefficient in the format:"//&
