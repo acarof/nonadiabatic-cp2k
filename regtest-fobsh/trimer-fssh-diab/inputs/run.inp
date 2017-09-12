@@ -95,6 +95,7 @@
                         METHOD_COUPLING     AOM
                         SURF_HOP_CHOICE          TRIVIAL_HOP_CORRECT
                         DECOHERENCE_CORRECTIONS  DAMPING
+                        DECO_TIME                             FORCES_BASED
                         EDC_C 1.0
                         EDC_E0 0.1
                         INITIALIZATION                        DIABATIC
