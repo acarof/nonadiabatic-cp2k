@@ -584,6 +584,13 @@ allocate(sh_env%exact_forces(3,natom))
      DEALLOCATE(positions_com_tp) 
      DEALLOCATE(velocities_com_tp)
 
+     DEALLOCATE(sh_env%E_tp)
+     DEALLOCATE(sh_env%E_t)
+     DEALLOCATE(sh_env%cttm)
+     DEALLOCATE(sh_env%ctt)
+     DEALLOCATE(sh_env%ctin)
+
+
      deallocate(ctin)
      deallocate(exact_forces)
     END SUBROUTINE construct_ham_X_SH

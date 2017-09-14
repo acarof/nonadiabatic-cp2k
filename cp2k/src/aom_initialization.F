@@ -811,6 +811,15 @@ active_state = 1
     DEALLOCATE(my_forces_adiab)
     DEALLOCATE(positions_com_tp)
     DEALLOCATE(velocities_com_tp)
+
+     DEALLOCATE(sh_env%ctin)
+     DEALLOCATE(sh_env%cttm)
+     DEALLOCATE(sh_env%ctt)
+     DEALLOCATE(sh_env%C_tp)
+     DEALLOCATE(sh_env%E_tp)
+     DEALLOCATE(sh_env%E_t)
+
+
   END SUBROUTINE propagate_aom_namd_first_step
 
   SUBROUTINE nacv_first_ts(aom_env, natom, mat, velocities_com_tp)

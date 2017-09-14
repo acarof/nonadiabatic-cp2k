@@ -80,42 +80,33 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop)
 
-        !REAL(kind=dp), DIMENSION(:,:), POINTER              :: velocities_com_tp
+     INTEGER, INTENT(IN)                                :: active_state, mat
+     TYPE(aom_env_type), INTENT(IN)                     :: aom_env
+     REAL(KIND=dp), DIMENSION(:), INTENT(IN)         ::  E_tp
+     REAL(kind=dp), DIMENSION(:,:), POINTER       :: velocities_com_tp
      TYPE(distribution_1d_type), POINTER                :: local_particles
      TYPE(atomic_kind_list_type), POINTER, OPTIONAL     :: atomic_kinds
      INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
      TYPE(atomic_kind_type), DIMENSION(:), &
                    POINTER, OPTIONAL                        :: atomic_kind_set
- 
-    
-     REAL(KIND=dp), DIMENSION(:), INTENT(IN)         ::  E_tp
-     TYPE(aom_env_type)                                 :: aom_env
-     INTEGER, INTENT(IN)                             :: active_state, mat
-     REAL(kind=dp), DIMENSION(:,:), POINTER       :: velocities_com_tp
-
-
      REAL(KIND=dp), dimension(:), allocatable, INTENT(OUT)    :: energy_conservation
      INTEGER, dimension(:), allocatable, INTENT(OUT)          :: class_forbidden_hop
+
 
      INTEGER :: j
      REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
      REAL(kind=dp)                               :: delta_energy
-
-!    total_kin_energy, total_pot_energy
-                                        !   total_kin_array, total_pot_array
      REAL(kind=dp)                               :: A, B
      REAL(kind=dp)                               :: K_tot, E_cutoff  
      
      ALLOCATE(energy_conservation(mat)) 
      ALLOCATE(class_forbidden_hop(mat))
 
-
      CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                   nparticle_kind, atomic_kind_set, K_tot)
      E_cutoff = 0.0D0
      E_cutoff = E_tp(active_state) + K_tot  !THIS CUTOFF IS TO LARGE ALL THE
                                             !STATE ARE BELOW IT
-!     E_cutoff = 4.6612978986598338E-002
      do j=1, mat
            if ((j .gt. active_state) .and. (E_tp(j) .le. E_cutoff)) then
                
@@ -124,8 +115,6 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                                      nparticle_kind, atomic_kind_set, &
                                     aom_env, E_tp, hop_nacv, delta_energy, A, B, & 
                                               active_state, j)
-              !total_kin_array(j) = total_kin_energy
-              !total_pot_array(j) = total_pot_energy
               energy_conservation(j) = delta_energy
               if (energy_conservation(j) .lt. 0.0D0) then 
                    class_forbidden_hop(j) = j
@@ -136,13 +125,10 @@ SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
               class_forbidden_hop(j) = j
               energy_conservation(j) = -2  
            else if (j .le. active_state) then
-              !total_pot_array(j) = 0.0D0
-              !total_kin_array(j) = 0.0D0 
               energy_conservation(j) = 0.0D0
               class_forbidden_hop(j) = -1
            end if  
      end do
-
 END SUBROUTINE classically_forbidden_hops
 
 
@@ -161,19 +147,16 @@ END SUBROUTINE classically_forbidden_hops
         TYPE(aom_env_type)                                 :: aom_env
         INTEGER, OPTIONAL, INTENT(IN)                      :: i, j
         REAL(kind=dp), DIMENSION(:,:), INTENT(IN)          :: hop_nacv
-        REAL(kind=dp), INTENT(OUT)               :: delta_energy
-!                                                   total_kin_energy, total_pot_energy 
+        REAL(kind=dp), INTENT(OUT)                         :: delta_energy
         REAL(kind=dp), INTENT(OUT)                         :: A, B
         REAL(KIND=dp), DIMENSION(:), INTENT(IN)            ::  E_tp
 
-        !LOGICAL, dimension(:), INTENT(IN)           :: ext_pres
 
         CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_delta_energy_nacv', &
         routineP = moduleN//':'//routineN
 
         TYPE(atomic_kind_type), DIMENSION(:), &
              POINTER                             :: my_atomic_kind_set
-        !REAL(kind=dp)                            :: rescale_factor
         INTEGER                                  :: my_nparticle_kind
         REAL(kind=dp)                            :: mass
         INTEGER                                  :: iparticle_kind, new_state, old_state
@@ -196,18 +179,14 @@ END SUBROUTINE classically_forbidden_hops
            END IF
         END IF
 
-
            A = 0
            B = 0
            DO iparticle_kind=1, my_nparticle_kind
               atomic_kind => my_atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
-!stop
               DO iparticle_local=1,nparticle_local
-              ! if (ext_pres(iparticle_local)) then
                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-!stop
                  DO coord = 1, 3
                     IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
                        velocities(3, iparticle)**2 ).NE.0.0d0) THEN
@@ -233,32 +212,6 @@ END SUBROUTINE classically_forbidden_hops
            ENDIF
            delta_energy = B**2 - 4 * A * (  &
                      E_tp(new_state) - E_tp(old_state))
-
-!>kinetic_energy calculation eq 23 Fabiano 2008
-!> From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular
-!dynamics using semiempirical methods. 
-!>     Chem Phys 2008, 349:334–347.
-
-!>  B = -B, compare to the paper
-!rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
-!          IF (A == 0) THEN
-!             rescale_factor = 0
-!          ELSE
-!             IF (B < 0) THEN
-!                rescale_factor = (- B - SQRT(delta_energy))/(2 * A)
-!             ELSE
-!                rescale_factor = (- B + SQRT(delta_energy))/(2 * A)
-!             ENDIF
-!          ENDIF
-!
-!          total_kin_energy = rescale_factor*rescale_factor*A + &
-!                             rescale_factor*B
-!          total_pot_energy = new_state - old_state
-!        
-         !  delta_energy = B**2 - 4 * A * (  &
-          !           aom_env%adiab_energies_t(new_state) - &
-           !          aom_env%adiab_energies_t(old_state))
-
    END SUBROUTINE evaluate_delta_energy_nacv
 
 
@@ -269,25 +222,16 @@ END SUBROUTINE classically_forbidden_hops
                          deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                          atomic_kind_set, K_tot, ext_pres)
 
-
         TYPE(section_vals_type), POINTER               :: adiab_section 
         TYPE(sh_print_env_type)                        :: sh_print_env
         TYPE(aom_env_type)                             :: aom_env
         TYPE(sh_env_type)                              :: sh_env
-        REAL(KIND=dp), INTENT(IN)                      :: deltatMD
-        REAL(KIND=dp)                                  :: C_param, E_0_param
-        LOGICAL, dimension(:), POINTER, INTENT(IN)     :: ext_pres
-
-        CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
-                                       routineP = moduleN//':'//routineN
-
         CHARACTER(LEN=default_string_length)           :: deco_keyword
         CHARACTER(LEN=default_string_length)           :: wfprop_keyword, tau_param
         INTEGER, POINTER                               :: itimes
+        REAL(KIND=dp), INTENT(IN)                      :: deltatMD
         INTEGER                                        :: mol
-
-!MODIFY
-        REAL(kind=dp), DIMENSION(:,:), POINTER              :: velocities_com_tp
+        REAL(kind=dp), DIMENSION(:,:), POINTER             :: velocities_com_tp
         TYPE(distribution_1d_type), POINTER                :: local_particles
         TYPE(atomic_kind_list_type), POINTER, OPTIONAL     :: atomic_kinds
         INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
@@ -296,6 +240,13 @@ END SUBROUTINE classically_forbidden_hops
 
         REAL(kind=dp), INTENT(OUT)                         :: K_tot
         logical                                            :: edc_deco_time
+        LOGICAL, dimension(:), POINTER, INTENT(IN)         :: ext_pres
+
+        CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
+                                       routineP = moduleN//':'//routineN
+
+        CHARACTER(LEN=default_string_length)           :: wfprop_keyword
+        REAL(KIND=dp)                                  :: C_param, E_0_param
 
         CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
                                                      c_val=wfprop_keyword)
@@ -335,7 +286,6 @@ END SUBROUTINE classically_forbidden_hops
             CASE("NO_DECO_CORR")
                  PRINT *, 'NO DECOHERENCE CORRECTIONS'
             CASE("INSTANT_COLLAPSE")
-              !CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes)
               CALL wf_collapse_adiab_prop(aom_env,sh_print_env, sh_env, itimes)
             CASE("TRESH_ONLY_COLLAPSE")  
               CPABORT("NOT IMPLEMENTED")
@@ -344,7 +294,6 @@ END SUBROUTINE classically_forbidden_hops
               CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
               CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                                     nparticle_kind, atomic_kind_set, K_tot, ext_pres)
-              !CALL wf_damping(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)
               CALL wf_damping_adiab_prop(C_param, E_0_param, sh_env, mol, deltatMD, & 
                                                               K_tot, sh_print_env)
             CASE DEFAULT                                           
@@ -353,19 +302,17 @@ END SUBROUTINE classically_forbidden_hops
         CASE DEFAULT
            CPABORT("Choose REPRESENTATION, only: DIABATIC_BASIS or ADIABATIC_BASIS")
         END SELECT
-
   END SUBROUTINE decohere_wf
 
 
   SUBROUTINE wf_collapse_adiab_prop(aom_env,sh_print_env, sh_env, itimes)
-    TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(aom_env_type)                             :: aom_env
+    TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(sh_env_type)                              :: sh_env
+    INTEGER, POINTER                               :: itimes
 
     CHARACTER(len=*), PARAMETER :: routineN ='wf_collapse', &         
     routineP = moduleN//':'//routineN                                                                 
-    
-    INTEGER, POINTER                               :: itimes
 
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
@@ -388,11 +335,11 @@ END SUBROUTINE classically_forbidden_hops
     TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(aom_env_type)                             :: aom_env
     TYPE(sh_env_type)                              :: sh_env
+    INTEGER, POINTER                               :: itimes
 
     CHARACTER(len=*), PARAMETER :: routineN ='wf_collapse', &         
     routineP = moduleN//':'//routineN                                                                 
     
-    INTEGER, POINTER                               :: itimes
 
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
@@ -411,11 +358,10 @@ END SUBROUTINE classically_forbidden_hops
   SUBROUTINE wf_tresh_collaps(sh_print_env, sh_env, itimes)
     TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(sh_env_type)                              :: sh_env
+    INTEGER, POINTER                               :: itimes
 
     CHARACTER(len=*), PARAMETER :: routineN ='wf_collapse', &         
     routineP = moduleN//':'//routineN                                                                 
-    
-    INTEGER, POINTER                               :: itimes
 
  sh_print_env%decohere = .FALSE.                                      
       IF (itimes.ge.1) THEN                                                
@@ -429,6 +375,7 @@ END SUBROUTINE classically_forbidden_hops
       ENDIF
   END SUBROUTINE wf_tresh_collaps
 
+
   SUBROUTINE  wf_damping_adiab_prop(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)                    
     REAL(KIND=dp), INTENT(IN)                  :: C_param, E_0_param
     TYPE(sh_env_type)                          :: sh_env
@@ -440,16 +387,12 @@ END SUBROUTINE classically_forbidden_hops
     CHARACTER(len=*), PARAMETER :: routineN ='wf_damping_adiab_prop', &         
     routineP = moduleN//':'//routineN   
                                                         
-    !INTEGER  :: j,i
     INTEGER  :: i
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau
-    REAL(KIND=dp)      :: sum!, sum1 
-    !COMPLEX(KIND=dp), dimension(:), allocatable :: ct
+    REAL(KIND=dp)      :: sum 
     COMPLEX(KIND=dp), dimension(:), allocatable :: pop
 
     allocate(pop(mol)) !TEST
-
-    !allocate(ct(mol))  ! adiabatic states
     allocate(tau(mol)) ! decoherence time (EDC method)
     allocate(sh_print_env%tau_deco(mol))
 
@@ -463,22 +406,12 @@ END SUBROUTINE classically_forbidden_hops
     do i=1,mol 
            if (i .ne. sh_env%active_state) then
               ! pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
-              ! ct(i) = cmplx(0.0D0, 0.0D0,dp)                           
                tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param +(E_0_param/K_tot))
                 !print*, tau(i)
-                !do j=1,mol
-                !        ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
-                !end do
 
 !Damp the coefficients of the states different from the active state    
-               !pop(i) = sh_env%ctin(i)*conjg(sh_env%ctin(i))
-    
-                !ct(i) = ct(i)
                 sh_env%ctin(i) = sh_env%ctin(i)*exp(-(deltatMD/tau(i)))
-    
-                !pop(i) = sh_env%ctin(i)*conjg(sh_env%ctin(i))
-    
                 sum = sum + abs(sh_env%ctin(i))*abs(sh_env%ctin(i))
            else
                 tau(i) = 0.0D0
@@ -486,15 +419,6 @@ END SUBROUTINE classically_forbidden_hops
     end do
 
     sh_print_env%tau_deco = tau
-!transfor the active diabatic state into the active adiabatic state
-    !pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
-   ! ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
-    !do i=1,mol                                                       
-     !      ct(sh_env%active_state) = ct(sh_env%active_state) + &
-      !       cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
-    !end do  
-    
-   ! pop(sh_env%active_state) = sh_env%ctin(sh_env%active_state)*conjg(sh_env%ctin(sh_env%active_state))
     
 !transfer population to the active state for keeping the detailed balance   
     if (sh_env%ctin(sh_env%active_state)== 0) then
@@ -505,21 +429,8 @@ END SUBROUTINE classically_forbidden_hops
     end if
     
     pop(sh_env%active_state) = sh_env%ctin(sh_env%active_state)*conjg(sh_env%ctin(sh_env%active_state))
-
-!transfor back the adiabatic into the diabatic which, then, follow the
-!electronic prpagation    
-!   do j=1,mol
-!         sh_env%ctin(j) = cmplx(0.0D0, 0.0D0,dp)                           
-!         pop(j) = cmplx(0.0D0, 0.0D0,dp) !TEST
-!         do i=1,mol 
-!             sh_env%ctin(j) = sh_env%ctin(j) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*ct(i)
-!         end do
-!        pop(j)=sh_env%ctin(j)*conjg(sh_env%ctin(j))
-!   end do
+    CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
     
-   CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
-    
-   ! deallocate(ct) 
     deallocate(tau)
     deallocate(sh_print_env%tau_deco)
     deallocate(pop)
@@ -734,15 +645,13 @@ print *, "PURE_DEPHA"
         INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
         TYPE(atomic_kind_type), DIMENSION(:), &
              POINTER, OPTIONAL                             :: atomic_kind_set
-
         REAL(kind=dp), INTENT(OUT)                         :: K_tot
         LOGICAL, dimension(:), INTENT(IN), OPTIONAL           :: ext_pres
 
         CHARACTER(len=*), PARAMETER :: routineN = 'calc_kinetic_tot', &
         routineP = moduleN//':'//routineN
 
-        TYPE(atomic_kind_type), DIMENSION(:), &
-             POINTER                             :: my_atomic_kind_set
+        TYPE(atomic_kind_type), ALLOCATABLE, TARGET, DIMENSION(:)     :: my_atomic_kind_set
         INTEGER                                  :: my_nparticle_kind
         REAL(kind=dp)                            :: mass
         INTEGER                                  :: iparticle_kind
@@ -753,11 +662,13 @@ print *, "PURE_DEPHA"
 
            IF (PRESENT(atomic_kinds)) THEN
               my_nparticle_kind = atomic_kinds%n_els
-              my_atomic_kind_set => atomic_kinds%els
+              ALLOCATE(my_atomic_kind_set(SIZE(atomic_kinds%els)))
+              my_atomic_kind_set = atomic_kinds%els
            ELSE
               IF ((PRESENT(nparticle_kind)).AND.(PRESENT(atomic_kind_set))) THEN
                  my_nparticle_kind = nparticle_kind
-                 my_atomic_kind_set => atomic_kind_set
+                 ALLOCATE(my_atomic_kind_set(SIZE(atomic_kind_set)))
+                 my_atomic_kind_set = atomic_kind_set
               END IF
            END IF
 
@@ -770,6 +681,7 @@ print *, "PURE_DEPHA"
      
            K_tot = 0.0D0
            DO iparticle_kind= 1, my_nparticle_kind
+              NULLIFY(atomic_kind)
               atomic_kind => my_atomic_kind_set(iparticle_kind)
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
@@ -796,18 +708,15 @@ print *, "PURE_DEPHA"
            END DO
            K_tot = 0.5*K_tot
 
+           !IF (ASSOCIATED(my_atomic_kind_set)) DEALLOCATE(my_atomic_kind_set)
+
    END SUBROUTINE calc_kinetic_tot
  
-  !SUBROUTINE propagate_wf(H_t, H_tp,  Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm,     &
-  !                       ctin, aom_env, nadiab,  norbitals, ELsteps, &
-  !                         itimes, adiab_section, deltatMD, deltatE , times,      &
-  !                          mat)
-  SUBROUTINE propagate_wf(ctin, aom_env, nadiab,  norbitals, ELsteps, &
+
+   SUBROUTINE propagate_wf(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times,      &
                             mat)
 
-     !COMPLEX(KIND=dp), dimension(:,:), INTENT(IN)    :: H_t, H_tp
-     !REAL(KIND=dp), dimension(:,:), INTENT(IN)       :: Stt, Sttp, Stptp, Stpt, Stmt, Sttm, Stmtm
      COMPLEX(KIND=dp), dimension(:), INTENT(INOUT)   :: ctin
      INTEGER, INTENT(IN)                             :: nadiab,  norbitals 
 
