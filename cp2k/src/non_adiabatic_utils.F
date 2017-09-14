@@ -325,7 +325,7 @@ END SUBROUTINE classically_forbidden_hops
               CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
               CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                                     nparticle_kind, atomic_kind_set, K_tot, ext_pres)
-              CALL wf_damping(edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
+              CALL wf_damping(adiab_section, edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
                                local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
@@ -526,7 +526,7 @@ END SUBROUTINE classically_forbidden_hops
   END SUBROUTINE wf_damping_adiab_prop 
 
 
-  SUBROUTINE  wf_damping(edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
+  SUBROUTINE  wf_damping(adiab_section, edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
                           local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)                    
     REAL(KIND=dp), INTENT(IN)                  :: C_param, E_0_param
     LOGICAL, INTENT(IN)                        :: edc_deco_time
@@ -540,6 +540,8 @@ END SUBROUTINE classically_forbidden_hops
     TYPE(atomic_kind_type), DIMENSION(:), &
                 POINTER, OPTIONAL                             :: atomic_kind_set
     INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
+    TYPE(section_vals_type), POINTER               :: adiab_section
+
 
 
     CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
@@ -559,7 +561,7 @@ END SUBROUTINE classically_forbidden_hops
     INTEGER  :: j,i, deg_of_freedom
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau!, tau_forces
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: adiab_nace_vector
-    REAL(KIND=dp)      :: sum, KbT, Temp, alpha 
+    REAL(KIND=dp)      :: sum, KbT, Temp, alpha, T_inp 
     COMPLEX(KIND=dp), dimension(:), allocatable :: ct
     COMPLEX(KIND=dp), dimension(:), allocatable :: pop
     !REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: my_forces_adiab
@@ -602,8 +604,14 @@ END SUBROUTINE classically_forbidden_hops
     KbT = (2*K_tot)/(3*sh_env%active_atoms)
 !instead of using the exact boltzmann factor, at the moment the code uses Temp =
 !298 K, maybe this point should be modified in future
-    Temp = 0.0009444571  !KbT at 298 K
-    mixing_threshold = 2.0D0
+
+    CALL section_vals_val_get(adiab_section,"THRESHOLD_TAU_FORCES",r_val=mixing_threshold)
+    CALL section_vals_val_get(adiab_section,"TEMPERATURE_FG_WIDTH",r_val=T_inp)
+
+
+   Temp = 3.1693191275167785e-06*T_inp !conver in KbT
+   !Temp = 0.0009444571  !KbT at 298 K
+   ! mixing_threshold = 2.0D0
 
 
 !TEST

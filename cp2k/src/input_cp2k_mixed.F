@@ -241,6 +241,18 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="THRESHOLD_TAU_FORCES",&
+         description="threshold used in the forces based calculation",&
+         usage="0.1D0", type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="TEMPERATURE_FG_WIDTH",&
+         description="Temperature to define FG width, currectly 298 K",&
+         usage="0.0009444571", type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="INITIALIZATION",&
          description="Decide how to initiate the system for wavefunction and surface.",&
          usage="DIABATIC or ADIABATIC", & 
