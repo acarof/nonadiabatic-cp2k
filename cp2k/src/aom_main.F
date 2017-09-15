@@ -183,15 +183,7 @@ CONTAINS
      CHARACTER(LEN=default_string_length)           :: deco_keyword, prop_wf_keyword 
      CHARACTER(LEN=default_string_length)          :: reversal_keyword
      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
-<<<<<<< HEAD
-      !real(kind=dp), allocatable :: PC_rvecs(:,:)
-      !integer :: o
-      LOGICAL    :: do_random
-!     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: var, var2
-!     integer :: i,j
-=======
      LOGICAL    :: do_random
->>>>>>> d07532dba5d90688d5e7d18678c4bc0c50edd72d
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -250,14 +242,7 @@ CONTAINS
      ALLOCATE(sh_env%cttm(mat))
      ALLOCATE(sh_env%ctt(mat))
      ALLOCATE(sh_env%ctin(mat))
-<<<<<<< HEAD
      ALLOCATE(sh_env%adiab_nace(mat,mat))
-     !ALLOCATE(total_pot_array(mat)) 
-     !ALLOCATE(total_kin_array(mat)) 
-     !ALLOCATE(energy_conservation(mat)) 
-     !ALLOCATE(class_forbidden_hop(mat)) 
-=======
->>>>>>> d07532dba5d90688d5e7d18678c4bc0c50edd72d
 
      ALLOCATE(E_tp(mat))
      ALLOCATE(my_forces_adiab(3,natom))
@@ -348,33 +333,12 @@ print *, "aom_env%adiab_nace_tp(i,j)", sh_env%adiab_nace
                                    mat)
      CASE("HS_CORRECTED_RK")  
            !> ADIABATIC NACV EVALUATION FOR HS CORRECTION
-<<<<<<< HEAD
-               
-=======
->>>>>>> d07532dba5d90688d5e7d18678c4bc0c50edd72d
            CALL prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times, &
                             mat, aom_env%class_forbidden_hop_t, active_state)
            CALL classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
-<<<<<<< HEAD
-
-!TEST!!
-!if (active_state .eq. 1) then 
-!    class_forbidden_hop_tp(1) = -1
-!    class_forbidden_hop_tp(2) = 2
-!else if (active_state .eq. 2) then
-!    class_forbidden_hop_tp(1) = -1
-!    class_forbidden_hop_tp(2) = -1
-!end if  
-!TEST!
-!do i =1,mat
-!class_forbidden_hop_tp(:) = -1
-!end do
- 
-=======
->>>>>>> d07532dba5d90688d5e7d18678c4bc0c50edd72d
            aom_env%class_forbidden_hop_t = class_forbidden_hop_tp 
 !           aom_env%HS_propagation = .TRUE.
 !TEST
@@ -517,6 +481,14 @@ allocate(sh_env%exact_forces(3,natom))
      DEALLOCATE(positions_com_tp) 
      DEALLOCATE(velocities_com_tp)
 
+     DEALLOCATE(sh_env%forces_active_state)
+     DEALLOCATE(sh_env%adiab_nace)
+     DEALLOCATE(sh_env%nacv)
+     DEALLOCATE(sh_env%NN)
+     DEALLOCATE(sh_env%H_tp)
+     DEallocate(sh_env%F)
+     DEALLOCATE(sh_env%ext_pres)
+     deallocate(sh_env%exact_forces)
      DEALLOCATE(sh_env%E_tp)
      DEALLOCATE(sh_env%E_t)
      DEALLOCATE(sh_env%cttm)
