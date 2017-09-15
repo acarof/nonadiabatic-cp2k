@@ -156,34 +156,19 @@ CONTAINS
      INTEGER                                    :: nparticle_kind
      TYPE(atomic_kind_type), DIMENSION(:), POINTER                       :: atomic_kind_set
 
-
-
-     CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH_full_degen_classicalpath', &
+     CHARACTER(len=*), PARAMETER :: routineN ='construct_ham_X_SH', &
      routineP = moduleN//':'//routineN
 
      TYPE(sh_env_type)                              :: sh_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab_new
      integer :: coord
-     !integer :: mol, i, j, k, l, m, d, atoms, c,  active_state, mat, orb
      integer :: mol, atoms, c, active_state, mat, orb
-     !integer, dimension(:,:), allocatable ::  aneighbour, bneighbour  
-     !integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
-     !REAL(KIND=dp) :: S
      REAL(KIND=dp)    :: cbar, minao
-     !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
-     !REAL(KIND=dp), dimension(:,:,:), allocatable :: pcoeffsrun
-!     REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
-!     REAL(kind=dp)                               :: delta_energy
-
-!    total_kin_energy, total_pot_energy
      REAL(KIND=dp), dimension(:), allocatable    :: energy_conservation
-                                        !   total_kin_array, total_pot_array
      INTEGER, dimension(:), allocatable          :: class_forbidden_hop_tp
-!     REAL(kind=dp)                               :: A, B
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
-     !REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pcoefftot, scoefftot
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_tp
      LOGICAL                                      :: analytics
@@ -198,11 +183,7 @@ CONTAINS
      CHARACTER(LEN=default_string_length)           :: deco_keyword, prop_wf_keyword 
      CHARACTER(LEN=default_string_length)          :: reversal_keyword
      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
-      !real(kind=dp), allocatable :: PC_rvecs(:,:)
-      !integer :: o
-      LOGICAL    :: do_random
-!     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: var, var2
-!     integer :: i,j
+     LOGICAL    :: do_random
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -262,12 +243,7 @@ CONTAINS
      ALLOCATE(sh_env%ctt(mat))
      ALLOCATE(sh_env%ctin(mat))
      ALLOCATE(sh_env%adiab_nace(mat,mat))
-     !ALLOCATE(total_pot_array(mat)) 
-     !ALLOCATE(total_kin_array(mat)) 
-     !ALLOCATE(energy_conservation(mat)) 
-     !ALLOCATE(class_forbidden_hop(mat)) 
 
-     !ALLOCATE(E_t(mat))
      ALLOCATE(E_tp(mat))
      ALLOCATE(my_forces_adiab(3,natom))
      ALLOCATE(my_forces_adiab_new(3,natom))
@@ -275,20 +251,6 @@ CONTAINS
      ALLOCATE(velocities_com_tp(3, natom))
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
-     !ALLOCATE(PC_allrvecs(5,mol*atoms))
-     !ALLOCATE(PC_rvecs(3,atoms))
-     !allocate(pcoefftot(c))
-     !allocate(scoefftot(c))
-     !these arrays are data for the non-adiabatic coupling calculation
-     !they help efficiency by telling the program which atoms are connected
-     !and thus which pairs to carry out the calculation for
-     !allocate(aneighbour(0:atoms,0:atoms))
-     !allocate(bneighbour(0:atoms,0:atoms))
-     !aneighbour = 0
-     !bneighbour = 0
-     !allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
-     !neighbourlist = 0
-
 
      !> OBTAIN COORDINATES, ENERGIES, STATES, etc. FROM PREVIOUS STEP
      CALL translate_com(positions_tp, keyword_translate, positions_com_tp, local_particles, atomic_kinds = atomic_kinds)  
@@ -304,7 +266,6 @@ CONTAINS
      ctin(:) = aom_env%ctin(:)
      aom_env%adiab_nace_t = aom_env%adiab_nace_tp
 
-
      !> CALCULATE THE CENTER OF MASS
      !> CONSTRUCT NEIGHBOURS LIST
      CALL calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
@@ -312,7 +273,6 @@ CONTAINS
      !> CALCULATE THE HAMILTONIAN, THE STTP MATRIX AND THE NACV
      CALL calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cbar, &
                       scaling, PC_allrvecs, orb)
-
 
      !> CONVERT THE diabatic NACV WITH THE GOOD UNITS
      aom_env%nacv = cbar*aom_env%nacv
@@ -324,9 +284,6 @@ CONTAINS
      !decoherence corrections
 !COMMENT: in fact, C_t and E_t are already known at the previous timestep, maybe
 !check aom_env%E_t, aom_env%C_t
-!     CALL adiabaticity(-AIMAG(aom_env%H_t), mat, C_t, E_t, .false.)
-!print *, "C_t", C_t
-!print *, "E_t", E_t
      sh_env%E_t = aom_env%E_t
      CALL adiabaticity(-AIMAG(aom_env%H_tp), mat, C_tp, E_tp, .true., sh_env)
      sh_env%E_tp = E_tp
@@ -357,11 +314,6 @@ print *, "aom_env%adiab_nace_tp(i,j)", sh_env%adiab_nace
 !print *, "var2", var2
 
      
-     !TEST
-     !CALL make_adiabX(mol, E_t, NACE_ad_t, X)
-     !ENDTEST
-      
-
      !> PROPAGATE THE ELECTRON FOR ONE MOLECULAR TIMESTEP
      sh_env%cttm(:) = ctin(:)
 
@@ -381,28 +333,12 @@ print *, "aom_env%adiab_nace_tp(i,j)", sh_env%adiab_nace
                                    mat)
      CASE("HS_CORRECTED_RK")  
            !> ADIABATIC NACV EVALUATION FOR HS CORRECTION
-               
            CALL prop_wf_HS_corr(ctin, aom_env, nadiab,  norbitals, ELsteps, &
                            itimes, adiab_section, deltatMD, deltatE , times, &
                             mat, aom_env%class_forbidden_hop_t, active_state)
-                                                     
            CALL classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
-
-!TEST!!
-!if (active_state .eq. 1) then 
-!    class_forbidden_hop_tp(1) = -1
-!    class_forbidden_hop_tp(2) = 2
-!else if (active_state .eq. 2) then
-!    class_forbidden_hop_tp(1) = -1
-!    class_forbidden_hop_tp(2) = -1
-!end if  
-!TEST!
-!do i =1,mat
-!class_forbidden_hop_tp(:) = -1
-!end do
- 
            aom_env%class_forbidden_hop_t = class_forbidden_hop_tp 
 !           aom_env%HS_propagation = .TRUE.
 !TEST
@@ -437,39 +373,7 @@ print *, "aom_env%adiab_nace_tp(i,j)", sh_env%adiab_nace
                                  attempt_hop, &
                                  decohere_criterion, &
                                  sh_print_env, aom_env)
-
-!       CALL section_vals_val_get(adiab_section,"RK_PROPAGATION", &
-!                                                    c_val=prop_wf_keyword)
-!       SELECT CASE(prop_wf_keyword)                                 
-!       CASE("DIABATIC_RK")
-!             call surf_hop_type(adiab_section, aom_env%Stt, C_t, C_tp,   &
-!                                 deltatMD, active_state, sh_env,  &
-!                                 new_state, &
-!                                 attempt_hop, &
-!                                 decohere_criterion, &
-!                                 sh_print_env, aom_env)
-!       CASE("ADIABATIC_RK")
-!             call surf_hop_type(adiab_section, aom_env%Stt, C_t, C_tp,   &
-!                                 deltatMD, active_state, sh_env,  &
-!                                 new_state, &
-!                                 attempt_hop, &
-!                                 decohere_criterion, &
-!                                 sh_print_env, aom_env)
-!       CASE("HS_CORRECTED_RK")  
-!             !> ADIABATIC NACV EVALUATION FOR HS CORRECTION
-!                 
-!             call surf_hop_type(adiab_section, aom_env%Stt, C_t, C_tp,   &
-!                                 deltatMD, active_state, sh_env,  &
-!                                 new_state, &
-!                                 attempt_hop, &
-!                                 decohere_criterion, &
-!                                 sh_print_env, aom_env)
-!             
-!       CASE DEFAULT                                           
-!            CPABORT("There is no method to propagate the wavefunction.") 
-!       END SELECT                                             
      ENDIF
-
 
      !CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE RESULT OF THE SURFACE
      !HOP ROUTINE IS. 
@@ -562,8 +466,6 @@ allocate(sh_env%exact_forces(3,natom))
      IF (attempt_hop) THEN
          aom_env%forces_adiab_new = my_forces_adiab_new
          aom_env%active_state = active_state
-         !aom_env%NN = NN
-         !aom_env%Stptp = Stptp
          aom_env%eigenvector_matrix = C_tp
          aom_env%diabatic_forces = aom_env%F
          aom_env%scaling  = scaling
@@ -573,23 +475,26 @@ allocate(sh_env%exact_forces(3,natom))
      energy_adiabat = E_tp(active_state)
      aom_env%sh_print_env = sh_print_env
      
-
      !> DEALLOCATE
-     !DEALLOCATE(energy_conservation, class_forbidden_hop)
-     !DEALLOCATE(total_kin_array, total_pot_array)
-     !deallocate(scoefftot, pcoefftot)
-
      DEALLOCATE(my_forces_adiab)
      DEALLOCATE(my_forces_adiab_new)
      DEALLOCATE(positions_com_tp) 
      DEALLOCATE(velocities_com_tp)
 
+     DEALLOCATE(sh_env%forces_active_state)
+     DEALLOCATE(sh_env%adiab_nace)
+     DEALLOCATE(sh_env%nacv)
+     DEALLOCATE(sh_env%NN)
+     DEALLOCATE(sh_env%H_tp)
+     DEallocate(sh_env%F)
+     DEALLOCATE(sh_env%ext_pres)
+     dellocate(sh_env%exact_forces)
      DEALLOCATE(sh_env%E_tp)
      DEALLOCATE(sh_env%E_t)
      DEALLOCATE(sh_env%cttm)
+     DEALLOCATE(sh_env%C_tp)
      DEALLOCATE(sh_env%ctt)
      DEALLOCATE(sh_env%ctin)
-
 
      deallocate(ctin)
      deallocate(exact_forces)
@@ -597,17 +502,14 @@ allocate(sh_env%exact_forces(3,natom))
 
 
 SUBROUTINE calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
-!COMMENT: one should follow the CP2K structure for subroutine: all the argument
-!variable first, with a define INTENT, then the name of the subroutine and
-!finally the local variable
      TYPE(aom_env_type), INTENT(INOUT)     :: aom_env
+     INTEGER, INTENT(IN)                   :: mol, atoms, orb
      REAL(KIND=dp), intent (IN)            :: cutoff_sites
 
      CHARACTER(len=*), PARAMETER                     :: routineN ='calc_coms_and_nlist', &
      routineP = moduleN//':'//routineN
 
-     integer                               :: mol, i, j, m, d, atoms, orb
-
+     integer                               :: i, j, m, d
     
      !> CALCULATE THE CENTER OF MASS
      !calculate CoMs at first timestep
@@ -620,7 +522,6 @@ SUBROUTINE calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
                end do
           end do
      end do
-
 
      !> CONSTRUCT NEIGHBOURS LIST
      do i=1,mol
@@ -644,36 +545,29 @@ SUBROUTINE calc_coms_and_nlist(aom_env, atoms, mol, cutoff_sites, orb)
                end if                    
           end do
      end do
-     
-
 END SUBROUTINE calc_coms_and_nlist
 
 
 SUBROUTINE calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cbar, &
                       scaling, PC_allrvecs, orb)
 
-
      TYPE(aom_env_type)                      :: aom_env
      INTEGER, POINTER                        :: itimes
-     integer, intent(in)                     :: mol, orb
      integer, intent(IN)                     :: atoms
+     integer, intent(in)                     :: mol, orb
      REAL(KIND=dp), intent(in)                   :: dR  
      LOGICAL, intent(in)                         :: do_random
      REAL(KIND=dp), intent(in)                   :: cbar
      REAL(KIND=dp), intent(in) :: scaling
-     !real(kind=dp), INTENT(IN) :: PC_rvecs
-     !real(kind=dp), DIMENSION(:,:), intent(inout) :: PC_allrvecs
-     !real(kind=dp), DIMENSION(:,:), intent(inout) :: PC_rvecs
+     real(kind=dp), DIMENSION(:,:), allocatable, intent(out) :: PC_allrvecs
 
      CHARACTER(len=*), PARAMETER                     :: routineN ='calc_Xmatrix_elements', &
      routineP = moduleN//':'//routineN
 
      REAL(KIND=dp)                   :: S
      integer :: i, j, k, l, m, d, o
-     real(kind=dp), DIMENSION(:,:), allocatable, intent(out) :: PC_allrvecs
      real(kind=dp), allocatable :: PC_rvecs(:,:)
-
-     
+      
      ALLOCATE(PC_allrvecs(5,mol*atoms))
      ALLOCATE(PC_rvecs(3,atoms))
 !COMMENT: I guess Atm and Btm are only need for the first timestep (itimes = 1)
@@ -726,18 +620,14 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cba
                     !neighbourlist(:,:,:,:) = aom_env%neighbourlist(:,:,:,:)
                     !only call overlap if neighbours list says so
                     if (aom_env%NN(i,k) == 1) then
-
                          !first the diagonals
                          if (i == k) then
                               CALL diagonal_elem(i,k,orb,itimes,aom_env)
-
                          !now the off-diagonals                         
                          else ! ( i == k)
                               CALL off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
                                    dR, S, do_random, cbar, scaling)
-
                          end if !(i==k)
-
                     else !(NN(i,k) == 1
                          do d=1,orb
                               do m=1,orb
@@ -754,7 +644,6 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cba
                          end do
                     end if !(NN(i,k) == 1
 
-
                end do !loop over k
                call calc_sab_pete(aom_env%Atp, aom_env%connlist2, PC_rvecs)
                do o=1, size(PC_rvecs,2)
@@ -763,24 +652,21 @@ SUBROUTINE calc_Xmatrix_elements(aom_env, itimes, atoms, mol, dR, do_random, cba
                   PC_allrvecs (3:5,((i-1)*atoms)+o) = PC_rvecs(:,o)
                end do
      end do !loop over i
-
 END SUBROUTINE calc_Xmatrix_elements
 
 SUBROUTINE diagonal_elem(i,k,orb,itimes,aom_env)
 
-     TYPE(aom_env_type)              :: aom_env
-     INTEGER, POINTER                               :: itimes
      integer, intent(IN) :: i, k,orb
+     INTEGER, POINTER                               :: itimes
+     TYPE(aom_env_type)              :: aom_env
 
      CHARACTER(len=*), PARAMETER :: routineN ='diagonal_elem', &
      routineP = moduleN//':'//routineN
 
      integer ::  m, d
 
-
      do d=1,orb
           do m=1,orb
-
                !These diagonals are 1 by definition
                !A bit of math to be convinced for Sttp,
                !Stpt: dSii/dt = 0
@@ -804,23 +690,19 @@ SUBROUTINE diagonal_elem(i,k,orb,itimes,aom_env)
                end do
           end do     
      end if ! (.not.inrun)
-
 END SUBROUTINE diagonal_elem
 
 SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
                                    dR, S, do_random, cbar, scaling)
 
      TYPE(aom_env_type)                           :: aom_env
-     INTEGER, POINTER                               :: itimes
      integer, intent(IN) :: i, k,orb, atoms
-     !REAL(KIND=dp), dimension(:,:,:), intent(inout) :: pcoeffsrun
+     INTEGER, POINTER                               :: itimes
      REAL(KIND=dp), intent(in)                   :: dR  
+     REAL(KIND=dp), intent(out)                  :: S
      LOGICAL, intent(in)                         :: do_random
      REAL(KIND=dp), intent(in)                   :: cbar
-     !integer, dimension(:,:,:,:), intent(in) :: neighbourlist
      REAL(KIND=dp), intent(in) :: scaling
-     !REAL(KIND=dp), dimension(:,:,:,:), intent(out) :: nacv
-     REAL(KIND=dp), intent(out)                  :: S
 
      CHARACTER(len=*), PARAMETER :: routineN ='off_diagonal_elem', &
      routineP = moduleN//':'//routineN
@@ -917,8 +799,6 @@ SUBROUTINE off_diagonal_elem(aom_env,i,k,orb,itimes, atoms, &
 
           end if ! (.not.inrun)
      end if ! ( k < i)
-
-
 END SUBROUTINE off_diagonal_elem
 
 END MODULE aom_main
