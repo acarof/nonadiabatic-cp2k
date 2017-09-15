@@ -155,8 +155,7 @@ END SUBROUTINE classically_forbidden_hops
         CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_delta_energy_nacv', &
         routineP = moduleN//':'//routineN
 
-        TYPE(atomic_kind_type), DIMENSION(:), &
-             POINTER                             :: my_atomic_kind_set
+        TYPE(atomic_kind_type), ALLOCATABLE, TARGET, DIMENSION(:)     :: my_atomic_kind_set
         INTEGER                                  :: my_nparticle_kind
         REAL(kind=dp)                            :: mass
         INTEGER                                  :: iparticle_kind, new_state, old_state
@@ -171,11 +170,13 @@ END SUBROUTINE classically_forbidden_hops
 
         IF (PRESENT(atomic_kinds)) THEN
            my_nparticle_kind = atomic_kinds%n_els
-           my_atomic_kind_set => atomic_kinds%els
+           ALLOCATE(my_atomic_kind_set(SIZE(atomic_kinds%els)))
+           my_atomic_kind_set = atomic_kinds%els
         ELSE
            IF ((PRESENT(nparticle_kind)).AND.(PRESENT(atomic_kind_set))) THEN
               my_nparticle_kind = nparticle_kind
-              my_atomic_kind_set => atomic_kind_set
+              ALLOCATE(my_atomic_kind_set(SIZE(atomic_kind_set)))
+              my_atomic_kind_set = atomic_kind_set
            END IF
         END IF
 
@@ -227,7 +228,6 @@ END SUBROUTINE classically_forbidden_hops
         TYPE(aom_env_type)                             :: aom_env
         TYPE(sh_env_type)                              :: sh_env
         CHARACTER(LEN=default_string_length)           :: deco_keyword
-        CHARACTER(LEN=default_string_length)           :: wfprop_keyword, tau_param
         INTEGER, POINTER                               :: itimes
         REAL(KIND=dp), INTENT(IN)                      :: deltatMD
         INTEGER                                        :: mol
@@ -239,13 +239,13 @@ END SUBROUTINE classically_forbidden_hops
                   POINTER, OPTIONAL                        :: atomic_kind_set
 
         REAL(kind=dp), INTENT(OUT)                         :: K_tot
-        logical                                            :: edc_deco_time
         LOGICAL, dimension(:), POINTER, INTENT(IN)         :: ext_pres
 
         CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
                                        routineP = moduleN//':'//routineN
 
-        CHARACTER(LEN=default_string_length)           :: wfprop_keyword
+        logical                                            :: edc_deco_time
+        CHARACTER(LEN=default_string_length)           :: wfprop_keyword, tau_param
         REAL(KIND=dp)                                  :: C_param, E_0_param
 
         CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
@@ -458,8 +458,7 @@ END SUBROUTINE classically_forbidden_hops
     CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
     routineP = moduleN//':'//routineN   
 
-   TYPE(atomic_kind_type), DIMENSION(:), &
-             POINTER                             :: my_atomic_kind_set
+   TYPE(atomic_kind_type), ALLOCATABLE, TARGET, DIMENSION(:)     :: my_atomic_kind_set
    INTEGER                                  :: my_nparticle_kind
    REAL(kind=dp)                            :: mass
    INTEGER                                  :: iparticle_kind
@@ -494,11 +493,13 @@ END SUBROUTINE classically_forbidden_hops
 
     IF (PRESENT(atomic_kinds)) THEN
        my_nparticle_kind = atomic_kinds%n_els
-       my_atomic_kind_set => atomic_kinds%els
+       ALLOCATE(my_atomic_kind_set(SIZE(atomic_kinds%els)))
+       my_atomic_kind_set = atomic_kinds%els
     ELSE
        IF ((PRESENT(nparticle_kind)).AND.(PRESENT(atomic_kind_set))) THEN
           my_nparticle_kind = nparticle_kind
-          my_atomic_kind_set => atomic_kind_set
+          ALLOCATE(my_atomic_kind_set(SIZE(atomic_kind_set)))
+          my_atomic_kind_set = atomic_kind_set
        END IF
     END IF
 
@@ -634,6 +635,7 @@ print *, "PURE_DEPHA"
     deallocate(tau, adiab_nace_vector)
     deallocate(sh_print_env%tau_deco)
     deallocate(pop)
+    DEALLOCATE(my_forces_adiab)
   END SUBROUTINE wf_damping 
  
 
@@ -708,7 +710,6 @@ print *, "PURE_DEPHA"
            END DO
            K_tot = 0.5*K_tot
 
-           !IF (ASSOCIATED(my_atomic_kind_set)) DEALLOCATE(my_atomic_kind_set)
 
    END SUBROUTINE calc_kinetic_tot
  

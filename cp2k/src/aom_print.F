@@ -523,6 +523,8 @@ CONTAINS
 
     END IF
     CALL cp_print_key_finished_output(unit_nr,logger,adiab_section,"PRINT%DENSITY_MATRIX")
+
+    DEALLOCATE(matrix)
    END SUBROUTINE adiab_print_matrix_density
 
 
@@ -742,7 +744,6 @@ CONTAINS
        SELECT CASE(keyword)
        CASE("START")
            ALLOCATE(pop_init(nadiab))
-           ALLOCATE(pop_init(nadiab))
            pop_init     = sh_print_env%pop_init
            first_adiabat= sh_print_env%first_adiabat    
            initrandom   = sh_print_env%initrandom
@@ -756,6 +757,7 @@ CONTAINS
            WRITE( unit_nr, "(A,F20.10)" ) "Initial Random Number = ", initrandom
            WRITE( unit_nr, "(A,I8)" ) "First Adiabatic State = ", first_adiabat
            WRITE( unit_nr, "(A)") "  "
+           DEALLOCATE(pop_init)
        CASE("TULLY_TEST")
            ALLOCATE(proba(nadiab))
            sumg         = sh_print_env%sumprob
