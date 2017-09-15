@@ -245,7 +245,7 @@ END SUBROUTINE classically_forbidden_hops
         CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
                                        routineP = moduleN//':'//routineN
 
-        CHARACTER(LEN=default_string_length)           :: wfprop_keyword
+        !CHARACTER(LEN=default_string_length)           :: wfprop_keyword
         REAL(KIND=dp)                                  :: C_param, E_0_param
 
         CALL section_vals_val_get(adiab_section,"REPRESENTATION", &

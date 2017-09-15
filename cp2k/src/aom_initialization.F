@@ -160,6 +160,8 @@ CONTAINS
      LOGICAL                                  :: continue_while
      CHARACTER(LEN=default_string_length)     :: file_name_s_psigma, file_name_s_ppi
 
+     NULLIFY(rng_stream)
+     NULLIFY(listcoeff)
 
      !> Number of sites
      mol = nadiab ! CHANGE_AC
@@ -246,7 +248,6 @@ CONTAINS
      CALL section_vals_val_get(adiab_section,"SEED",i_val=input_seed)
      initial_seed(:,:) = REAL(input_seed,KIND=dp)
      !CALL create_rng_stream(rng_stream=aom_env%rng_stream,&
-     NULLIFY(rng_stream)
      CALL create_rng_stream(rng_stream=rng_stream,&
                              name="aom fssh",&
                              distribution_type=UNIFORM, &
@@ -333,8 +334,6 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN ='propagate_aom_namd_first_step', &
      routineP = moduleN//':'//routineN
 
-     !REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
-     !INTEGER                                        :: iparticle 
      TYPE(sh_env_type)                              :: sh_env
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
      integer :: coord, t2
@@ -344,7 +343,6 @@ CONTAINS
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
      REAL(KIND=dp)    :: cbar, minao
-     !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv
      REAL(KIND=dp), dimension(:,:,:), allocatable :: nacv
      REAL(KIND=dp), dimension(:,:,:), allocatable :: crds, pcoeffsrun
      REAL(KIND=dp), dimension(:,:), allocatable :: Stptp
@@ -355,7 +353,6 @@ CONTAINS
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE ::  scoefftot
      REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: F
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp
-     !REAL(KIND=dp), dimension(:,:), allocatable   :: NACE_ad_tp
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_tp
      LOGICAL                                      :: decohere, analytics
      INTEGER                                      :: new_state , ELsteps   
@@ -374,7 +371,6 @@ CONTAINS
      INTEGER                                    :: nparticle_kind
      REAL(KIND=dp), dimension(:), allocatable    :: energy_conservation
      INTEGER, dimension(:), allocatable          :: class_forbidden_hop_tp
-
 
      NULLIFY(my_forces_adiab, positions_com_tp, velocities_com_tp)
 
@@ -825,16 +821,17 @@ active_state = 1
   SUBROUTINE nacv_first_ts(aom_env, natom, mat, velocities_com_tp)
 
      TYPE(aom_env_type), INTENT(INOUT)              :: aom_env
-     !integer :: mol, atoms, c, active_state, mat, orb
-     integer, intent(in)                            :: mat
      INTEGER, intent(in)                            :: natom
+     integer, intent(in)                            :: mat
      REAL(kind=dp), DIMENSION(:,:), INTENT(IN)      :: velocities_com_tp
 
+     CHARACTER(len=*), PARAMETER :: routineN ='nacv_first_ts', &
+     routineP = moduleN//':'//routineN
+     
      integer             :: i,j, iparticle, coord
      REAL(kind=dp), DIMENSION(:,:), allocatable     :: hop_nacv
 
      aom_env%adiab_nace_tp = 0.0D0
-     !B = aom_env%adiab_nace_tp
      do i =1, mat
          do j = 1, mat
               if (j .ge. i) then
@@ -852,7 +849,6 @@ active_state = 1
          end do
      end do
      aom_env%adiab_nace_tp = -aom_env%adiab_nace_tp 
-
   END SUBROUTINE nacv_first_ts
 
 END MODULE aom_initialization

@@ -152,17 +152,17 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         implicit none
 
         integer, intent(in) :: mol
-        REAL(KIND=dp), intent(in) :: deltat
-        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, Sttp, Sttm, Stptp, Stmtm
-        REAL(KIND=dp), dimension(:,:), allocatable :: Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt
-        REAL(KIND=dp), dimension(:,:), allocatable :: Sterm1, Sterm2, Splace1, Splace2
         COMPLEX(KIND=dp), dimension(:,:), intent(in) :: H
+        REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, Sttp, Sttm, Stptp, Stmtm
         COMPLEX(KIND=dp), dimension(:,:), intent(out) :: X
+        REAL(KIND=dp), intent(in) :: deltat
         REAL(KIND=dp), dimension(:,:), intent(out), optional    :: NACE   
 
        CHARACTER(len=*), PARAMETER :: routineN ='makeX', &
                                routineP = moduleN//':'//routineN
 
+        REAL(KIND=dp), dimension(:,:), allocatable :: Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt
+        REAL(KIND=dp), dimension(:,:), allocatable :: Sterm1, Sterm2, Splace1, Splace2
         REAL(KIND=dp), dimension(:,:), allocatable     :: my_NACE   
 
         !allocate matrices
@@ -196,15 +196,12 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
         Splace1 = Sttp - Sttm
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Splace1, mol, Sttinvsqrt, mol, 0.0D0, Splace2, mol)
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
-!ADD: SYMMETRIZE NACE
+        !ADD: SYMMETRIZE NACE
         my_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2)
 
         my_NACE = (my_NACE - TRANSPOSE(my_NACE)) / 2
         !X = H - (0.5D0/deltat)*(Sterm1 + Sterm2)
         X = H - my_NACE
-
-
-!> CHANGE_AC
 
         IF (PRESENT(NACE)) THEN
            NACE = my_NACE
@@ -212,7 +209,6 @@ subroutine makeX(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, X, deltat, NACE)
 
         deallocate(Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt, Sterm1, Sterm2, Splace1, Splace2)
         deallocate(my_NACE)
-
 end subroutine makeX
 
 
@@ -221,20 +217,18 @@ subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, deltat, NAC
        !dc/dt = X*sh_env%ctt
        !makeX constructs an X matrix from inputs of S and H
 
-       implicit none
-
        integer, intent(in) :: mol
-       REAL(KIND=dp), intent(in) :: deltat
-       REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, Sttp, Sttm, Stptp, Stmtm
-       REAL(KIND=dp), dimension(:,:), allocatable :: Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt
-       REAL(KIND=dp), dimension(:,:), allocatable :: Sterm1, Sterm2, Splace1, Splace2
        COMPLEX(KIND=dp), dimension(:,:), intent(in) :: H
-       COMPLEX(KIND=dp), dimension(:,:), intent(out), optional :: X
+       REAL(KIND=dp), dimension(:,:), intent(in) :: Stt, Sttp, Sttm, Stptp, Stmtm
+       REAL(KIND=dp), intent(in) :: deltat
        REAL(KIND=dp), dimension(:,:), intent(out), optional    :: NACE   
+       COMPLEX(KIND=dp), dimension(:,:), intent(out), optional :: X
 
        CHARACTER(len=*), PARAMETER :: routineN ='calc_diabatic_nace', &
                                routineP = moduleN//':'//routineN
 
+       REAL(KIND=dp), dimension(:,:), allocatable :: Sttinvsqrt, Sttsqrt, Stptpinvsqrt, Stmtminvsqrt
+       REAL(KIND=dp), dimension(:,:), allocatable :: Sterm1, Sterm2, Splace1, Splace2
        REAL(KIND=dp), dimension(:,:), allocatable     :: diab_NACE   
 
        !allocate matrices
@@ -268,7 +262,7 @@ subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, deltat, NAC
        Splace1 = Sttp - Sttm
        call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Splace1, mol, Sttinvsqrt, mol, 0.0D0, Splace2, mol)
        call DGEMM('N', 'N', mol, mol, mol, 1.0D0, Sttinvsqrt, mol, Splace2, mol, 0.0D0, Sterm2, mol)
-!ADD: SYMMETRIZE NACE
+       !ADD: SYMMETRIZE NACE
        diab_NACE = (0.5D0/deltat)*(Sterm1 + Sterm2)
 
        diab_NACE = (diab_NACE - TRANSPOSE(diab_NACE)) / 2
@@ -277,9 +271,6 @@ subroutine calc_diabatic_nace(mol, H, Stt, Sttp, Sttm, Stptp, Stmtm, deltat, NAC
        if (PRESENT(X)) then
           X = H - diab_NACE
        end if
-
-
-!> CHANGE_AC
 
        IF (PRESENT(NACE)) THEN
           NACE = diab_NACE
@@ -296,11 +287,9 @@ subroutine make_adiabX(mol, E_t, NACE_ad_t, X) !deltat, NACE)
         !dc/dt = X*sh_env%ctt
         !makeX constructs an X matrix from inputs of S and H
 
-        implicit none
-
         integer, intent(in) :: mol
-        REAL(KIND=dp), dimension(:,:), intent(in)     :: NACE_ad_t
         REAL(KIND=dp), DIMENSION(:), intent(in)     :: E_t
+        REAL(KIND=dp), dimension(:,:), intent(in)     :: NACE_ad_t
         COMPLEX(KIND=dp), dimension(:,:), allocatable, intent(out) :: X
 
        CHARACTER(len=*), PARAMETER :: routineN ='make_adiabX', &
@@ -324,32 +313,26 @@ subroutine make_adiabX(mol, E_t, NACE_ad_t, X) !deltat, NACE)
             end do
         end do
 
-
         my_NACE = (NACE_ad_t - TRANSPOSE(NACE_ad_t)) / 2
                 
-
         X = H - my_NACE
-
 end subroutine make_adiabX
 
-!subroutine surf_hop_type(adiab_section, Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, old_state, &
- !          sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env)
 
 subroutine surf_hop_type(adiab_section, C1, C2, deltat, old_state, &
            sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, aom_env)
 !Choose whether doing surface hopping with trivial hopping correction or without
 !it following the old code 
         
-       implicit none
        TYPE(section_vals_type), POINTER               :: adiab_section
-       REAL(KIND=dp), INTENT(IN) :: decohere_criterion
-       integer, intent(in) :: old_state
-       REAL(KIND=dp), intent(in) :: deltat
        REAL(KIND=dp), dimension(:,:), intent(in) :: C1, C2
+       REAL(KIND=dp), intent(in) :: deltat
+       integer, intent(in) :: old_state
+       TYPE(sh_env_type)           :: sh_env
        INTEGER, INTENT(OUT)        :: new_state
        LOGICAL, INTENT(OUT)        :: attempt_hop
+       REAL(KIND=dp), INTENT(IN) :: decohere_criterion
        TYPE(sh_print_env_type)     :: sh_print_env
-       TYPE(sh_env_type)           :: sh_env
        TYPE(aom_env_type)          :: aom_env
        
        CHARACTER(len=*), PARAMETER :: routineN ='surf_hop_type', &
@@ -380,27 +363,20 @@ END SUBROUTINE surf_hop_type
 
 
 subroutine diab_to_adiab( C2, old_state, sh_env, mol, cstate, ct, C1, cttm_ad, cstate_tm)
-        implicit none
         REAL(KIND=dp), dimension(:,:), intent(in) :: C2
-        REAL(KIND=dp), dimension(:,:), optional, intent(in) :: C1
         integer, intent(in) :: old_state
         TYPE(sh_env_type) :: sh_env
         integer, intent(in) :: mol
-        !COMPLEX(KIND=dp), dimension(:), allocatable , intent(out) :: ct
-        COMPLEX(KIND=dp), dimension(:), intent(inout) :: ct
-        COMPLEX(KIND=dp), dimension(:), optional, intent(inout) ::  cttm_ad
-!        COMPLEX(KIND=dp), dimension(:), allocatable, optional, intent(out) ::  cttm_ad
         COMPLEX(KIND=dp), intent(out) :: cstate
+        COMPLEX(KIND=dp), dimension(:), intent(inout) :: ct
+        REAL(KIND=dp), dimension(:,:), optional, intent(in) :: C1
+        COMPLEX(KIND=dp), dimension(:), optional, intent(inout) ::  cttm_ad
         COMPLEX(KIND=dp), optional, intent(out) :: cstate_tm
 
-       CHARACTER(len=*), PARAMETER :: routineN ='diab_to_adiab', &
+        CHARACTER(len=*), PARAMETER :: routineN ='diab_to_adiab', &
                                routineP = moduleN//':'//routineN
 
         integer :: i, j!, mol!, k, l
-
-!        allocate(ct(mol))
-!        IF (PRESENT(cttm_ad)) allocate(cttm_ad(mol))
-
 
         cstate = cmplx(0.0D0, 0.0D0, dp)
         IF (PRESENT(cstate_tm)) cstate_tm = cmplx(0.0D0, 0.0D0, dp)
@@ -421,32 +397,30 @@ subroutine diab_to_adiab( C2, old_state, sh_env, mol, cstate, ct, C1, cttm_ad, c
                         END IF
                 end do
         end do
-
 end subroutine diab_to_adiab
+
 
 subroutine modified_surfacehop(C1, C2, deltat, old_state, &
               sh_env, new_state, attempt_hop, decohere_criterion, &
               sh_print_env, aom_env, adiab_section) !triv_threshold)
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
-        implicit none
-
-        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
-        integer, intent(in) :: old_state
-        REAL(KIND=dp), intent(in) :: deltat
         REAL(KIND=dp), dimension(:,:), intent(in) :: C1, C2
+        REAL(KIND=dp), intent(in) :: deltat
+        integer, intent(in) :: old_state
+        TYPE(sh_env_type)       :: sh_env
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: attempt_hop
+        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
         TYPE(sh_print_env_type) :: sh_print_env
-        TYPE(sh_env_type)       :: sh_env
         TYPE(aom_env_type), INTENT(IN)             :: aom_env
         TYPE(section_vals_type), POINTER               :: adiab_section
-        CHARACTER(LEN=default_string_length)         :: wfpropag_keyword
 
        CHARACTER(len=*), PARAMETER :: routineN ='modified_surfacehop', &
        routineP = moduleN//':'//routineN
 
 
+        CHARACTER(LEN=default_string_length)         :: wfpropag_keyword
         LOGICAL        :: trivial_correction, correct_for_negative 
         integer :: i, j, mol!, k, l
         REAL(KIND=dp) :: hop, sumg, ex_prob, min, g_exa, err
@@ -456,7 +430,6 @@ subroutine modified_surfacehop(C1, C2, deltat, old_state, &
         COMPLEX(KIND=dp) :: cstate, cstate_tm
  
         mol = size(aom_env%Stt,1)
-        !mol = size(Stt,1)
 
         !many allocations
         allocate(ak(mol))
@@ -466,7 +439,6 @@ subroutine modified_surfacehop(C1, C2, deltat, old_state, &
         allocate(sh_env%enerdiff(mol))
         allocate(ct(mol))
         allocate(cttm_ad(mol)) 
-        
         ALLOCATE(sh_print_env%proba(mol))
 
         do i=1,mol
@@ -536,8 +508,6 @@ subroutine modified_surfacehop(C1, C2, deltat, old_state, &
                 end if
         end do
 
-!print *, "aom_env%class_forbidden_hop_t", aom_env%class_forbidden_hop_t
-!print *, "b_vector", b
     !calc exact total surface hopping probability (also termed g_tot) 
     !according to Prezhdo and Wang 2014
         ex_prob = (abs(akttm(old_state))- abs(ak(old_state)))/abs(akttm(old_state))
@@ -558,9 +528,7 @@ subroutine modified_surfacehop(C1, C2, deltat, old_state, &
         sh_print_env%sumflux   = sumg
 
 !EFFECTIVE TRIVIAL CROSSINGS CORRECTION
-
         trivial_correction = .FALSE.
-        
         err = abs(sumg - ex_prob)
         if (err >= 0.0D0) then      !WITHOUT THRESHOLD
                 trivial_correction = .TRUE.
@@ -659,25 +627,19 @@ subroutine modified_surfacehop(C1, C2, deltat, old_state, &
         CALL adiab_print_sh_info(sh_print_env, keyword = 'TULLY_TEST') 
 
         DEALLOCATE(sh_print_env%proba)
-
+        DEALLOCATE(sh_env%enerdiff)
         deallocate(ak)
         deallocate(b)
         deallocate(G)
         deallocate(akttm)
-
 end subroutine modified_surfacehop
 
 
-!subroutine calc_adiab_nace(Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2, deltat, aom_env)
 subroutine calc_adiab_nace(C1, C2, deltat, aom_env)
-
         !this subroutine calculates the adiabatic nace used in the calculation
         !of the hopping probability and also in the RK adiabatic propagation 
-        implicit none
-
-        REAL(KIND=dp), intent(in) :: deltat
-        !REAL(KIND=dp), dimension(:,:), intent(in) :: Sttp, Stt, Stptp, Sttm, Stmtm, C1, C2
         REAL(KIND=dp), dimension(:,:), intent(in) :: C1, C2
+        REAL(KIND=dp), intent(in) :: deltat
         TYPE(aom_env_type)        :: aom_env
 
        CHARACTER(len=*), PARAMETER :: routineN ='calc_adiab_nace', &
@@ -685,7 +647,6 @@ subroutine calc_adiab_nace(C1, C2, deltat, aom_env)
 
         integer :: i, j, mol, k, l
         REAL(KIND=dp), dimension(:,:), allocatable :: T1, T2, DT, TST, TDT, DS, DC
-
 
         mol = size(aom_env%Stt,1)
 
@@ -697,8 +658,6 @@ subroutine calc_adiab_nace(C1, C2, deltat, aom_env)
         allocate(TDT(mol,mol))
         allocate(DS(mol,mol))
         allocate(DC(mol,mol))
-
-
 
         !use the matinvsqrt subroutine to find T = S^(-1/2)
         T1 = aom_env%Stmtm
@@ -746,8 +705,8 @@ subroutine calc_adiab_nace(C1, C2, deltat, aom_env)
         deallocate(TDT)
         deallocate(DS)
         deallocate(DC)
-
 end subroutine calc_adiab_nace
+
 
 subroutine surfacehop(deltat, old_state, C2, &
               sh_env, new_state, attempt_hop, decohere_criterion, sh_print_env, &
@@ -755,24 +714,20 @@ subroutine surfacehop(deltat, old_state, C2, &
 
         !using the method outlined in John Tully's Electronic Transitions paper
         !calculate the probability of the molecular dynamics switching to evolve on a different potential surface
-
-        implicit none
-
-        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
-        integer, intent(in) :: old_state
         REAL(KIND=dp), intent(in) :: deltat
+        integer, intent(in) :: old_state
+        REAL(KIND=dp), dimension(:,:), intent(in) :: C2
+        TYPE(sh_env_type)          :: sh_env
         INTEGER, INTENT(OUT)        :: new_state
         LOGICAL, INTENT(OUT)        :: attempt_hop
+        REAL(KIND=dp), INTENT(IN) :: decohere_criterion
         TYPE(sh_print_env_type), INTENT(OUT) :: sh_print_env
-        TYPE(sh_env_type)          :: sh_env
         TYPE(aom_env_type), INTENT(IN)              :: aom_env
         TYPE(section_vals_type), POINTER               :: adiab_section
-        REAL(KIND=dp), dimension(:,:), intent(in) :: C2
 
-       CHARACTER(len=*), PARAMETER :: routineN ='surfacehop', &
-       routineP = moduleN//':'//routineN
+        CHARACTER(len=*), PARAMETER :: routineN ='surfacehop', &
+                   routineP = moduleN//':'//routineN
 
-        !logical :: adiabatic_prop
         CHARACTER(LEN=default_string_length)         :: wfpropag_keyword
         integer :: i, j, mol !, k, l
         REAL(KIND=dp) :: hop, sumg
@@ -782,7 +737,6 @@ subroutine surfacehop(deltat, old_state, C2, &
         COMPLEX(KIND=dp) :: cstate
         
         mol = size(aom_env%Stt,1)
-        !mol = size(Stt,1)
 
         !many allocations
         allocate(ak(mol))
@@ -804,16 +758,10 @@ subroutine surfacehop(deltat, old_state, C2, &
            CPABORT("There is no method to propagate the wavefunction.")
         END SELECT
 
-!       else
-
 !NOT YET READY FOR ADIAB PRPAGATION
-!               ct(:) = sh_env%ctt(:)
- !              cstate = sh_env%ctt(old_state)
-!        end if 
 
         do i=1,mol
                 ak(i) = ct(i)*conjg(cstate)
-!                b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
                 if (aom_env%HS_propagation .and. &
                               (i .eq. aom_env%class_forbidden_hop_t(i))) then
                    b(i) = 0.0D0 
@@ -903,59 +851,11 @@ subroutine surfacehop(deltat, old_state, C2, &
         CALL adiab_print_sh_info(sh_print_env, keyword = 'TULLY_TEST') 
 
         DEALLOCATE(sh_print_env%proba)
-
         deallocate(ak)
         deallocate(b)
         deallocate(G)
 end subroutine surfacehop
 
-
-!COMMENT: init_random_seed() is not use anymore and could be removed
-subroutine init_random_seed()
-
-        !this subroutine just initialises a random seed for the random_number subroutine
-
-        integer, allocatable :: seed(:)
-        integer :: i, n, dt(8), pid, t(2), s
-        integer(8) :: count, tms
-          
-        call random_seed(size = n)
-        allocate(seed(n))
-        ! XOR:ing the current time and pid. The PID is
-        ! useful in case one launches multiple instances of the same
-        ! program in parallel.
-        call system_clock(count)
-        if (count /= 0) then
-                t = transfer(count, t)
-        else
-                call date_and_time(values=dt)
-                tms = (dt(1) - 1970) * 365_8 * 24 * 60 * 60 * 1000 &
-                        + dt(2) * 31_8 * 24 * 60 * 60 * 1000 &
-                        + dt(3) * 24 * 60 * 60 * 60 * 1000 &
-                        + dt(5) * 60 * 60 * 1000 &
-                        + dt(6) * 60 * 1000 + dt(7) * 1000 &
-                        + dt(8)
-                t = transfer(tms, t)
-        end if
-        s = ieor(t(1), t(2))
-!        pid = getpid() + 1099279 ! Add a prime
-        CALL m_getpid(pid)
-        pid = pid + 1099279 ! Add a prime
-
-        s = ieor(s, pid)
-        if (n >= 3) then
-                seed(1) = t(1) + 36269
-                seed(2) = t(2) + 72551
-                seed(3) = pid
-                if (n > 3) then
-                        seed(4:) = s + 37 * (/ (i, i = 0, n - 4) /)
-                end if
-        else
-                seed = s + 37 * (/ (i, i = 0, n - 1 ) /)
-        end if
-        call random_seed(put=seed)
-
-end subroutine init_random_seed
 
 subroutine matinvsqrt(mol, invert, S)
 
@@ -963,12 +863,14 @@ subroutine matinvsqrt(mol, invert, S)
         !depending on whether invert is false or true respectively
         !to do this: diagonalise matrix, root eigenvalues, transform back
 
-        implicit none
-        
         integer, intent(in) :: mol
-        integer :: i, j, stat
         logical, intent(in) :: invert
         REAL(KIND=dp), dimension(:,:), intent(inout) :: S
+       
+        CHARACTER(len=*), PARAMETER :: routineN ='matinvsqrt', &
+                               routineP = moduleN//':'//routineN
+
+        integer :: i, j, stat
         REAL(KIND=dp), dimension(:,:), allocatable :: P, Pinv
         REAL(KIND=dp), dimension(:), allocatable :: D, DGETRI_WORK
         character(len=1) :: job, up
@@ -985,8 +887,6 @@ subroutine matinvsqrt(mol, invert, S)
         call DSYEV(job, up, mol, S, mol, D, DGETRI_WORK, 3*mol, stat)
         if (stat /= 0) then
                 CPABORT("Error with subroutine DSYEV: error status")
-                !write(*,*) "Error with subroutine DSYEV: error status", stat
-                !stop
         end if
 
         P = S
@@ -1010,28 +910,25 @@ subroutine matinvsqrt(mol, invert, S)
         call DGEMM('N', 'N', mol, mol, mol, 1.0D0, P, mol, Pinv, mol, 0.0D0, S, mol)
 
         deallocate(D, P, Pinv, DGETRI_WORK)
-
 end subroutine matinvsqrt
 
 subroutine adiabaticity(H, mol, C, E, print, sh_env)
-
         !this subroutine will allow calculation of surface hopping probabilities
         !between N adiabatic surfaces
 
-        integer :: stat, LWORK
-        integer, intent(in) :: mol
-        !REAL(KIND=dp) :: kcal
         REAL(KIND=dp), dimension(:,:), intent(in) :: H
+        integer, intent(in) :: mol
         REAL(KIND=dp), dimension(:,:), intent(out), allocatable :: C
-
-        TYPE(sh_env_type), INTENT(INOUT), OPTIONAL               ::    sh_env
         REAL(KIND=dp), dimension(:), intent(out), allocatable :: E
+        logical, intent(in) :: print
+        TYPE(sh_env_type), INTENT(INOUT), OPTIONAL               ::    sh_env
+
+        CHARACTER(len=*), PARAMETER :: routineN ='adiabaticity', &
+                               routineP = moduleN//':'//routineN
+
+        integer :: stat, LWORK
         character(len=1) :: job, up
         REAL(KIND=dp), dimension(:), allocatable :: DGETRI_WORK
-        logical, intent(in) :: print
-
-        !kcal = 1 Hartree in kcal/mol
-        !kcal = 627.509D0
 
         allocate(C(mol,mol))
         allocate(E(mol))
@@ -1065,7 +962,6 @@ subroutine adiabaticity(H, mol, C, E, print, sh_env)
         
          
         deallocate(DGETRI_WORK)
-
 end subroutine adiabaticity
 
 
@@ -1083,13 +979,11 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
         CHARACTER(len=*), PARAMETER :: routineN = 'calc_hop_nacv', &
         routineP = moduleN//':'//routineN
 
-        !INTEGER                                      :: aom_iatom, iatom, num_mol, nadiab, num_j, natom
         INTEGER                                      :: num_mol, nadiab, num_j, natom
         INTEGER                                      :: old_state, new_state
         REAL(KIND=dp)                                :: scaling, cbar, diff_energy
         REAL(KIND=dp)                                :: E_old_state, E_new_state
         REAL(KIND=dp), dimension(:,:,:), allocatable :: Fin
-        !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: nacv, Wprime
         REAL(KIND=dp), dimension(:,:,:), allocatable   :: nacv
         REAL(KIND=dp), dimension(:,:,:,:), allocatable :: Wprime
         integer, dimension(:,:), allocatable :: NN
@@ -1125,7 +1019,6 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
         allocate(DH(mat,mat,natom,3))
         allocate(my_DP(mat,mat,natom,3)) 
         allocate(nacv(3,mat, mat*atoms)) 
-        !allocate(nacv(3,mat,mat, mat*atoms)) 
         allocate(Wprime(mat,mat,natom,3)) 
         allocate(F_1(3,natom))
         allocate(F_11(3,natom))
@@ -1311,6 +1204,7 @@ SUBROUTINE calc_hop_nacv(aom_env, hop_nacv, ext_old_state, ext_new_state, symmet
         deallocate(F_3)
 END SUBROUTINE calc_hop_nacv
 
+
 FUNCTION NORM2(array) RESULT(norm)
          REAL(kind=dp), dimension(:), INTENT(IN) :: array
         
@@ -1324,16 +1218,14 @@ FUNCTION NORM2(array) RESULT(norm)
          norm = SQRT(norm)
 END FUNCTION NORM2
 
+
 subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, forces_adiab, & 
                   ext_pres, analytics,  exact_forces)
 
         !per our full force expression derivation, this calculates the adiabatic forces
         !on each atom
-
-
         integer, intent(in) :: state
         REAL(KIND=dp), intent(in), dimension(:,:) :: Hin, C
-        !REAL(KIND=dp), intent(in), dimension(:,:,:,:) :: nacv
         REAL(KIND=dp), intent(in), dimension(:,:,:) :: nacv
         integer, intent(in), dimension(:,:) :: NN
         integer, intent(in) :: atoms
@@ -1344,18 +1236,10 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, forces
         LOGICAL, INTENT(IN)  :: analytics
         REAL(KIND=dp), dimension(:,:), INTENT(OUT) :: exact_forces
 
-        !integer :: i, j, k, mat, d
-        !REAL(KIND=dp) :: bohrang, kcal
-        !REAL(KIND=dp), dimension(:,:,:,:), allocatable :: DH, DT, my_DP
-        !REAL(KIND=dp), dimension(:,:), allocatable :: F
-        !REAL(KIND=dp), dimension(:,:), allocatable :: H, T, nsave, DHtemp
+        CHARACTER(len=*), PARAMETER :: routineN ='calcforces', &
+                               routineP = moduleN//':'//routineN
 
-        !INTEGER                                 :: natom
-        !LOGICAL, dimension(:), INTENT(IN)       :: ext_pres
-        !INTEGER                                 :: aom_iatom, iatom, num_mol, nadiab, num_j
         integer :: i, j, mat, d
-        !REAL(KIND=dp) :: bohrang, kcal
-
         INTEGER                                 :: natom
         INTEGER                                 :: num_mol, nadiab, num_j
         REAL(KIND=dp)                           :: convert_nacv 
@@ -1363,110 +1247,7 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, forces
         natom = SIZE(Fin,2)
         nadiab= SIZE(Fin,3)
         mat = size(Hin,1)
-        !ctin = ctin
 
-        !1 Angstrom = bohrang Bohr
-        !bohrang = 1.889725989D0
-        !kcal = 1 Hartree in kcal/mol
-        !kcal = 627.509D0
-
-        !allocate(H(mat,mat))
-        !allocate(T(mat,mat))
-        !allocate(DHtemp(mat,mat))
-        !allocate(DH(mat,mat,natom,3))
-        !allocate(DT(mat,mat,mat*atoms,3))
-        !allocate(my_DP(mat,mat,natom,3)) 
-        !allocate(F(3,natom))
-        !allocate(nsave(natom,3))
-
-        !aom_iatom = 0
-        !do iatom=1, natom
-        !   if (ext_pres(iatom)) then
-        !      aom_iatom = aom_iatom +1
-        !      do d=1,3
-        !          my_DP(:,:,iatom,d) = nacv(d,:,:,aom_iatom)
-        !       enddo
-        !   else 
-        !      my_DP(:,:,iatom,:) = 0.0D0
-        !   endif
-        !enddo
-!       IF (aom_iatom.NE.SIZE(nacv,4)) THEN
-!       ENDIF
-
-        !do i=1,mat
-        !        do j=1,mat
-        !                if (j > i) then
-        !                        my_DP(i,j,:,:) = my_DP(i,j,:,:) + my_DP(j,i,:,:)
-        !                else
-        !                        my_DP(i,j,:,:) = my_DP(j,i,:,:)
-        !                end if
-        !        end do
-        !end do
-
-        !i is over each site
-        !do i=1,mat
-        !        do j=1,mat
-        !                do k=1, natom
-        !                        do d=1,3
-        !                                if (NN(i,j) == 1) then
-        !                                        if (i == j) then
-        !                                                DH(i,j,k,d) = Fin(d,k,i)
-        !                                        else
-!> Correct the nacv
-        !                                                DH(i,j,k,d) = - scaling*my_DP(i,j,k,d)/cbar
-        !                                        end if
-        !                                else
-        !                                        DH(i,j,k,d) = 0.0D0
-        !                                end if
-        !                        end do
-        !                end do
-        !        end do
-        !end do
-
-        !You can calculate the forces with a "shortcut formula"
-        !This should take advantage of the sparsity of H for large systems
-
-        !IF (analytics) THEN
-        !   IF (mat.NE.2) CPABORT("YOU CAN ONLY USE ANALYTICAL EXPRESSION FOR 2x2 SYSTEMS.")
-        !   DO d=1,3
-        !      DO j=1,natom
-        !         IF (state.EQ.1) THEN
-        !            exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2  -  &
-        !            ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
-        !            (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
-        !         ELSE 
-        !            exact_forces(d,j) = (DH(1,1,j,d)+DH(2,2,j,d))/2.0  +  &
-        !            ((Hin(2,2)-Hin(1,1))*(DH(2,2,j,d)-DH(1,1,j,d)) + 4*Hin(1,2)*DH(1,2,j,d) ) / &
-        !            (2*SQRT( (Hin(2,2)-Hin(1,1))**2 + 4*Hin(1,2)**2 ))
-        !         ENDIF
-        !      ENDDO 
-        !   ENDDO
-        !ELSE
-        !   exact_forces = 0.0D0
-        !ENDIF
-        !begin shortcut formula 
-        !conjugates and realpart commands have been omitted, as everything should be real
-        !remember to change this if it ever becomes not the case!
-        !num_mol = 0
-        !do d=1,3
-        !        num_j = -1
-        !        do j=1,natom
-        !           F(d,j) = 0.0D0
-        !           IF (ext_pres(j)) THEN
-        !              num_j   = num_j + 1
-        !              num_mol = int(num_j/atoms) + 1 
-        !           ENDIF
-        !           do i=1,mat
-        !              F(d,j) = F(d,j) + (abs(C(i,state))**2)*DH(i,i,j,d)
-        !              IF (ext_pres(j)) THEN
-        !                 IF (i.ne.num_mol) THEN
-        !                    F(d,j) = F(d,j) + 2.0D0*((C(num_mol,state))*DH(i,num_mol,j,d)*C(i,state))
-        !                 ENDIF
-        !              ENDIF
-        !           ENDDO
-        !        ENDDO
-        !ENDDO
-        !forces_adiab = F
         convert_nacv = - scaling / cbar
         num_mol = 0
         do d=1,3
@@ -1488,87 +1269,8 @@ subroutine calcforces(state, Hin, C, nacv, NN, atoms, scaling, cbar, Fin, forces
                    ENDDO
                 ENDDO
         ENDDO
-        !forces_adiab = F
-
-        !deallocate(T, DH, DT, my_DP, F, nsave)
-                
 end subroutine calcforces
 
-!COMMENT: calcTDT is not used anymore
-subroutine calcTDT(S, DS, T, DT, atoms, mol)
-
-
-        REAL(KIND=dp), dimension(:,:), intent(in) :: S
-        integer, intent(in) :: atoms, mol
-        REAL(KIND=dp), dimension(:,:), intent(out) :: T
-        REAL(KIND=dp), dimension(:,:), allocatable :: L, Sinv, Wleft, Wright, Temp
-        REAL(KIND=dp), dimension(:), allocatable :: Tdiag
-        REAL(KIND=dp), dimension(:,:,:,:), allocatable :: W, Wtop
-        REAL(KIND=dp), dimension(:,:,:,:), intent(in) :: DS
-        REAL(KIND=dp), dimension(:,:,:,:), intent(out) :: DT
-        integer :: stat, LWORK, i, j
-        REAL(KIND=dp), dimension(:), allocatable :: DGETRI_WORK
-
-        T = S
-        call matinvsqrt(mol, .TRUE., T)
-
-        allocate(W(3,mol,mol,mol*atoms))
-        allocate(Wtop(3,mol,mol,mol*atoms))
-        allocate(L(mol,mol))
-        allocate(Tdiag(mol))
-        allocate(Sinv(mol,mol))
-        allocate(Wleft(mol,mol))
-        allocate(Wright(mol,mol))
-        allocate(Temp(mol,mol))
-
-        allocate(DGETRI_WORK(3*mol))
-
-        Sinv = matmul(T,T)
-
-        L = T        
-        !DSYEV is from the BLAS. Returns vector of eigenvalues and overwrites input with matrix of eigenvectors
-        LWORK = -1
-        call DSYEV('V', 'U', mol, L, mol, Tdiag, DGETRI_WORK, LWORK, stat)
-        if (stat /= 0) then
-                CPABORT("Error with subroutine DSYEV: error status")
-        end if
-        LWORK = max(3*size(L)-1, int(DGETRI_WORK(1)))
-        deallocate(DGETRI_WORK)
-        allocate(DGETRI_WORK(LWORK))
-        if (.not. allocated(DGETRI_WORK)) then
-                CPABORT("Error: array 'DGETRI_WORK not allocated correctly.")
-        end if
-        call DSYEV('V', 'U', mol, L, mol, Tdiag, DGETRI_WORK, LWORK, stat)
-        if (stat /= 0) then
-                CPABORT("Error with subroutine DSYEV: error status")
-        end if
-
-        Wright = matmul(Sinv, L)
-        Wleft = matmul(transpose(L), Sinv)
-
-        Wtop = 0.0D0
-
-        do i=1,3
-                do j=1,mol*atoms
-                        Wtop(i,:,:,j) = matmul(DS(i,:,:,j),Wright)
-                        Wtop(i,:,:,j) = matmul(Wleft, Wtop(i,:,:,j))
-                end do
-        end do
-        do i=1,mol
-                do j=1,mol
-                        W(:,i,j,:) = -Wtop(:,i,j,:)/(Tdiag(i) + Tdiag(j))
-                end do
-        end do
-        do i=1,3
-                do j=1,mol*atoms
-                        DT(:,:,j,i) = matmul(W(i,:,:,j),transpose(L))
-                        DT(:,:,j,i) = matmul(L,DT(:,:,j,i))
-                end do
-        end do
-
-        deallocate(W, Wtop, L, Tdiag, Sinv, Wleft, Wright, Temp, DGETRI_WORK)
-
-end subroutine calcTDT
 
    SUBROUTINE read_listcoeff(listcoeff, ext_elements, ext_pres, &
                             ext_scoeff, ext_pcoeff, natom)
@@ -1590,6 +1292,8 @@ end subroutine calcTDT
     TYPE(val_type), POINTER                  :: val
     INTEGER                                  :: my_pres
     REAL(KIND=dp)                            :: my_ext_elements, my_pres2
+
+    NULLIFY(val)
 
     ALLOCATE(ext_elements(natom))
     ALLOCATE(ext_pres(natom))
@@ -1680,7 +1384,6 @@ end subroutine calcTDT
    END SUBROUTINE read_listcoeff
 
 
-
    SUBROUTINE choose_firstadiabat(C, init, sh_print_env, first_adiabat, aom_env)
         REAL(KIND=dp), dimension(:,:), intent(in) :: C
         INTEGER, INTENT(IN)                       :: init
@@ -1696,11 +1399,7 @@ end subroutine calcTDT
 
         ALLOCATE(sh_print_env%pop_init(SIZE(C(init,:))))
 
-        !CALL init_random_seed()
-        !CALL random_number(random)
-        !CALL create_rng_stream(rng_stream, "firstadiab")
         random = next_random_number(aom_env%rng_stream)
-        !CALL delete_rng_stream(rng_stream)
         sh_print_env%initrandom = random
         sumc = 0.0D0
         DO i=1, SIZE(C(init,:))
@@ -1728,87 +1427,15 @@ end subroutine calcTDT
         CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
         routineP = moduleN//':'//routineN
 
-
  !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
         rescale_factor = SQRT(  delta_energy /kinetic_energy_prime )
-
         velocities = rescale_factor*velocities
-
    END SUBROUTINE simple_vel_rescaling
-
-
-!COMMENT: calc_velocities_prime is not used anymore
-   SUBROUTINE calc_velocities_prime(velocities, forces_adiab, &
-                                    atomic_kinds, deltatMD,   &
-                                    local_particles,           &
-                                    velocities_prime, kinetic_energy_prime)
-
-        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
-        REAL(kind=dp), DIMENSION(:,:),POINTER    :: forces_adiab
-        TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-        REAL(kind=dp), INTENT(IN)                :: deltatMD
-        TYPE(distribution_1d_type), POINTER      :: local_particles
-        REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_prime
-        REAL(kind=dp), INTENT(OUT)                :: kinetic_energy_prime
-
-        CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_rescaling', &
-        routineP = moduleN//':'//routineN
-
-        INTEGER                                   :: iparticle_kind, nparticle_kind
-        REAL(kind=dp)                             :: dm,dt,mass
-        INTEGER                                   :: nparticle_local, iparticle_local
-        TYPE(atomic_kind_type), DIMENSION(:), &
-          POINTER                                :: atomic_kind_set
-        TYPE(atomic_kind_type), POINTER          :: atomic_kind
-        INTEGER                                  :: iparticle
-    
-    dt = deltatMD
-    nparticle_kind = atomic_kinds%n_els
-    atomic_kind_set => atomic_kinds%els
-    kinetic_energy_prime = 0.0D0
-    ! Update Verlet (second part)
-    DO iparticle_kind=1,nparticle_kind
-       atomic_kind => atomic_kind_set(iparticle_kind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-       dm = 0.5_dp*dt/mass
-       nparticle_local = local_particles%n_el(iparticle_kind)
-       DO iparticle_local=1,nparticle_local
-          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-             velocities_prime(1, iparticle) = velocities(1, iparticle) + &
-                 dm*forces_adiab(1,iparticle)
-             velocities_prime(2, iparticle) = velocities(2, iparticle) + &
-                 dm*forces_adiab(2,iparticle)
-             velocities_prime(3, iparticle) = velocities(3,iparticle) + &
-                 dm*forces_adiab(3,iparticle)
-             kinetic_energy_prime = kinetic_energy_prime +   &
-                 mass*( &
-                 velocities_prime(1, iparticle)**2 + &
-                 velocities_prime(2, iparticle)**2 + &
-                 velocities_prime(3, iparticle)**2  )
-       END DO
-    END DO
-    kinetic_energy_prime = 0.5*kinetic_energy_prime
-
-    IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
-    IF (ASSOCIATED(atomic_kind_set)) NULLIFY(atomic_kind_set)
-   END SUBROUTINE calc_velocities_prime
-
-
-
-  !SUBROUTINE adiab_nace_from_nacv(velocities_com_tp, )
-  !      REAL(kind=dp), DIMENSION(:,:)        :: velocities_com_tp
-        
-
-
-  !END SUBROUTINE adiab_nace_from_nacv
-
-
 
 
    SUBROUTINE check_hop_attempt(velocities, atomic_kind_set, nparticle_kind, local_particles, &
  force_env)
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
-        !TYPE(tmp_variables_type), POINTER        :: tmp
         TYPE(atomic_kind_type), DIMENSION(:), &
              POINTER                                :: atomic_kind_set
         INTEGER, INTENT(IN)                      :: nparticle_kind
@@ -2020,10 +1647,9 @@ ENDIF
                 CPABORT("There is no method to do the rescaling of the velocities.")
         END SELECT
 
-        !DEALLOCATE(mixed_section, adiab_section, coupling_section, force_env_section)
         DEALLOCATE(velocities_com)
-
    END SUBROUTINE check_hop_attempt
+
 
    SUBROUTINE hop_nacv_vel_reversing(nparticle_kind, velocities, forces_old, forces_new, hop_nacv, atomic_kind_set, &
                                      local_particles, reversal_keyword, sh_print_env, A, B)
@@ -2042,7 +1668,6 @@ ENDIF
         routineP = moduleN//':'//routineN
 
         REAL(kind=dp)                            :: product_pd, product_dfo, product_dfn
-        !REAL(kind=dp)                            :: scalar, norm
         REAL(kind=dp)                            :: mass
         INTEGER                                  :: iparticle_kind
         INTEGER                                  :: nparticle_local
@@ -2051,8 +1676,8 @@ ENDIF
         LOGICAL                                  :: reverse
         REAL(KIND=dp)                            :: reversal_factor
 
+        NULLIFY(atomic_kind)
 !> TO EXPLAIN  
-
         IF ((reversal_keyword.ne."ALWAYS").OR.(reversal_keyword.ne."NEVER")) THEN
            product_pd = 0.0D0
            product_dfo = 0.0D0
@@ -2116,10 +1741,8 @@ print *, "REVERSAL_HERE"
         sh_print_env%product_dfn = product_dfn
         sh_print_env%product_dfo = product_dfo
 
-
         IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE hop_nacv_vel_reversing
-
 
 
    SUBROUTINE hop_nacv_vel_rescaling(nparticle_kind, velocities, delta_energy, A, B, hop_nacv, atomic_kind_set, &
@@ -2142,6 +1765,7 @@ print *, "REVERSAL_HERE"
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
+        NULLIFY(atomic_kind)
 !> From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular dynamics using semiempirical methods. 
 !>     Chem Phys 2008, 349:334–347.
 !>  B = -B, compare to the paper
@@ -2170,126 +1794,6 @@ print *, "REVERSAL_HERE"
         IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE hop_nacv_vel_rescaling
 
-!  SUBROUTINE cal_delta_energy_nacv(nparticle_kind, velocities, aom_env, atomic_kind_set, &
-!                                   local_particles, hop_nacv, delta_energy, A, B) 
-!       INTEGER, INTENT(IN)                      :: nparticle_kind
-!       REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
-!       TYPE(aom_env_type)                       :: aom_env
-!       TYPE(distribution_1d_type), POINTER      :: local_particles
-!       TYPE(atomic_kind_type), DIMENSION(:), &
-!            POINTER                                :: atomic_kind_set
-!       REAL(kind=dp), DIMENSION(:,:), INTENT(IN)   :: hop_nacv
-!       REAL(kind=dp), INTENT(OUT)                  :: delta_energy
-!       REAL(kind=dp), INTENT(OUT)                  :: A, B
-!
-!       CHARACTER(len=*), PARAMETER :: routineN = 'cal_delta_energy_nacv', &
-!       routineP = moduleN//':'//routineN
-!
-!       REAL(kind=dp)                            :: mass
-!       INTEGER                                  :: iparticle_kind, new_state, old_state
-!       INTEGER                                  :: nparticle_local, coord
-!       INTEGER                                  :: iparticle_local, iparticle
-!       TYPE(atomic_kind_type), POINTER          :: atomic_kind
-!
-!!From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular dynamics using semiempirical methods. 
-!!     Chem Phys 2008, 349:334–347.
-!       
-!          A = 0
-!          B = 0
-!          DO iparticle_kind=1,nparticle_kind
-!             atomic_kind => atomic_kind_set(iparticle_kind)
-!             CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!             nparticle_local = local_particles%n_el(iparticle_kind)
-!             DO iparticle_local=1,nparticle_local
-!                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-!                DO coord = 1, 3
-!                   IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
-!                      velocities(3, iparticle)**2 ).NE.0.0d0) THEN
-!                      A = A + hop_nacv(coord, iparticle)**2 / mass
-!                   ELSE IF ( SUM(velocities).EQ.0) THEN
-!                      A = A + hop_nacv(coord, iparticle)**2 / mass
-!                   ENDIF
-!                   B = B + velocities(coord, iparticle) * hop_nacv(coord, iparticle)
-!                ENDDO
-!             END DO
-!          END DO
-!          A = 0.5*A
-!
-!          new_state = aom_env%new_state
-!          old_state = aom_env%active_state
-!          delta_energy = B**2 - 4 * A * (  &
-!                    aom_env%adiab_energies_t(new_state) - &
-!                    aom_env%adiab_energies_t(old_state))
-!  END SUBROUTINE cal_delta_energy_nacv
-
-
-!    SUBROUTINE cal_delta_energy_nacv(nparticle_kind, velocities, aom_env, atomic_kind_set, &
-!                                     local_particles, hop_nacv, delta_energy, A, B, i, j) 
-!         INTEGER                                 :: nparticle_kind
-!         INTEGER, OPTIONAL, INTENT(IN)            :: i, j
-!         REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities
-!         TYPE(aom_env_type)                       :: aom_env
-!         TYPE(distribution_1d_type), POINTER      :: local_particles
-!         TYPE(atomic_kind_type), DIMENSION(:), &
-!              POINTER                                :: atomic_kind_set
-!         REAL(kind=dp), DIMENSION(:,:), INTENT(IN)   :: hop_nacv
-!         REAL(kind=dp), INTENT(OUT)                  :: delta_energy
-!         REAL(kind=dp), INTENT(OUT)                  :: A, B
-!  
-!         CHARACTER(len=*), PARAMETER :: routineN = 'adiab_nacv_evaluation', &
-!         routineP = moduleN//':'//routineN
-!  
-!         REAL(kind=dp)                            :: mass
-!         INTEGER                                  :: iparticle_kind, new_state, old_state
-!         INTEGER                                  :: nparticle_local, coord
-!         INTEGER                                  :: iparticle_local, iparticle
-!         TYPE(atomic_kind_type), POINTER          :: atomic_kind
-!  
-!  From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular dynamics using semiempirical methods. 
-!       Chem Phys 2008, 349:334–347.
-!  
-!  
-!            A = 0
-!            B = 0
-!            DO iparticle_kind=1,nparticle_kind
-!               atomic_kind => atomic_kind_set(iparticle_kind)
-!               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!               nparticle_local = local_particles%n_el(iparticle_kind)
-!  stop
-!               DO iparticle_local=1,nparticle_local
-!                  iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-!  !stop
-!                  DO coord = 1, 3
-!                     IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
-!                        velocities(3, iparticle)**2 ).NE.0.0d0) THEN
-!                        A = A + hop_nacv(coord, iparticle)**2 / mass
-!                     ELSE IF ( SUM(velocities).EQ.0) THEN
-!                        A = A + hop_nacv(coord, iparticle)**2 / mass
-!                     ENDIF
-!                     B = B + velocities(coord, iparticle) * hop_nacv(coord, iparticle)
-!                  ENDDO
-!               END DO
-!            END DO
-!            A = 0.5*A
-!  
-!            IF (PRESENT(j)) THEN
-!               new_state = j
-!            ELSE    
-!               new_state = aom_env%new_state
-!            ENDIF
-!            IF (PRESENT(i)) THEN
-!               old_state = i
-!            ELSE
-!               old_state = aom_env%active_state
-!            ENDIF
-!  
-!  
-!            delta_energy = B**2 - 4 * A * (  &
-!                      aom_env%adiab_energies_t(new_state) - &
-!                      aom_env%adiab_energies_t(old_state))
-!    END SUBROUTINE cal_delta_energy_nacv
-
-
 
    SUBROUTINE cal_delta_energy_nacv(nparticle_kind, velocities, aom_env, atomic_kind_set, &
                                     local_particles, hop_nacv, delta_energy, A, B, i, j) 
@@ -2304,7 +1808,7 @@ print *, "REVERSAL_HERE"
         REAL(kind=dp), INTENT(OUT)                  :: delta_energy
         REAL(kind=dp), INTENT(OUT)                  :: A, B
 
-        CHARACTER(len=*), PARAMETER :: routineN = 'adiab_nacv_evaluation', &
+        CHARACTER(len=*), PARAMETER :: routineN = 'cal_delta_energy_nacv', &
         routineP = moduleN//':'//routineN
 
         REAL(kind=dp)                            :: mass
@@ -2313,10 +1817,10 @@ print *, "REVERSAL_HERE"
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
+
+        NULLIFY(atomic_kind)
 !From Fabiano E, Keal TW, Thiel W. Implementation of surface hopping molecular dynamics using semiempirical methods. 
 !     Chem Phys 2008, 349:334–347.
-
-
            A = 0
            B = 0
            DO iparticle_kind=1,nparticle_kind
@@ -2357,7 +1861,6 @@ print *, "REVERSAL_HERE"
    END SUBROUTINE cal_delta_energy_nacv
 
 
-         
    SUBROUTINE cal_delta_energy(nparticle_kind, velocities, force_env, atomic_kind_set, &
                                local_particles, delta_energy, kinetic_energy_prime) 
         INTEGER, INTENT(IN)                      :: nparticle_kind
@@ -2369,7 +1872,7 @@ print *, "REVERSAL_HERE"
         REAL(kind=dp), INTENT(OUT)               :: delta_energy
         REAL(kind=dp), INTENT(OUT)               :: kinetic_energy_prime
 
-        CHARACTER(len=*), PARAMETER :: routineN = 'delta_energy', &
+        CHARACTER(len=*), PARAMETER :: routineN = 'cal_delta_energy', &
         routineP = moduleN//':'//routineN
 
         REAL(kind=dp)                            :: mass
@@ -2378,7 +1881,7 @@ print *, "REVERSAL_HERE"
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-
+        NULLIFY(atomic_kind)
            kinetic_energy_prime = 0.0D0
            DO iparticle_kind=1,nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
@@ -2404,8 +1907,6 @@ print *, "REVERSAL_HERE"
    END SUBROUTINE cal_delta_energy
 
 
-!---> CHANGE SG to calculate kinetic energy only for the quantum system         
-
    SUBROUTINE cal_delta_ene_QSYS(nparticle_kind, velocities, force_env, atomic_kind_set, &
                                local_particles, delta_energy, kinetic_energy_qsys) 
         INTEGER, INTENT(IN)                      :: nparticle_kind
@@ -2416,8 +1917,6 @@ print *, "REVERSAL_HERE"
              POINTER                                :: atomic_kind_set
         REAL(kind=dp), INTENT(OUT)               :: delta_energy
         REAL(kind=dp), INTENT(OUT)               :: kinetic_energy_qsys
-!        LOGICAL, dimension(:), ALLOCATABLE, INTENT(IN)           :: ext_pres
-
 
         CHARACTER(len=*), PARAMETER :: routineN = 'cal_delta_ene_QSYS', &
         routineP = moduleN//':'//routineN
@@ -2428,7 +1927,7 @@ print *, "REVERSAL_HERE"
         INTEGER                                  :: iparticle_local, iparticle
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-
+        NULLIFY(atomic_kind)
            kinetic_energy_qsys = 0.0D0
            DO iparticle_kind=1,nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
@@ -2456,6 +1955,7 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
         IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE cal_delta_ene_QSYS
 
+
    SUBROUTINE simple_vel_resc_qsys(atomic_kind_set,local_particles, force_env, nparticle_kind, & 
                                    velocities, delta_energy, kinetic_energy_qsys, rescale_factor)
         
@@ -2468,7 +1968,6 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
         REAL(kind=dp), INTENT(IN)                :: delta_energy
         REAL(kind=dp), INTENT(IN)                :: kinetic_energy_qsys
-        !REAL(kind=dp), DIMENSION(:,:),POINTER    :: velocities_plus
         REAL(kind=dp), INTENT(OUT)               :: rescale_factor
 
         CHARACTER(len=*), PARAMETER :: routineN = 'simple_vel_resc_qys', &
@@ -2480,9 +1979,7 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
         INTEGER                                  :: nparticle_local
 
 !> Factor to rescale the velocities (Eq. 49 of PAPER_1)
-
         rescale_factor = SQRT(  delta_energy /kinetic_energy_qsys)
-
 
            DO iparticle_kind=1,nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
@@ -2495,9 +1992,7 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
                  end if
               END DO
            END DO
-
    END SUBROUTINE simple_vel_resc_qsys
-
 
 
    SUBROUTINE total_momentum(velocities, atomic_kind_set, nparticle_kind, &
@@ -2519,7 +2014,7 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
         TYPE(atomic_kind_type), POINTER          :: atomic_kind
         REAL(kind=dp), DIMENSION(3)                       :: momentum
 
-
+        NULLIFY(atomic_kind)
            momentum = 0.0D0 
            DO iparticle_kind=1,nparticle_kind
               atomic_kind => atomic_kind_set(iparticle_kind)
@@ -2534,7 +2029,8 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
            print*, "MOMENTUM = ", MOMENTUM
         IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
    END SUBROUTINE total_momentum
-         
+        
+ 
    SUBROUTINE translate_com(array, keyword_translate, translate_array, &
                             local_particles, atomic_kinds, nparticle_kind, atomic_kind_set)
         REAL(kind=dp), DIMENSION(:,:),POINTER    :: array
@@ -2549,8 +2045,7 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
         CHARACTER(len=*), PARAMETER :: routineN = 'translate_com', &
         routineP = moduleN//':'//routineN
 
-        TYPE(atomic_kind_type), DIMENSION(:), &
-             POINTER                             :: my_atomic_kind_set
+        TYPE(atomic_kind_type), TARGET, ALLOCATABLE, DIMENSION(:)                 :: my_atomic_kind_set
         INTEGER                                  :: my_nparticle_kind
         REAL(kind=dp)                            :: mass
         INTEGER                                  :: iparticle_kind
@@ -2560,15 +2055,17 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
         REAL(kind=dp), DIMENSION(3)              :: sum_array
         REAL(KIND=dp)                            :: sum_mass
 
-        NULLIFY(my_atomic_kind_set, atomic_kind)
+        NULLIFY(atomic_kind)
         IF (keyword_translate) THEN
            IF (PRESENT(atomic_kinds)) THEN
               my_nparticle_kind = atomic_kinds%n_els
-              my_atomic_kind_set => atomic_kinds%els
+              ALLOCATE(my_atomic_kind_set(SIZE(atomic_kinds%els)))
+              my_atomic_kind_set = atomic_kinds%els
            ELSE
               IF ((PRESENT(nparticle_kind)).AND.(PRESENT(atomic_kind_set))) THEN
                  my_nparticle_kind = nparticle_kind
-                 my_atomic_kind_set => atomic_kind_set
+                 ALLOCATE(my_atomic_kind_set(SIZE(atomic_kind_set)))
+                 my_atomic_kind_set = atomic_kind_set
               ENDIF
            ENDIF
            sum_array = 0.0D0
@@ -2600,8 +2097,6 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
         ENDIF 
       
         IF (ASSOCIATED(atomic_kind)) NULLIFY(atomic_kind)
-        IF (ASSOCIATED(my_atomic_kind_set)) NULLIFY(my_atomic_kind_set)
    END SUBROUTINE translate_com
-
 
 END MODULE aom_utils
