@@ -405,7 +405,6 @@ END SUBROUTINE classically_forbidden_hops
 !transfor the diabatic into the adiabatic coefficients and calculate tau
     do i=1,mol 
            if (i .ne. sh_env%active_state) then
-              ! pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
                tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param +(E_0_param/K_tot))
                 !print*, tau(i)
@@ -526,21 +525,9 @@ END SUBROUTINE classically_forbidden_hops
    ! mixing_threshold = 2.0D0
 
 
-!TEST
-!    call calcforces(sh_env%active_state,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
-!                      sh_env%NN, sh_env%atoms, &
-!                      sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
-!                      sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
-!ENDTEST
 
-
-!test
-!sh_env%forces_active_state = 0.0D0 
-
-print *, "aom_env%adiab_nace_tp_INSIDE_SUBROUTINE", sh_env%adiab_nace
     allocate(adiab_nace_vector(mol))
     adiab_nace_vector(:) = sh_env%adiab_nace(sh_env%active_state,:)
-print *, "adiab_nace_vector", adiab_nace_vector
 
 
     do i=1,mol 
@@ -574,7 +561,6 @@ print *, "adiab_nace_vector", adiab_nace_vector
                          END DO    
                          tau(i) = 1/tau(i)
                      else
-print *, "PURE_DEPHA"
                          tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))
                      end if
                end if

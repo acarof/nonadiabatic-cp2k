@@ -1729,7 +1729,6 @@ ENDIF
                  IF ((velocities(1, iparticle)**2 + velocities(2, iparticle)**2 + &
                       velocities(3, iparticle)**2 ).NE.0.0d0) THEN
                     velocities(:, iparticle ) = velocities(:, iparticle) + (reversal_factor/mass) * hop_nacv(:, iparticle)
-print *, "REVERSAL_HERE"
                  ENDIF
               ENDDO
            END DO

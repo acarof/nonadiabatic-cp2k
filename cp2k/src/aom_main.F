@@ -295,7 +295,6 @@ CONTAINS
 
      CALL calc_adiab_nace(aom_env%C_t, C_tp, deltatMD, aom_env)
      sh_env%adiab_nace = aom_env%adiab_nace_tp 
-print *, "aom_env%adiab_nace_tp(i,j)", sh_env%adiab_nace 
 
 !allocate(var(mat))
 !do i = 1,mat
@@ -340,9 +339,6 @@ print *, "aom_env%adiab_nace_tp(i,j)", sh_env%adiab_nace
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
            aom_env%class_forbidden_hop_t = class_forbidden_hop_tp 
-!           aom_env%HS_propagation = .TRUE.
-!TEST
-
            CALL section_vals_val_get(coupling_section,"METHOD_REVERSAL",c_val=reversal_keyword)
            if (reversal_keyword .eq. "ALWAYS") then
                 aom_env%HS_propagation = .FALSE.

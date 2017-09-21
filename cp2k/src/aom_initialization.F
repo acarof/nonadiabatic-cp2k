@@ -668,10 +668,6 @@ CONTAINS
              CALL choose_firstadiabat(C_tp, first_diabat, sh_print_env, active_state, aom_env) 
 !an active state in needed for the nuclear propagation but the wafunction has to
 !start form an eigenvector of the hamiltonian in the diab_basis
-
-!ONLY FOR THE TEST
-active_state = 1
- 
             SELECT CASE(keyword_basis_repr)
              CASE("DIABATIC_BASIS")
                  ctin(:) = CMPLX(0.0D0, 0.0D0,dp)
@@ -720,9 +716,6 @@ active_state = 1
     
 
 
-!TEST
-!aom_env%adiab_nace_tp = 0.0D0
-
 
      !> second part CALCULATE THE FORCES IN THE ACTIVE STATE, WHATEVER THE
      !RESULT OF THE SURFACE HOP ROUTINE IS.
@@ -757,12 +750,6 @@ active_state = 1
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &
                           atomic_kind_set, energy_conservation, class_forbidden_hop_tp)
 
-!TEST!
-!do i =1,mat 
-!   class_forbidden_hop_tp = -1
-!end do
-!class_forbidden_hop_tp(1) = -1
-!class_forbidden_hop_tp(2) = 2         
           
           aom_env%class_forbidden_hop_t = class_forbidden_hop_tp
      CASE DEFAULT                                           
