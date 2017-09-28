@@ -546,7 +546,7 @@ END SUBROUTINE classically_forbidden_hops
                               sh_env%NN, sh_env%atoms, &
                               sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
                              sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
-                         tau = 0.0D0
+                         tau(i) = 0.0D0
                          DO iparticle_kind= 1, my_nparticle_kind
                                 atomic_kind => my_atomic_kind_set(iparticle_kind)
                                 CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
