@@ -351,6 +351,7 @@ CONTAINS
      END SELECT                                             
      sh_env%ctt(:) = ctin(:)
 
+print *, "ACTIVE_STATE_BEFORE_beforetrytohop", active_state
      !> SURFACE HOPPING TEST
      !The eigenvectors are needed to calculate the surface hopping probabilities
      !The surfacehop subroutine calculates these probabilites and decides on the
@@ -393,7 +394,8 @@ ALLOCATE(sh_env%forces_active_state(3,natom))
                               ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      ENDIF
 
-
+print *, "BEFORE_DECO"
+print *, "ACTIVE_STATE_BEFORE_DECO", active_state
      !> APPLY DECOHERENCE CORRECTION
      !> initialize derived type variables used in the decohere_wf subroutine
      sh_env%ctin=ctin
@@ -470,7 +472,9 @@ allocate(sh_env%exact_forces(3,natom))
      ENDIF
      energy_adiabat = E_tp(active_state)
      aom_env%sh_print_env = sh_print_env
-     
+
+print *, "ACTIVE_STATE_END", active_state
+print *, "END_MAIN"
      !> DEALLOCATE
      DEALLOCATE(my_forces_adiab)
      DEALLOCATE(my_forces_adiab_new)

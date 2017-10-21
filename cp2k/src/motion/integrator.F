@@ -601,6 +601,7 @@ CONTAINS
              IF (force_env%mixed_env%aom_env%attempt_hop) THEN
                 CALL check_hop_attempt(tmp%vel, atomic_kind_set, nparticle_kind, local_particles, force_env)
                 IF (force_env%mixed_env%aom_env%successful_hop) THEN
+print *, "IN_THE_INTEGRATOR_SUCCESSFUL_HOP"
                    CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
                                                     itimes = itimes)
                 ENDIF

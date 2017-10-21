@@ -595,6 +595,7 @@ subroutine modified_surfacehop(C1, C2, deltat, old_state, &
                                ! decohere = .FALSE.
                                 sh_env%decohere = .FALSE.
                                 attempt_hop = .TRUE.
+print *, "ATTEMPTED_HOP"
                                 sh_print_env%attempt_hop    = attempt_hop
                                 sh_print_env%new_state = new_state
                                 EXIT
@@ -1597,6 +1598,7 @@ ENDIF
                  CALL adiab_print_hop_nacv(sh_print_env, hop_nacv) 
               CASE("FAST")
                  CALL calc_hop_nacv( force_env%mixed_env%aom_env, hop_nacv, fast=.TRUE.)
+
                  CALL adiab_print_hop_nacv(sh_print_env, hop_nacv) 
               CASE DEFAULT
                 CPABORT("There is no method to calculate the NACV.")
@@ -1619,13 +1621,16 @@ ENDIF
                                               sh_print_env,A,B)
               ELSE 
                   force_env%mixed_env%aom_env%successful_hop = .TRUE.
+print *, "SUCCESSFUL_HOP"
                   force_env%mixed_env%aom_env%old_state      = force_env%mixed_env%aom_env%active_state
                   force_env%mixed_env%aom_env%active_state   = force_env%mixed_env%aom_env%new_state
                   force_env%mixed_env%aom_env%kinetic_energy = kinetic_energy_prime
+print *, "active_state_at_theend", force_env%mixed_env%aom_env%active_state
                   force_env%mixed_env%aom_env%delta_energy   = delta_energy
                   !force_env%mixed_env%aom_env%new_state = -1
                   CALL hop_nacv_vel_rescaling(nparticle_kind, velocities, delta_energy, A, B, hop_nacv, &
                                               atomic_kind_set, local_particles, rescale_factor)
+print *, "THERE_WAS_RESCALING"
               ENDIF
 
               sh_print_env%A = A
