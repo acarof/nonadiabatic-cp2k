@@ -27,7 +27,8 @@ MODULE non_adiabatic_utils
                                              adiab_print_sh_info,            &
                                              adiab_print_hamiltonian, &
                                              adiab_print_nace,        &
-                                             adiab_print_nacv        
+                                             adiab_print_nacv    
+     USE parallel_rng_types,              ONLY: next_random_number    
      USE aom_types,                    ONLY: aom_env_type, &      
                                                 sh_print_env_type 
 
@@ -258,6 +259,13 @@ END SUBROUTINE classically_forbidden_hops
             SELECT CASE(deco_keyword)                                                          
             CASE("NO_DECO_CORR")
                  PRINT *, 'NO DECOHERENCE CORRECTIONS'
+              CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
+                                    nparticle_kind, atomic_kind_set, K_tot, ext_pres)
+              CALL eval_deco_tau(tau, adiab_section, sh_env, mol, K_tot, sh_print_env, &
+                          local_particles, atomic_kinds,nparticle_kind, atomic_kind_set) 
+
+              CALL  collapse_within_deco_time(tau, mol, deltatMD, aom_env, sh_env)
+
             CASE("INSTANT_COLLAPSE")
               CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes)
             CASE("TRESH_ONLY_COLLAPSE")  
@@ -268,7 +276,8 @@ END SUBROUTINE classically_forbidden_hops
               CALL eval_deco_tau(tau, adiab_section, sh_env, mol, K_tot, sh_print_env, &
                           local_particles, atomic_kinds,nparticle_kind, atomic_kind_set) 
                    
-              CALL  wf_damping(tau, sh_env, mol, deltatMD, sh_print_env)                    
+              CALL  wf_damping(tau, sh_env, mol, deltatMD, sh_print_env)  
+                                
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
             END SELECT
@@ -301,7 +310,7 @@ END SUBROUTINE classically_forbidden_hops
     TYPE(sh_env_type)                              :: sh_env
     INTEGER, POINTER                               :: itimes
 
-    CHARACTER(len=*), PARAMETER :: routineN ='wf_collapse', &         
+    CHARACTER(len=*), PARAMETER :: routineN ='wf_collapse_adiab_prop', &         
     routineP = moduleN//':'//routineN                                                                 
 
  sh_print_env%decohere = .FALSE.                                      
@@ -561,6 +570,99 @@ print *, "TAU_NEW_EVAL", tau
   END SUBROUTINE eval_deco_tau
 
 
+  SUBROUTINE collapse_within_deco_time(tau, mol, deltatMD, aom_env, sh_env)
+
+    INTEGER, INTENT(IN)                        :: mol
+    REAL(KIND=dp), INTENT(IN)                  :: deltatMD
+    TYPE(aom_env_type)                         :: aom_env
+    TYPE(sh_env_type)                          :: sh_env
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)    :: tau!, tau_forces
+
+    CHARACTER(len=*), PARAMETER :: routineN ='collapse_within_deco_time', &
+    routineP = moduleN//':'//routineN
+
+    INTEGER  :: i, j
+    REAL(KIND=dp) :: random_num, collapse_probability
+    COMPLEX(KIND=dp), dimension(:), allocatable :: ct
+    COMPLEX(KIND=dp), dimension(:), allocatable :: pop
+    REAL(KIND=dp)      :: sum  
+
+
+    allocate(pop(mol)) !TEST
+    allocate(ct(mol))  ! adiabatic states
+
+    sum = 0.0D0
+    do i=1,mol
+         if (i .ne. sh_env%active_state) then
+             pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
+             ct(i) = cmplx(0.0D0, 0.0D0,dp) 
+             !> Tranform coefficients in the adiabatic basis 
+             do j=1,mol
+                    ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
+             end do
+             print *, "ct_SUBOTNIK_BEFRE", ct(i)                
+             pop(i) = ct(i)*conjg(ct(i))
+             print *, "POPU_BEFORE", pop(i)
+        
+             !>evaluate which states will be collpased
+             collapse_probability = deltatMD/tau(i)
+print *, "collapse_probability", collapse_probability
+             random_num = next_random_number(aom_env%rng_stream)
+             if (random_num .gt. collapse_probability) then 
+print *, "NOCOLLAPSE"
+                !CYCLE   !THIS EXITS COMPLETELY THE CYCLE and go to other i=i+1
+                    ct(i) = ct(i)  !nothing happens
+             else
+print *, "COLLAPSING_EVENT"
+                    ct(i) = 0.0D0
+             end if
+print *, "random_number_newSUB", random_num
+             sum = sum + abs(ct(i))*abs(ct(i))
+         end if
+print *, "MODIFIED_Ct_VECTOR", ct(i)
+    end do
+ 
+    !>transfor the active diabatic state into the active adiabatic state
+    pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
+    ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
+    do i=1,mol                                                       
+           ct(sh_env%active_state) = ct(sh_env%active_state) + &
+             cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
+    end do  
+    
+print *, "ct_SUBOTNIK(sh_env%active_state)", ct(sh_env%active_state)
+    pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
+    
+print *, "POP_SUBOTNIK(active_state)", pop(sh_env%active_state)
+    !>transfer population to the active state for keeping the detailed balance   
+    if (ct(sh_env%active_state)== 0) then
+           ct(sh_env%active_state) = sqrt(1-sum)
+    else 
+           ct(sh_env%active_state)= ct(sh_env%active_state)* &
+              sqrt((1-sum)/(abs(ct(sh_env%active_state))*abs(ct(sh_env%active_state))))
+    end if
+
+print *, "ULTIMATE_VECTOR_SUBOTNIK", ct    
+    pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
+print *, "ULTIMATE_POPULATION", pop
+
+    !>transfor back the adiabatic into the diabatic which, then, follow the
+      !electronic prpagation    
+    do j=1,mol
+          sh_env%ctin(j) = cmplx(0.0D0, 0.0D0,dp)                           
+          pop(j) = cmplx(0.0D0, 0.0D0,dp) !TEST
+          do i=1,mol 
+              sh_env%ctin(j) = sh_env%ctin(j) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*ct(i)
+          end do
+         pop(j)=sh_env%ctin(j)*conjg(sh_env%ctin(j))
+    end do
+
+    deallocate(pop) !TEST
+    deallocate(ct)  ! adiabatic states
+
+  END SUBROUTINE collapse_within_deco_time
+
+
   SUBROUTINE  wf_damping(tau, sh_env, mol, deltatMD, sh_print_env)                    
     REAL(KIND=dp), DIMENSION(:), INTENT(in)    :: tau!, tau_forces
     TYPE(sh_env_type)                          :: sh_env
@@ -590,8 +692,10 @@ print *, "TAU_NEW_EVAL", tau
                 do j=1,mol
                         ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
                 end do
+print *, "ct_NORMAL_CASE(i)", ct(i)
                 !>damp the coefficients of the states different from the active state    
                 pop(i) = ct(i)*conjg(ct(i))
+print *, "POP_NORMAL(i)", pop(i)
                 !ct(i) = ct(i)
                 ct(i) = ct(i)*exp(-(deltatMD/tau(i)))
                 pop(i) = ct(i)*conjg(ct(i))
@@ -607,8 +711,10 @@ print *, "TAU_NEW_EVAL", tau
              cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
     end do  
     
+print *, "ct_NORMAL_CASE(sh_env%active_state)", ct(sh_env%active_state)
     pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
     
+print *, "POP_NORMAL(active_state)", pop(sh_env%active_state)
     !>transfer population to the active state for keeping the detailed balance   
     if (ct(sh_env%active_state)== 0) then
            ct(sh_env%active_state) = sqrt(1-sum)

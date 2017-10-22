@@ -879,7 +879,7 @@ CONTAINS
           ! ENDIF
        CASE("DAMPING")
            WRITE( unit_nr, "(A)") "  "
-           WRITE( unit_nr, "(A)" ) "METHOD FOR DECOHERENCE: EDC."
+           WRITE( unit_nr, "(A)" ) "METHOD FOR DECOHERENCE: DAMPING."
            WRITE( unit_nr, "(A)" ) "    Damping time (fs) = "
            unit_conv_fs = cp_unit_from_cp2k(1.0_dp,"fs")
            DO iadiab=1, nadiab

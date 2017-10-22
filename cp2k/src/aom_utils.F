@@ -579,7 +579,7 @@ subroutine modified_surfacehop(C1, C2, deltat, old_state, &
 !unphysical number larger than 1. 
 
         hop = next_random_number(aom_env%rng_stream)
-
+print *, "RANDOM_NUMBER_HOPPING_PROBA", hop
         sh_print_env%hop       = hop
         sh_print_env%old_state = old_state
         !and see if this random number causes a surface hop
@@ -1402,6 +1402,7 @@ end subroutine calcforces
 
         random = next_random_number(aom_env%rng_stream)
         sh_print_env%initrandom = random
+print *, "RANDOM_NUMBER_FISRT_ADIAB", random
         sumc = 0.0D0
         DO i=1, SIZE(C(init,:))
            sh_print_env%pop_init(i) = C(init,i)*C(init,i)
