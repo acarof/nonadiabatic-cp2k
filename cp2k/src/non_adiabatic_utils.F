@@ -247,7 +247,7 @@ END SUBROUTINE classically_forbidden_hops
 !       logical                                            :: edc_deco_time
         REAL(KIND=dp), DIMENSION(:), ALLOCATABLE       :: tau!, tau_forces
         CHARACTER(LEN=default_string_length)           :: wfprop_keyword
-        REAL(KIND=dp)                                  :: C_param, E_0_param
+!        REAL(KIND=dp)                                  :: C_param, E_0_param
 
         CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
                                                      c_val=wfprop_keyword)
@@ -263,26 +263,12 @@ END SUBROUTINE classically_forbidden_hops
             CASE("TRESH_ONLY_COLLAPSE")  
               CALL  wf_tresh_collaps(sh_print_env, sh_env, itimes)
             CASE("DAMPING")
-!              CALL section_vals_val_get(adiab_section,"DECO_TIME",c_val=tau_param)
-!              SELECT CASE(tau_param)
-!              CASE("EDC")
-!                  edc_deco_time = .TRUE. 
-!              CASE("FORCES_BASED")
-!                  edc_deco_time = .FALSE.
-!              CASE DEFAULT
-!                  CPABORT("There is no method to choose decoherence time.")
-!
-!              END SELECT
-!              CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
-!              CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
               CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                                     nparticle_kind, atomic_kind_set, K_tot, ext_pres)
               CALL eval_deco_tau(tau, adiab_section, sh_env, mol, K_tot, sh_print_env, &
                           local_particles, atomic_kinds,nparticle_kind, atomic_kind_set) 
                    
               CALL  wf_damping(tau, sh_env, mol, deltatMD, sh_print_env)                    
-!              CALL wf_damping(tau, adiab_section, edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
-!                               local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
             END SELECT
@@ -295,12 +281,11 @@ END SUBROUTINE classically_forbidden_hops
             CASE("TRESH_ONLY_COLLAPSE")  
               CPABORT("NOT IMPLEMENTED")
             CASE("DAMPING")
-              CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
-              CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
               CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                                     nparticle_kind, atomic_kind_set, K_tot, ext_pres)
-              CALL wf_damping_adiab_prop(C_param, E_0_param, sh_env, mol, deltatMD, & 
-                                                              K_tot, sh_print_env)
+              CALL eval_deco_tau(tau, adiab_section, sh_env, mol, K_tot, sh_print_env, &
+                          local_particles, atomic_kinds,nparticle_kind, atomic_kind_set) 
+              CALL wf_damping_adiab_prop(tau, sh_env, mol, deltatMD, sh_print_env)                    
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
             END SELECT
@@ -381,49 +366,42 @@ END SUBROUTINE classically_forbidden_hops
   END SUBROUTINE wf_tresh_collaps
 
 
-  SUBROUTINE  wf_damping_adiab_prop(C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env)                    
-    REAL(KIND=dp), INTENT(IN)                  :: C_param, E_0_param
+  SUBROUTINE  wf_damping_adiab_prop(tau, sh_env, mol, deltatMD, sh_print_env)                    
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)    :: tau!, tau_forces
+!    REAL(KIND=dp), INTENT(IN)                  :: C_param, E_0_param
     TYPE(sh_env_type)                          :: sh_env
     INTEGER, INTENT(IN)                        :: mol
     REAL(KIND=dp), INTENT(IN)                  :: deltatMD
-    REAL(kind=dp)                              :: K_tot
+!    REAL(kind=dp)                              :: K_tot
     TYPE(sh_print_env_type)                    :: sh_print_env
 
     CHARACTER(len=*), PARAMETER :: routineN ='wf_damping_adiab_prop', &         
     routineP = moduleN//':'//routineN   
                                                         
     INTEGER  :: i
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau
+!    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau
     REAL(KIND=dp)      :: sum 
     COMPLEX(KIND=dp), dimension(:), allocatable :: pop
 
     allocate(pop(mol)) !TEST
-    allocate(tau(mol)) ! decoherence time (EDC method)
-    allocate(sh_print_env%tau_deco(mol))
+!    allocate(tau(mol)) ! decoherence time (EDC method)
+!    allocate(sh_print_env%tau_deco(mol))
 
     sum = 0.0D0
-!TEST WITHOUT KINETIC: useful if statment when E_0=0 and FROZEN HAMILTONIAN are
-!used
-    if (E_0_param == 0.0D0) then  
-          K_tot = 1.0D0
-    end if
+
+
 !transfor the diabatic into the adiabatic coefficients and calculate tau
     do i=1,mol 
            if (i .ne. sh_env%active_state) then
-               tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
-                                        (C_param +(E_0_param/K_tot))
-                !print*, tau(i)
+!               tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
+!                                        (C_param +(E_0_param/K_tot))
 
 !Damp the coefficients of the states different from the active state    
                 sh_env%ctin(i) = sh_env%ctin(i)*exp(-(deltatMD/tau(i)))
                 sum = sum + abs(sh_env%ctin(i))*abs(sh_env%ctin(i))
-           else
-                tau(i) = 0.0D0
            end if
     end do
 
-    sh_print_env%tau_deco = tau
-    
 !transfer population to the active state for keeping the detailed balance   
     if (sh_env%ctin(sh_env%active_state)== 0) then
            sh_env%ctin(sh_env%active_state) = sqrt(1-sum)
@@ -433,10 +411,10 @@ END SUBROUTINE classically_forbidden_hops
     end if
     
     pop(sh_env%active_state) = sh_env%ctin(sh_env%active_state)*conjg(sh_env%ctin(sh_env%active_state))
-    CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
+!    CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
     
-    deallocate(tau)
-    deallocate(sh_print_env%tau_deco)
+!    deallocate(tau)
+!    deallocate(sh_print_env%tau_deco)
     deallocate(pop)
   END SUBROUTINE wf_damping_adiab_prop 
 
