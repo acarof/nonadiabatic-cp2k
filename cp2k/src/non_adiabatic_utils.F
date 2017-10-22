@@ -244,8 +244,9 @@ END SUBROUTINE classically_forbidden_hops
         CHARACTER(len=*), PARAMETER :: routineN ='decohere_wf', &         
                                        routineP = moduleN//':'//routineN
 
-        logical                                            :: edc_deco_time
-        CHARACTER(LEN=default_string_length)           :: wfprop_keyword, tau_param
+!       logical                                            :: edc_deco_time
+        REAL(KIND=dp), DIMENSION(:), ALLOCATABLE       :: tau!, tau_forces
+        CHARACTER(LEN=default_string_length)           :: wfprop_keyword
         REAL(KIND=dp)                                  :: C_param, E_0_param
 
         CALL section_vals_val_get(adiab_section,"REPRESENTATION", &
@@ -262,25 +263,26 @@ END SUBROUTINE classically_forbidden_hops
             CASE("TRESH_ONLY_COLLAPSE")  
               CALL  wf_tresh_collaps(sh_print_env, sh_env, itimes)
             CASE("DAMPING")
-              CALL section_vals_val_get(adiab_section,"DECO_TIME",c_val=tau_param)
-              SELECT CASE(tau_param)
-              CASE("EDC")
-                  edc_deco_time = .TRUE. 
-              CASE("FORCES_BASED")
-                  edc_deco_time = .FALSE.
-              CASE DEFAULT
-                  CPABORT("There is no method to choose decoherence time.")
-
-              END SELECT
-              CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
-              CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
+!              CALL section_vals_val_get(adiab_section,"DECO_TIME",c_val=tau_param)
+!              SELECT CASE(tau_param)
+!              CASE("EDC")
+!                  edc_deco_time = .TRUE. 
+!              CASE("FORCES_BASED")
+!                  edc_deco_time = .FALSE.
+!              CASE DEFAULT
+!                  CPABORT("There is no method to choose decoherence time.")
+!
+!              END SELECT
+!              CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
+!              CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
               CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
                                     nparticle_kind, atomic_kind_set, K_tot, ext_pres)
-              CALL wf_damping(adiab_section, edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
-                               local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)
-
-              CALL eval_deco_tau(adiab_section, sh_env, mol, K_tot, sh_print_env, &
-                          local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)                    
+              CALL eval_deco_tau(tau, adiab_section, sh_env, mol, K_tot, sh_print_env, &
+                          local_particles, atomic_kinds,nparticle_kind, atomic_kind_set) 
+                   
+              CALL  wf_damping(tau, sh_env, mol, deltatMD, sh_print_env)                    
+!              CALL wf_damping(tau, adiab_section, edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
+!                               local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
             END SELECT
@@ -439,7 +441,7 @@ END SUBROUTINE classically_forbidden_hops
   END SUBROUTINE wf_damping_adiab_prop 
 
   
-  SUBROUTINE  eval_deco_tau(adiab_section, sh_env, mol, K_tot, sh_print_env, &
+  SUBROUTINE  eval_deco_tau(tau, adiab_section, sh_env, mol, K_tot, sh_print_env, &
                           local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)                    
 !    LOGICAL, INTENT(IN)                        :: edc_deco_time
     TYPE(sh_env_type)                          :: sh_env
@@ -452,6 +454,7 @@ END SUBROUTINE classically_forbidden_hops
     TYPE(atomic_kind_type), DIMENSION(:), &
                 POINTER, OPTIONAL                             :: atomic_kind_set
     INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: tau!, tau_forces
     TYPE(section_vals_type), POINTER               :: adiab_section
 
 
@@ -470,7 +473,6 @@ END SUBROUTINE classically_forbidden_hops
     INTEGER                                  :: iparticle_local, iparticle
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     INTEGER  :: i, deg_of_freedom
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau!, tau_forces
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: adiab_nace_vector
     REAL(KIND=dp)      :: KbT, Temp, alpha, T_inp 
 !    COMPLEX(KIND=dp), dimension(:), allocatable :: ct
@@ -562,161 +564,6 @@ END SUBROUTINE classically_forbidden_hops
               CASE DEFAULT
                   CPABORT("There is no method to choose decoherence time.")
               END SELECT
-           end if
-    end do
-
-    sh_print_env%tau_deco = tau
-
-print *, "TAU_NEW_EVAL", tau
-    
-    deallocate(tau, adiab_nace_vector)
-    deallocate(sh_print_env%tau_deco)
-    DEALLOCATE(my_forces_adiab)
-  END SUBROUTINE eval_deco_tau
-
-
-  SUBROUTINE  wf_damping(adiab_section, edc_deco_time, C_param, E_0_param, sh_env, mol, deltatMD, K_tot, sh_print_env, &
-                          local_particles, atomic_kinds,nparticle_kind, atomic_kind_set)                    
-    REAL(KIND=dp), INTENT(IN)                  :: C_param, E_0_param
-    LOGICAL, INTENT(IN)                        :: edc_deco_time
-    TYPE(sh_env_type)                          :: sh_env
-    INTEGER, INTENT(IN)                        :: mol
-    REAL(KIND=dp), INTENT(IN)                  :: deltatMD
-    REAL(kind=dp)                              :: K_tot
-    TYPE(sh_print_env_type)                    :: sh_print_env
-    TYPE(distribution_1d_type), POINTER                :: local_particles
-    TYPE(atomic_kind_list_type), POINTER, OPTIONAL     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-                POINTER, OPTIONAL                             :: atomic_kind_set
-    INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
-    TYPE(section_vals_type), POINTER               :: adiab_section
-
-
-
-    CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
-    routineP = moduleN//':'//routineN   
-
-   TYPE(atomic_kind_type), ALLOCATABLE, TARGET, DIMENSION(:)     :: my_atomic_kind_set
-   INTEGER                                  :: my_nparticle_kind
-   REAL(kind=dp)                            :: mass
-   INTEGER                                  :: iparticle_kind
-   INTEGER                                  :: nparticle_local
-   REAL(kind=dp)                            :: mixing_threshold
-   INTEGER                                  :: iparticle_local, iparticle
-   TYPE(atomic_kind_type), POINTER          :: atomic_kind
-
-                                                        
-    INTEGER  :: j,i, deg_of_freedom
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau!, tau_forces
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: adiab_nace_vector
-    REAL(KIND=dp)      :: sum, KbT, Temp, alpha, T_inp 
-    COMPLEX(KIND=dp), dimension(:), allocatable :: ct
-    COMPLEX(KIND=dp), dimension(:), allocatable :: pop
-    !REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: my_forces_adiab
-    REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
-
-
-    !allocate(exact_forces(3, sh_env%natom))
-    allocate(pop(mol)) !TEST
-    ALLOCATE(my_forces_adiab(3,sh_env%natom))
-    allocate(ct(mol))  ! adiabatic states
-    allocate(tau(mol)) ! decoherence time (EDC method)
-!    allocate(tau_forces(mol))
-!    allocate(numerator(mol))
-    allocate(sh_print_env%tau_deco(mol))
-
-    !>number of degrees of freedom intensive EDC
-    deg_of_freedom = (sh_env%active_atoms*3-6)
-
-
-    IF (PRESENT(atomic_kinds)) THEN
-       my_nparticle_kind = atomic_kinds%n_els
-       ALLOCATE(my_atomic_kind_set(SIZE(atomic_kinds%els)))
-       my_atomic_kind_set = atomic_kinds%els
-    ELSE
-       IF ((PRESENT(nparticle_kind)).AND.(PRESENT(atomic_kind_set))) THEN
-          my_nparticle_kind = nparticle_kind
-          ALLOCATE(my_atomic_kind_set(SIZE(atomic_kind_set)))
-          my_atomic_kind_set = atomic_kind_set
-       END IF
-    END IF
-
-    
-    sum = 0.0D0
-!TEST WITHOUT KINETIC: useful if statment when E_0=0 and FROZEN HAMILTONIAN are
-!used
-    if (E_0_param == 0.0D0) then  
-          K_tot = 1.0D0
-    end if
-!transfor the diabatic into the adiabatic coefficients and calculate tau
-
-!Boltzmann factor to use in alpha parameter
-    KbT = (2*K_tot)/(3*sh_env%active_atoms)
-!instead of using the exact boltzmann factor, at the moment the code uses Temp =
-!298 K, maybe this point should be modified in future
-
-    CALL section_vals_val_get(adiab_section,"THRESHOLD_TAU_FORCES",r_val=mixing_threshold)
-    CALL section_vals_val_get(adiab_section,"TEMPERATURE_FG_WIDTH",r_val=T_inp)
-
-
-   Temp = 3.1693191275167785e-06*T_inp !conver in KbT
-   !Temp = 0.0009444571  !KbT at 298 K
-   ! mixing_threshold = 2.0D0
-
-
-
-    allocate(adiab_nace_vector(mol))
-    adiab_nace_vector(:) = sh_env%adiab_nace(sh_env%active_state,:)
-
-
-    do i=1,mol 
-           if (i .ne. sh_env%active_state) then
-               pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
-               ct(i) = cmplx(0.0D0, 0.0D0,dp) 
-               !> if statement to choose the decoherence time
-               if (edc_deco_time) then 
-                      tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
-                                        (C_param+((E_0_param/K_tot)*deg_of_freedom))
-               else 
-                     if ((abs(adiab_nace_vector(i))/(abs(sh_env%E_tp(i)-sh_env%E_tp(sh_env%active_state)))) & 
-                                         .ge. mixing_threshold) then
-                         !if there is mixing then we use force otherwise we use !pure dephasing
-                         call calcforces(i ,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
-                              sh_env%NN, sh_env%atoms, &
-                              sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
-                             sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
-                         tau(i) = 0.0D0
-                         DO iparticle_kind= 1, my_nparticle_kind
-                                atomic_kind => my_atomic_kind_set(iparticle_kind)
-                                CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-                                nparticle_local = local_particles%n_el(iparticle_kind)
-                                DO iparticle_local= 1, nparticle_local
-                                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                                   alpha = 6*mass*Temp                      
-                                   tau(i) = tau(i) + &
-                                   (sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
-                                    (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)))))/(2*sqrt(alpha))
-                                END DO
-                         END DO    
-                         tau(i) = 1/tau(i)
-                     else
-                         tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))
-                     end if
-               end if
-                
-                do j=1,mol
-                        ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
-                end do
-
-!damp the coefficients of the states different from the active state    
-               pop(i) = ct(i)*conjg(ct(i))
-    
-                !ct(i) = ct(i)
-                ct(i) = ct(i)*exp(-(deltatMD/tau(i)))
-    
-                pop(i) = ct(i)*conjg(ct(i))
-    
-                sum = sum + abs(ct(i))*abs(ct(i))
            else
                 tau(i) = 0.0D0
            end if
@@ -724,8 +571,57 @@ print *, "TAU_NEW_EVAL", tau
 
     sh_print_env%tau_deco = tau
 
-print *, "TAU_PREV_SUB", tau
-!transfor the active diabatic state into the active adiabatic state
+print *, "TAU_NEW_EVAL", tau
+    
+    
+    CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
+
+!    deallocate(tau, adiab_nace_vector)
+    deallocate(adiab_nace_vector)
+    deallocate(sh_print_env%tau_deco)
+    DEALLOCATE(my_forces_adiab)
+  END SUBROUTINE eval_deco_tau
+
+
+  SUBROUTINE  wf_damping(tau, sh_env, mol, deltatMD, sh_print_env)                    
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)    :: tau!, tau_forces
+    TYPE(sh_env_type)                          :: sh_env
+    INTEGER, INTENT(IN)                        :: mol
+    REAL(KIND=dp), INTENT(IN)                  :: deltatMD
+    TYPE(sh_print_env_type)                    :: sh_print_env
+
+    CHARACTER(len=*), PARAMETER :: routineN ='wf_damping', &         
+    routineP = moduleN//':'//routineN   
+
+    INTEGER  :: j,i
+    REAL(KIND=dp)      :: sum  
+    COMPLEX(KIND=dp), dimension(:), allocatable :: ct
+    COMPLEX(KIND=dp), dimension(:), allocatable :: pop
+
+    allocate(pop(mol)) !TEST
+    allocate(ct(mol))  ! adiabatic states
+
+    sum = 0.0D0
+    do i=1,mol 
+           if (i .ne. sh_env%active_state) then
+               pop(i) = cmplx(0.0D0, 0.0D0,dp) !TEST
+               ct(i) = cmplx(0.0D0, 0.0D0,dp) 
+               !> if statement to choose the decoherence time
+
+               !> Tranform coefficients in the adiabatic basis 
+                do j=1,mol
+                        ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
+                end do
+                !>damp the coefficients of the states different from the active state    
+                pop(i) = ct(i)*conjg(ct(i))
+                !ct(i) = ct(i)
+                ct(i) = ct(i)*exp(-(deltatMD/tau(i)))
+                pop(i) = ct(i)*conjg(ct(i))
+                sum = sum + abs(ct(i))*abs(ct(i))
+           end if
+    end do
+
+    !>transfor the active diabatic state into the active adiabatic state
     pop(sh_env%active_state)= cmplx(0.0D0, 0.0D0, dp)
     ct(sh_env%active_state) = cmplx(0.0D0, 0.0D0, dp)
     do i=1,mol                                                       
@@ -735,7 +631,7 @@ print *, "TAU_PREV_SUB", tau
     
     pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
     
-!transfer population to the active state for keeping the detailed balance   
+    !>transfer population to the active state for keeping the detailed balance   
     if (ct(sh_env%active_state)== 0) then
            ct(sh_env%active_state) = sqrt(1-sum)
     else 
@@ -745,8 +641,8 @@ print *, "TAU_PREV_SUB", tau
     
     pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
 
-!transfor back the adiabatic into the diabatic which, then, follow the
-!electronic prpagation    
+    !>transfor back the adiabatic into the diabatic which, then, follow the
+      !electronic prpagation    
     do j=1,mol
           sh_env%ctin(j) = cmplx(0.0D0, 0.0D0,dp)                           
           pop(j) = cmplx(0.0D0, 0.0D0,dp) !TEST
@@ -756,13 +652,10 @@ print *, "TAU_PREV_SUB", tau
          pop(j)=sh_env%ctin(j)*conjg(sh_env%ctin(j))
     end do
     
-   CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
+!   CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
     
     deallocate(ct) 
-    deallocate(tau, adiab_nace_vector)
-    deallocate(sh_print_env%tau_deco)
     deallocate(pop)
-    DEALLOCATE(my_forces_adiab)
   END SUBROUTINE wf_damping 
  
 
