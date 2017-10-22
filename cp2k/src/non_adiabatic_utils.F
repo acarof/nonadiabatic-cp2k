@@ -259,12 +259,6 @@ END SUBROUTINE classically_forbidden_hops
             SELECT CASE(deco_keyword)                                                          
             CASE("NO_DECO_CORR")
                  PRINT *, 'NO DECOHERENCE CORRECTIONS'
-              CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
-                                    nparticle_kind, atomic_kind_set, K_tot, ext_pres)
-              CALL eval_deco_tau(tau, adiab_section, sh_env, mol, K_tot, sh_print_env, &
-                          local_particles, atomic_kinds,nparticle_kind, atomic_kind_set) 
-
-              CALL  collapse_within_deco_time(tau, mol, deltatMD, aom_env, sh_env)
 
             CASE("INSTANT_COLLAPSE")
               CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes)
@@ -277,6 +271,13 @@ END SUBROUTINE classically_forbidden_hops
                           local_particles, atomic_kinds,nparticle_kind, atomic_kind_set) 
                    
               CALL  wf_damping(tau, sh_env, mol, deltatMD, sh_print_env)  
+            CASE("COLLAPSE_WITHIN_DECOTIME")
+              CALL calc_kinetic_tot(velocities_com_tp, local_particles, atomic_kinds, &
+                                    nparticle_kind, atomic_kind_set, K_tot, ext_pres)
+              CALL eval_deco_tau(tau, adiab_section, sh_env, mol, K_tot, sh_print_env, &
+                          local_particles, atomic_kinds,nparticle_kind, atomic_kind_set) 
+                   
+              CALL  collapse_within_deco_time(tau, mol, deltatMD, aom_env, sh_env)
                                 
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
