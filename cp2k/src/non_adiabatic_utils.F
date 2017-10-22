@@ -506,11 +506,6 @@ END SUBROUTINE classically_forbidden_hops
     END IF
 
     
-!TEST WITHOUT KINETIC: useful if statment when E_0=0 and FROZEN HAMILTONIAN are
-!used
-    if (E_0_param == 0.0D0) then  
-          K_tot = 1.0D0
-    end if
 !transfor the diabatic into the adiabatic coefficients and calculate tau
 
 
@@ -521,6 +516,11 @@ END SUBROUTINE classically_forbidden_hops
               CASE("EDC")
                     CALL section_vals_val_get(adiab_section,"EDC_C",r_val=C_param)
                     CALL section_vals_val_get(adiab_section,"EDC_E0",r_val=E_0_param)
+                    !TEST WITHOUT KINETIC: useful if statment when E_0=0 and FROZEN HAMILTONIAN are
+                    !used
+                    if (E_0_param == 0.0D0) then  
+                         K_tot = 1.0D0
+                    end if
                     tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))* &
                                         (C_param+((E_0_param/K_tot)*deg_of_freedom))
 
