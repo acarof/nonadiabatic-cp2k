@@ -72,7 +72,9 @@ MODULE non_adiabatic_utils
                   propagate_adiab_wf, &
                   prop_wf_HS_corr, &
                   calc_kinetic_tot, &
-                 classically_forbidden_hops
+                 classically_forbidden_hops, &
+                 ida_collapse
+                  
 
 CONTAINS
 
@@ -254,12 +256,13 @@ END SUBROUTINE classically_forbidden_hops
                                                      c_val=wfprop_keyword)
         CALL section_vals_val_get(adiab_section,"DECOHERENCE_CORRECTIONS",c_val=deco_keyword)
         
+        aom_env%ida_deco = .FALSE.
+        
         SELECT CASE(wfprop_keyword)
         CASE("DIABATIC_BASIS")   
             SELECT CASE(deco_keyword)                                                          
             CASE("NO_DECO_CORR")
                  PRINT *, 'NO DECOHERENCE CORRECTIONS'
-
             CASE("INSTANT_COLLAPSE")
               CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes)
             CASE("TRESH_ONLY_COLLAPSE")  
@@ -278,7 +281,9 @@ END SUBROUTINE classically_forbidden_hops
                           local_particles, atomic_kinds,nparticle_kind, atomic_kind_set) 
                    
               CALL  collapse_within_deco_time(tau, mol, deltatMD, aom_env, sh_env)
-                                
+            CASE("IDA")
+               aom_env%ida_deco = .TRUE.
+print *, "aom_env%ida_deco", aom_env%ida_deco
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
             END SELECT
@@ -355,6 +360,45 @@ END SUBROUTINE classically_forbidden_hops
   END SUBROUTINE wf_collapse 
 
 
+  SUBROUTINE ida_collapse(aom_env)
+!    TYPE(sh_print_env_type)                        :: sh_print_env
+!    TYPE(force_env_type), POINTER                  :: force_env
+    TYPE(aom_env_type)                             :: aom_env
+!    TYPE(sh_env_type)                              :: sh_env
+!    INTEGER, POINTER                               :: itimes
+!    LOGICAL                                        :: successful_hop
+!    INTEGER                                        :: active_state, old_state
+ 
+    CHARACTER(len=*), PARAMETER :: routineN ='ida_collapse', &         
+    routineP = moduleN//':'//routineN                                                                 
+    
+!after check attempted hop I have the following quantities:
+!force_env%mixed_env%aom_env%old_state
+!force_env%mixed_env%aom_env%active_state
+!force_env%mixed_env%aom_env%successful_hop
+!that I need to use
+
+
+    !sh_print_env%decohere = .FALSE.                                      
+!      IF (itimes.ge.1) THEN                                                
+         !Finally, collapse the wavefunction if called for                 
+         if (aom_env%successful_hop) then
+print *, "NOW_SUCCESSFUL_TRETIAK"
+print *, "CTIN_BEFORE", aom_env%ctin(:)                                  
+ ! > Check if the surface_hop subroutine asks us to do the decoherence       
+!                  sh_print_env%decohere = .TRUE.
+!I probably have to use C_t becuase at the ened of aom_main we store them 
+              aom_env%ctin(:) = aom_env%C_t(:, aom_env%active_state)
+print *, "CTIN_AFTER", aom_env%ctin(:)                                  
+!                  aom_env%futur_decohere = .FALSE.
+         else 
+              aom_env%ctin(:) = aom_env%C_t(:, aom_env%old_state)
+         end if                                                            
+!         CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
+!      ENDIF
+  END SUBROUTINE ida_collapse
+
+ 
   SUBROUTINE wf_tresh_collaps(sh_print_env, sh_env, itimes)
     TYPE(sh_print_env_type)                        :: sh_print_env
     TYPE(sh_env_type)                              :: sh_env

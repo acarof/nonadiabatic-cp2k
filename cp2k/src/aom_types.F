@@ -163,6 +163,7 @@ IMPLICIT NONE
 !> Store information of a previous hop- required for the decoherence
 !procedure
      LOGICAL                                             :: futur_decohere
+     LOGICAL                                             :: ida_deco
      REAL(KIND = dp)                                     :: factor
 !> If hop
      LOGICAL                                     :: attempt_hop
