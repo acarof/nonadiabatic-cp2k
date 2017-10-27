@@ -388,11 +388,13 @@ print *, "CTIN_BEFORE", aom_env%ctin(:)
  ! > Check if the surface_hop subroutine asks us to do the decoherence       
 !                  sh_print_env%decohere = .TRUE.
 !I probably have to use C_t becuase at the ened of aom_main we store them 
-              aom_env%ctin(:) = aom_env%C_t(:, aom_env%active_state)
+              aom_env%ctin(:) = aom_env%C_t(:, aom_env%new_state)
 print *, "CTIN_AFTER", aom_env%ctin(:)                                  
 !                  aom_env%futur_decohere = .FALSE.
          else 
-              aom_env%ctin(:) = aom_env%C_t(:, aom_env%old_state)
+              aom_env%ctin(:) = aom_env%C_t(:, aom_env%active_state)
+print *, "REJECTED_HOP"
+print *, "aom_env%ctin(:) for rejected", aom_env%ctin(:)
          end if                                                            
 !         CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
 !      ENDIF
