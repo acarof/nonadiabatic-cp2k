@@ -361,43 +361,16 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
 
 
   SUBROUTINE ida_collapse(aom_env)
-!    TYPE(sh_print_env_type)                        :: sh_print_env
-!    TYPE(force_env_type), POINTER                  :: force_env
     TYPE(aom_env_type)                             :: aom_env
-!    TYPE(sh_env_type)                              :: sh_env
-!    INTEGER, POINTER                               :: itimes
-!    LOGICAL                                        :: successful_hop
-!    INTEGER                                        :: active_state, old_state
  
     CHARACTER(len=*), PARAMETER :: routineN ='ida_collapse', &         
     routineP = moduleN//':'//routineN                                                                 
     
-!after check attempted hop I have the following quantities:
-!force_env%mixed_env%aom_env%old_state
-!force_env%mixed_env%aom_env%active_state
-!force_env%mixed_env%aom_env%successful_hop
-!that I need to use
-
-
-    !sh_print_env%decohere = .FALSE.                                      
-!      IF (itimes.ge.1) THEN                                                
-         !Finally, collapse the wavefunction if called for                 
          if (aom_env%successful_hop) then
-print *, "NOW_SUCCESSFUL_TRETIAK"
-print *, "CTIN_BEFORE", aom_env%ctin(:)                                  
- ! > Check if the surface_hop subroutine asks us to do the decoherence       
-!                  sh_print_env%decohere = .TRUE.
-!I probably have to use C_t becuase at the ened of aom_main we store them 
               aom_env%ctin(:) = aom_env%C_t(:, aom_env%new_state)
-print *, "CTIN_AFTER", aom_env%ctin(:)                                  
-!                  aom_env%futur_decohere = .FALSE.
          else 
               aom_env%ctin(:) = aom_env%C_t(:, aom_env%active_state)
-print *, "REJECTED_HOP"
-print *, "aom_env%ctin(:) for rejected", aom_env%ctin(:)
          end if                                                            
-!         CALL adiab_print_sh_info(sh_print_env, keyword = 'DECOHERENCE')   
-!      ENDIF
   END SUBROUTINE ida_collapse
 
  
@@ -424,24 +397,19 @@ print *, "aom_env%ctin(:) for rejected", aom_env%ctin(:)
 
   SUBROUTINE  wf_damping_adiab_prop(tau, sh_env, mol, deltatMD, sh_print_env)                    
     REAL(KIND=dp), DIMENSION(:), INTENT(in)    :: tau!, tau_forces
-!    REAL(KIND=dp), INTENT(IN)                  :: C_param, E_0_param
     TYPE(sh_env_type)                          :: sh_env
     INTEGER, INTENT(IN)                        :: mol
     REAL(KIND=dp), INTENT(IN)                  :: deltatMD
-!    REAL(kind=dp)                              :: K_tot
     TYPE(sh_print_env_type)                    :: sh_print_env
 
     CHARACTER(len=*), PARAMETER :: routineN ='wf_damping_adiab_prop', &         
     routineP = moduleN//':'//routineN   
                                                         
     INTEGER  :: i
-!    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau
     REAL(KIND=dp)      :: sum 
     COMPLEX(KIND=dp), dimension(:), allocatable :: pop
 
     allocate(pop(mol)) !TEST
-!    allocate(tau(mol)) ! decoherence time (EDC method)
-!    allocate(sh_print_env%tau_deco(mol))
 
     sum = 0.0D0
 
@@ -467,10 +435,6 @@ print *, "aom_env%ctin(:) for rejected", aom_env%ctin(:)
     end if
     
     pop(sh_env%active_state) = sh_env%ctin(sh_env%active_state)*conjg(sh_env%ctin(sh_env%active_state))
-!    CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
-    
-!    deallocate(tau)
-!    deallocate(sh_print_env%tau_deco)
     deallocate(pop)
   END SUBROUTINE wf_damping_adiab_prop 
 
@@ -509,16 +473,11 @@ print *, "aom_env%ctin(:) for rejected", aom_env%ctin(:)
     INTEGER  :: i, deg_of_freedom
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: adiab_nace_vector
     REAL(KIND=dp)      :: KbT, Temp, alpha, T_inp 
-!    COMPLEX(KIND=dp), dimension(:), allocatable :: ct
-!    COMPLEX(KIND=dp), dimension(:), allocatable :: pop
-    !REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE   :: my_forces_adiab
     REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
 
 
     ALLOCATE(my_forces_adiab(3,sh_env%natom))
     allocate(tau(mol)) ! decoherence time (EDC method)
-!    allocate(tau_forces(mol))
-!    allocate(numerator(mol))
     allocate(sh_print_env%tau_deco(mol))
     allocate(adiab_nace_vector(mol))
 
@@ -653,20 +612,14 @@ print *, "TAU_NEW_EVAL", tau
         
              !>evaluate which states will be collpased
              collapse_probability = deltatMD/tau(i)
-print *, "collapse_probability", collapse_probability
              random_num = next_random_number(aom_env%rng_stream)
              if (random_num .gt. collapse_probability) then 
-print *, "NOCOLLAPSE"
-                !CYCLE   !THIS EXITS COMPLETELY THE CYCLE and go to other i=i+1
                     ct(i) = ct(i)  !nothing happens
              else
-print *, "COLLAPSING_EVENT"
                     ct(i) = 0.0D0
              end if
-print *, "random_number_newSUB", random_num
              sum = sum + abs(ct(i))*abs(ct(i))
          end if
-print *, "MODIFIED_Ct_VECTOR", ct(i)
     end do
  
     !>transfor the active diabatic state into the active adiabatic state
@@ -677,10 +630,8 @@ print *, "MODIFIED_Ct_VECTOR", ct(i)
              cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
     end do  
     
-print *, "ct_SUBOTNIK(sh_env%active_state)", ct(sh_env%active_state)
     pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
     
-print *, "POP_SUBOTNIK(active_state)", pop(sh_env%active_state)
     !>transfer population to the active state for keeping the detailed balance   
     if (ct(sh_env%active_state)== 0) then
            ct(sh_env%active_state) = sqrt(1-sum)
@@ -689,9 +640,7 @@ print *, "POP_SUBOTNIK(active_state)", pop(sh_env%active_state)
               sqrt((1-sum)/(abs(ct(sh_env%active_state))*abs(ct(sh_env%active_state))))
     end if
 
-print *, "ULTIMATE_VECTOR_SUBOTNIK", ct    
     pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
-print *, "ULTIMATE_POPULATION", pop
 
     !>transfor back the adiabatic into the diabatic which, then, follow the
       !electronic prpagation    
@@ -739,10 +688,8 @@ print *, "ULTIMATE_POPULATION", pop
                 do j=1,mol
                         ct(i) = ct(i) + cmplx(sh_env%C_tp(j,i), 0.0D0,dp)*sh_env%ctin(j)
                 end do
-print *, "ct_NORMAL_CASE(i)", ct(i)
                 !>damp the coefficients of the states different from the active state    
                 pop(i) = ct(i)*conjg(ct(i))
-print *, "POP_NORMAL(i)", pop(i)
                 !ct(i) = ct(i)
                 ct(i) = ct(i)*exp(-(deltatMD/tau(i)))
                 pop(i) = ct(i)*conjg(ct(i))
@@ -758,10 +705,8 @@ print *, "POP_NORMAL(i)", pop(i)
              cmplx(sh_env%C_tp(i,sh_env%active_state), 0.0D0,dp)*sh_env%ctin(i)
     end do  
     
-print *, "ct_NORMAL_CASE(sh_env%active_state)", ct(sh_env%active_state)
     pop(sh_env%active_state) = ct(sh_env%active_state)*conjg(ct(sh_env%active_state))
     
-print *, "POP_NORMAL(active_state)", pop(sh_env%active_state)
     !>transfer population to the active state for keeping the detailed balance   
     if (ct(sh_env%active_state)== 0) then
            ct(sh_env%active_state) = sqrt(1-sum)

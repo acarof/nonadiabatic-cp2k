@@ -1614,8 +1614,6 @@ ELSE
 ENDIF
               If (delta_energy.lt.0) THEN
                   force_env%mixed_env%aom_env%successful_hop = .FALSE.
-print *, "THEREISAREJECTED_HOP"
-print *, "force_env%mixed_env%aom_env%active_state", force_env%mixed_env%aom_env%active_state
                   CALL section_vals_val_get(coupling_section,"METHOD_REVERSAL",c_val=reversal_keyword)
                   CALL hop_nacv_vel_reversing(nparticle_kind, velocities,  & 
                                               force_env%mixed_env%aom_env%forces_adiab, &
@@ -1624,18 +1622,13 @@ print *, "force_env%mixed_env%aom_env%active_state", force_env%mixed_env%aom_env
                                               sh_print_env,A,B)
               ELSE 
                   force_env%mixed_env%aom_env%successful_hop = .TRUE.
-print *, "SUCCESSFUL_HOP"
-print *, "force_env%mixed_env%aom_env%active_state", force_env%mixed_env%aom_env%active_state
                   force_env%mixed_env%aom_env%old_state      = force_env%mixed_env%aom_env%active_state
-print *, "force_env%mixed_env%aom_env%new_state", force_env%mixed_env%aom_env%new_state
                   force_env%mixed_env%aom_env%active_state   = force_env%mixed_env%aom_env%new_state
                   force_env%mixed_env%aom_env%kinetic_energy = kinetic_energy_prime
-print *, "active_state_at_theend", force_env%mixed_env%aom_env%active_state
                   force_env%mixed_env%aom_env%delta_energy   = delta_energy
                   !force_env%mixed_env%aom_env%new_state = -1
                   CALL hop_nacv_vel_rescaling(nparticle_kind, velocities, delta_energy, A, B, hop_nacv, &
                                               atomic_kind_set, local_particles, rescale_factor)
-print *, "THERE_WAS_RESCALING"
               ENDIF
 
               sh_print_env%A = A

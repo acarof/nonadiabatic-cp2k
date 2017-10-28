@@ -601,20 +601,11 @@ CONTAINS
              !ENDIF
              IF (force_env%mixed_env%aom_env%attempt_hop) THEN
                 CALL check_hop_attempt(tmp%vel, atomic_kind_set, nparticle_kind, local_particles, force_env)
-print *, "ADD THRETIAK"
-print *, "force_env%mixed_env%aom_env%successful_hop", force_env%mixed_env%aom_env%successful_hop
-!print *, "force_env%mixed_env%sh_env%ctin", force_env%mixed_env%sh_env%ctin
-!print *, "force_env%mixed_env%sh_env%C_tp", force_env%mixed_env%sh_env%C_tp
-
-!ADD ONE LOGICAL TO ACTIVATE THIS
-!KEYWORD!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                if (force_env%mixed_env%aom_env%ida_deco) then
-print *, "force_env%mixed_env%aom_env%ida_deco", force_env%mixed_env%aom_env%ida_deco
                    CALL ida_collapse(force_env%mixed_env%aom_env)
                end if
 
                 IF (force_env%mixed_env%aom_env%successful_hop) THEN
-print *, "IN_THE_INTEGRATOR_SUCCESSFUL_HOP"
                    CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE., &
                                                     itimes = itimes)
                 ENDIF
