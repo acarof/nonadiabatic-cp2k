@@ -474,6 +474,7 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: adiab_nace_vector
     REAL(KIND=dp)      :: KbT, Temp, alpha, T_inp 
     REAL(kind=dp), DIMENSION(:,:),POINTER          :: my_forces_adiab
+    LOGICAL                                  :: tau_schwartz
 
 
     ALLOCATE(my_forces_adiab(3,sh_env%natom))
@@ -498,10 +499,15 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
        END IF
     END IF
 
+!TEST TAU_SCHARTZ
+tau_schwartz = .TRUE.
+!END TEST
     
+!   tau_schwartz = .FALSE.
+
+
 !transfor the diabatic into the adiabatic coefficients and calculate tau
-
-
+   
    CALL section_vals_val_get(adiab_section,"DECO_TIME",c_val=tau_param)
     do i=1,mol 
            if (i .ne. sh_env%active_state) then
@@ -544,20 +550,23 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
                                 nparticle_local = local_particles%n_el(iparticle_kind)
                                 DO iparticle_local= 1, nparticle_local
                                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-                                   alpha = 6*mass*Temp
-!TEST TAU SWHARTZ                      
-                                   tau(i) = tau(i) + &
-                                   (dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
-                                    (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle))))/(4*alpha)
-!END TEST
-!                                   tau(i) = tau(i) + &
-!                                   (sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
-!                                    (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)))))/(2*sqrt(alpha))
+                                   alpha = 6*mass*Temp                  
+                                   if (tau_schwartz) then    
+                                        tau(i) = tau(i) + &
+                                        (dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
+                                        (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle))))/(4*alpha)
+                                   else
+                                        tau(i) = tau(i) + &
+                                        (sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
+                                        (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)))))/(2*sqrt(alpha))
+                                   end if
                                 END DO
                          END DO
-!TEST TAU SCWARTZ   
-                         tau(i) = sqrt(1/tau(i))
-!                         tau(i) = 1/tau(i)
+                         if (tau_schwartz) then
+                             tau(i) = sqrt(1/tau(i))
+                         else
+                             tau(i) = 1/tau(i)
+                         end if
                     else
                          tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))
                     end if
