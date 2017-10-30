@@ -500,10 +500,10 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
     END IF
 
 !TEST TAU_SCHARTZ
-tau_schwartz = .TRUE.
+!tau_schwartz = .TRUE.
 !END TEST
     
-!   tau_schwartz = .FALSE.
+   tau_schwartz = .FALSE.
 
 
 !transfor the diabatic into the adiabatic coefficients and calculate tau
