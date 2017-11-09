@@ -481,6 +481,7 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
     allocate(tau(mol)) ! decoherence time (EDC method)
     allocate(sh_print_env%tau_deco(mol))
     allocate(adiab_nace_vector(mol))
+    allocate(sh_print_env%pure_deph(mol))
 
     adiab_nace_vector(:) = sh_env%adiab_nace(sh_env%active_state,:)
     !>number of degrees of freedom intensive EDC
@@ -504,7 +505,7 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
 !END TEST
     
    tau_schwartz = .FALSE.
-
+   sh_print_env%pure_deph(:) = .FALSE.
 
 !transfor the diabatic into the adiabatic coefficients and calculate tau
    
@@ -524,6 +525,7 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
                                         (C_param+((E_0_param/K_tot)*deg_of_freedom))
 
               CASE("FORCES_BASED")
+!                    allocate(sh_env%pure_deph(mol))
 
                     !Boltzmann factor to use in alpha parameter
                      KbT = (2*K_tot)/(3*sh_env%active_atoms)
@@ -538,6 +540,7 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
                       ! mixing_threshold = 2.0D0
                     if ((abs(adiab_nace_vector(i))/(abs(sh_env%E_tp(i)-sh_env%E_tp(sh_env%active_state)))) & 
                                          .ge. mixing_threshold) then
+                         !sh_env%pure_deph(i) = .FALSE.
                          !if there is mixing then we use force otherwise we use !pure dephasing
                          call calcforces(i ,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
                               sh_env%NN, sh_env%atoms, &
@@ -568,8 +571,12 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
                              tau(i) = 1/tau(i)
                          end if
                     else
+                         sh_print_env%pure_deph(i) = .TRUE.
                          tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))
+print *, "PURE_DEPHASING", i
                     end if
+              
+!              deallocate(sh_env%pure_deph) 
               CASE DEFAULT
                   CPABORT("There is no method to choose decoherence time.")
               END SELECT
@@ -580,6 +587,8 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
 
     sh_print_env%tau_deco = tau
 
+print *, "sh_env%pure_deph", sh_print_env%pure_deph
+
 print *, "TAU_NEW_EVAL", tau
     
     
@@ -589,6 +598,7 @@ print *, "TAU_NEW_EVAL", tau
     deallocate(adiab_nace_vector)
     deallocate(sh_print_env%tau_deco)
     DEALLOCATE(my_forces_adiab)
+    deallocate(sh_print_env%pure_deph)
   END SUBROUTINE eval_deco_tau
 
 

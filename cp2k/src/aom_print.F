@@ -885,7 +885,10 @@ CONTAINS
            DO iadiab=1, nadiab
                my_format="(I4,"
                WRITE(unit_nr,TRIM(my_format)//"1X,F20.10,A)") iadiab, &
-                       unit_conv_fs * sh_print_env%tau_deco(iadiab) 
+                       unit_conv_fs * sh_print_env%tau_deco(iadiab)
+               if (sh_print_env%pure_deph(iadiab)) then
+                   WRITE( unit_nr, "(A,I8)" ) "    PURE_DEPHASING state", iadiab
+               end if 
            ENDDO
            WRITE( unit_nr, "(A)") "  "
        CASE DEFAULT
