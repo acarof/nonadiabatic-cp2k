@@ -507,6 +507,8 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
    tau_schwartz = .FALSE.
    sh_print_env%pure_deph(:) = .FALSE.
 
+print *, "NEW_CODE"
+
 !transfor the diabatic into the adiabatic coefficients and calculate tau
    
    CALL section_vals_val_get(adiab_section,"DECO_TIME",c_val=tau_param)
@@ -534,6 +536,7 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
                     
                     CALL section_vals_val_get(adiab_section,"THRESHOLD_TAU_FORCES",r_val=mixing_threshold)
                     CALL section_vals_val_get(adiab_section,"TEMPERATURE_FG_WIDTH",r_val=T_inp)
+print *, "mixing_threshold", mixing_threshold
                     
                     Temp = 3.1693191275167785e-06*T_inp !conver in KbT
                       !Temp = 0.0009444571  !KbT at 298 K
