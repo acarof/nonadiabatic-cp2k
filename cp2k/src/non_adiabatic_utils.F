@@ -481,7 +481,7 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
     allocate(tau(mol)) ! decoherence time (EDC method)
     allocate(sh_print_env%tau_deco(mol))
     allocate(adiab_nace_vector(mol))
-    allocate(sh_print_env%pure_deph(mol))
+!    allocate(sh_print_env%pure_deph(mol))
 
     adiab_nace_vector(:) = sh_env%adiab_nace(sh_env%active_state,:)
     !>number of degrees of freedom intensive EDC
@@ -505,9 +505,9 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
 !END TEST
     
    tau_schwartz = .FALSE.
-   sh_print_env%pure_deph(:) = .FALSE.
+!   sh_print_env%pure_deph(:) = .FALSE.
 
-print *, "NEW_CODE"
+!print *, "NEW_CODE"
 
 !transfor the diabatic into the adiabatic coefficients and calculate tau
    
@@ -536,7 +536,7 @@ print *, "NEW_CODE"
                     
                     CALL section_vals_val_get(adiab_section,"THRESHOLD_TAU_FORCES",r_val=mixing_threshold)
                     CALL section_vals_val_get(adiab_section,"TEMPERATURE_FG_WIDTH",r_val=T_inp)
-print *, "mixing_threshold", mixing_threshold
+!print *, "mixing_threshold", mixing_threshold
                     
                     Temp = 3.1693191275167785e-06*T_inp !conver in KbT
                       !Temp = 0.0009444571  !KbT at 298 K
@@ -574,7 +574,7 @@ print *, "mixing_threshold", mixing_threshold
                              tau(i) = 1/tau(i)
                          end if
                     else
-                         sh_print_env%pure_deph(i) = .TRUE.
+!                         sh_print_env%pure_deph(i) = .TRUE.
                          tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))
 print *, "PURE_DEPHASING", i
                     end if
@@ -590,9 +590,9 @@ print *, "PURE_DEPHASING", i
 
     sh_print_env%tau_deco = tau
 
-print *, "sh_env%pure_deph", sh_print_env%pure_deph
+!print *, "sh_env%pure_deph", sh_print_env%pure_deph
 
-print *, "TAU_NEW_EVAL", tau
+!print *, "TAU_NEW_EVAL", tau
     
     
     CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
@@ -601,7 +601,7 @@ print *, "TAU_NEW_EVAL", tau
     deallocate(adiab_nace_vector)
     deallocate(sh_print_env%tau_deco)
     DEALLOCATE(my_forces_adiab)
-    deallocate(sh_print_env%pure_deph)
+!    deallocate(sh_print_env%pure_deph)
   END SUBROUTINE eval_deco_tau
 
 

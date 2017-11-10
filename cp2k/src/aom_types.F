@@ -93,7 +93,7 @@ IMPLICIT NONE
 !> Variable for the decoherence
      LOGICAL                                     :: decohere
      LOGICAL                                     :: collapse
-     LOGICAL, DIMENSION(:), POINTER              :: pure_deph
+!     LOGICAL, DIMENSION(:), ALLOCATABLE          :: pure_deph
 !> To store energies in the Jacob's Method
 !> The probability array for the hop
 !> Random number for test hop
