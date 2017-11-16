@@ -420,9 +420,11 @@ allocate(sh_env%exact_forces(3,natom))
      sh_env%analytics = analytics 
      sh_env%H_tp = aom_env%H_tp
 
-     CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, &
+     IF (active_state.eq.1) THEN
+          CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, &
                                     deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
                                     atomic_kind_set, K_tot, aom_env%ext_pres)
+     ENDIF
      ctin=sh_env%ctin
 
 
