@@ -232,6 +232,8 @@ CONTAINS
      allocate(aom_env%adiab_nace_tp(mat,mat))
      ALLOCATE(aom_env%velocities_t(3, natom))
      aom_env%futur_decohere = .FALSE.
+     aom_env%successful_hop = .FALSE.
+     aom_env%attempt_hop = .FALSE.
      CALL section_vals_val_get(coupling_section,"PSIGMA_FILE_NAME",&
              c_val=file_name_s_psigma)
      CALL section_vals_val_get(coupling_section,"PPI_FILE_NAME",&
