@@ -341,7 +341,7 @@ CONTAINS
      integer :: coord, t2
      integer :: mol, i, j, k, l, m, d, atoms, c,  first_diabat, active_state, mat, orb
      integer, dimension(:,:), allocatable :: NN,  aneighbour, bneighbour  
-     integer, dimension(:,:,:,:), allocatable :: neighbourlist
+     !integer, dimension(:,:,:,:), allocatable :: neighbourlist
      REAL(KIND=dp) :: cutoff_sites, cutoff_connect, scaling, deltatMD, deltatE
      REAL(KIND=dp) :: S
      REAL(KIND=dp)    :: cbar, minao
@@ -471,8 +471,8 @@ CONTAINS
      allocate(bneighbour(0:atoms,0:atoms))
      aneighbour = 0
      bneighbour = 0
-     allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
-     neighbourlist = 0
+     !allocate(neighbourlist(mol,mol,0:atoms,0:atoms))
+     aom_env%neighbourlist = 0
 
 
      !READ THE COORDINATES, ENERGIES AND STATE
@@ -557,8 +557,8 @@ CONTAINS
                               & aneighbour(:,1:atoms), bneighbour(:,1:atoms), minao)
                          end do
                     end do
-                    neighbourlist(i,k,:,1:atoms) = bneighbour(:,1:atoms)
-                    neighbourlist(k,i,:,1:atoms) = aneighbour(:,1:atoms)
+                    aom_env%neighbourlist(i,k,:,1:atoms) = bneighbour(:,1:atoms)
+                    aom_env%neighbourlist(k,i,:,1:atoms) = aneighbour(:,1:atoms)
                     if (NN(i,k) == 1) then
                          !first the diagonals
                          if (i == k) then
@@ -596,7 +596,7 @@ CONTAINS
                                              nacv(1:3,orb*(k-1)+d,(i-1)*atoms+1:i*atoms), &
                                              nacv(1:3,orb*(i-1)+m,(k-1)*atoms+1:k*atoms), &
                                              Btp, aom_env%atomlist, aom_env%connlist1, pcoeffsrun(1:atoms,orb*(k-1)+m,3),&
-                                             aom_env%scoeffs, neighbourlist(k,i,:,:), neighbourlist(i,k,:,:), dR, &
+                                             aom_env%scoeffs, aom_env%neighbourlist(k,i,:,:), aom_env%neighbourlist(i,k,:,:), dR, &
                                              do_random, aom_env)
                                         end do
                                    end do
@@ -765,7 +765,7 @@ CONTAINS
      aom_env%rm_tm      = positions_com_tp - velocities_com_tp*deltatMD
      aom_env%rm_t       = positions_com_tp
      aom_env%energies_t = energies_tp
-     aom_env%neighbourlist = neighbourlist
+     !aom_env%neighbourlist = neighbourlist
      aom_env%sh_print_env = sh_print_env
      aom_env%ctin        = ctin
      aom_env%attempt_hop  = attempt_hop
