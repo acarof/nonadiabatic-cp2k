@@ -91,7 +91,8 @@ contains
 !          print*, "NEXT"
           CALL parser_get_next_line(parser,1,at_end=my_end)
 !print*, "MY_END", my_end
-          IF (my_end) THEN
+          IF ((my_end).OR.( i > nrows)) THEN
+          !IF (my_end) THEN
              EXIT Lookup
           ELSE
              !print*, parser%input_line
@@ -112,13 +113,15 @@ contains
       CALL parser_get_next_line(parser,1)
       READ (parser%input_line, *)  s_ppi_table_dims
       nrows = NINT((s_ppi_table_dims(2)-s_ppi_table_dims(1))/s_ppi_table_dims(3))
-      allocate(s_ppi_table(nrows)) 
+      allocate(s_ppi_table(nrows))
+      print*, "nrows", nrows 
       i = 1
       Lookup_sppi: DO
           CALL parser_get_next_line(parser,1,at_end=my_end)
-          IF (my_end) THEN
+          IF ((my_end).OR.( i > nrows)) THEN
              EXIT Lookup_sppi
           ELSE
+             print*, "i", i
              READ (parser%input_line,*) s_ppi_table(i)
              i = i + 1
           ENDIF
