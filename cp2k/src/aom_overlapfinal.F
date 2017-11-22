@@ -121,7 +121,7 @@ contains
           IF ((my_end).OR.( i > nrows)) THEN
              EXIT Lookup_sppi
           ELSE
-             print*, "i", i
+             !print*, "i", i
              READ (parser%input_line,*) s_ppi_table(i)
              i = i + 1
           ENDIF
