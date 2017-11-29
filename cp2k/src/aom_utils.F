@@ -1936,8 +1936,9 @@ ENDIF
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
               DO iparticle_local=1,nparticle_local
-                 if (force_env%mixed_env%aom_env%ext_pres(iparticle_local)) then 
-                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                 if (force_env%mixed_env%aom_env%ext_pres(iparticle)) then 
+!print*, "HEY"
                       kinetic_energy_qsys = kinetic_energy_qsys +   &
                          mass*( &
                          velocities(1, iparticle)**2 + &
@@ -1988,8 +1989,8 @@ print *, "kinetic_energy_qsys", kinetic_energy_qsys
               CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
               nparticle_local = local_particles%n_el(iparticle_kind)
               DO iparticle_local=1,nparticle_local
-                 if (force_env%mixed_env%aom_env%ext_pres(iparticle_local)) then 
-                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                 iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                 if (force_env%mixed_env%aom_env%ext_pres(iparticle)) then 
                          velocities(:, iparticle) =rescale_factor*velocities(:, iparticle)
                  end if
               END DO
