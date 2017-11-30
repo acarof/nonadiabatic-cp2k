@@ -1381,7 +1381,7 @@ end subroutine calcforces
           END DO
       END DO
 
-      DEALLOCATE(val)
+      !DEALLOCATE(val)
    END SUBROUTINE read_listcoeff
 
 
