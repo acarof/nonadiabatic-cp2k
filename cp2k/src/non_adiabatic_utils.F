@@ -815,9 +815,9 @@ print *, "PURE_DEPHASING", i
 !calculate kinetic energy according to the COM since the array is velocities_COM
               DO iparticle_local= 1, nparticle_local
                  if (qsys_only) then 
-                      if (ext_pres(iparticle_local)) then
+                      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                      if (ext_pres(iparticle)) then
 !print *, "ext_pres", ext_pres
-                        iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                         K_tot = K_tot + mass*( &
                                    array(1, iparticle)**2 + &
                                    array(2, iparticle)**2 + &
