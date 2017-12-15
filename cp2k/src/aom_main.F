@@ -169,7 +169,12 @@ CONTAINS
      REAL(KIND=dp), dimension(:), allocatable    :: energy_conservation
      INTEGER, dimension(:), allocatable          :: class_forbidden_hop_tp
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
+     COMPLEX(KIND=dp), dimension(:), allocatable :: ctin_to_print
+     REAL(KIND=dp), dimension(:), allocatable :: pop_to_print
+     REAL(KIND=dp), dimension(:), allocatable :: pop
+     INTEGER :: i
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp
+     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp_to_print
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_tp
      LOGICAL                                      :: analytics
      INTEGER                                      :: new_state , ELsteps   
@@ -184,6 +189,7 @@ CONTAINS
      CHARACTER(LEN=default_string_length)          :: reversal_keyword
      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
      LOGICAL    :: do_random
+     REAL(KIND=dp)                                :: sum
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -242,6 +248,9 @@ CONTAINS
      ALLOCATE(sh_env%cttm(mat))
      ALLOCATE(sh_env%ctt(mat))
      ALLOCATE(sh_env%ctin(mat))
+     ALLOCATE(ctin_to_print(mat))
+     ALLOCATE(pop_to_print(mat))
+     ALLOCATE(pop(mat))
      ALLOCATE(sh_env%adiab_nace(mat,mat))
 
      ALLOCATE(E_tp(mat))
@@ -296,6 +305,8 @@ CONTAINS
      CALL calc_adiab_nace(aom_env%C_t, C_tp, deltatMD, aom_env)
      sh_env%adiab_nace = aom_env%adiab_nace_tp 
 
+print *, "aom_env%C_t_BEFORE_PROP", aom_env%C_t(:, active_state)
+print *, "C_tp_BEFORE_PROP", C_tp(:, active_state)
 !allocate(var(mat))
 !do i = 1,mat
 !    if (i .eq. active_state) then
@@ -393,11 +404,34 @@ ALLOCATE(sh_env%forces_active_state(3,natom))
                               ext_pres=aom_env%ext_pres, analytics=analytics, exact_forces=exact_forces)
      ENDIF
 
+
+
+!TEST TO EVALUATE TRIVIAL CROSSING
+
+print *, "aom_env%C_t", aom_env%C_t(:, active_state)
+print *, "C_tp", C_tp(:, active_state)
+
+sum = 0.0D0
+
+do i=1, mol
+    sum = sum + (abs(aom_env%C_t(i, active_state)) *abs(C_tp(i, active_state)))
+end do
+
+print *, "OVERLAP_TRIVIAL", sum
+if (abs(sum) .lt. 0.7) then
+   print *, "POSSIBLE_TRIVIAL_CROSSING"
+end if
+
+
      !> APPLY DECOHERENCE CORRECTION
      !> initialize derived type variables used in the decohere_wf subroutine
      sh_env%ctin=ctin
      sh_env%active_state=active_state
 
+
+ALLOCATE(C_tp_to_print(mat,mat))
+ctin_to_print = ctin
+C_tp_to_print(:, active_state) = aom_env%C_t(:, active_state)
 
 ALLOCATE(sh_env%nacv(3,mat, mat*aom_atoms))
 ALLOCATE(sh_env%NN(mat, mat))
@@ -420,10 +454,49 @@ allocate(sh_env%exact_forces(3,natom))
      sh_env%analytics = analytics 
      sh_env%H_tp = aom_env%H_tp
 
+
+
+
      CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, &
                                     deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
                                     atomic_kind_set, K_tot, aom_env%ext_pres)
      ctin=sh_env%ctin
+
+
+
+
+
+!print *, "ctin_to_print", ctin_to_print
+!print *, "ctin", ctin
+
+
+!print *, C_tp_to_print(:, active_state), C_tp(:, active_state)
+ 
+print *, "##################################################"
+
+
+do i=1, mol
+   pop_to_print(i) = C_tp_to_print(i, active_state)*C_tp_to_print(i, active_state)
+   pop(i)  = C_tp(i, active_state)*C_tp(i, active_state)
+   !write (*,'(F12.10,A,F12.10)') real(ctin_to_print(i)), ' + i ' , aimag(ctin_to_print(i)), real(ctin(i)), & 
+    !                                     ' + i ' , aimag(ctin(i))
+   write (*,'(F12.10,A, F12.10)') pop_to_print(i), "  after = ", pop(i)
+   !write(*,'(2I4)') ctin_to_print(i), ctin(i)
+   !(A,I0,A,F20.3,A,F0.10)
+end do 
+
+
+print *, "##################################################"
+
+do i=1, mol
+   pop_to_print(i) = real(ctin_to_print(i)*conjg(ctin_to_print(i)))
+   pop(i)  = real(ctin(i)*conjg(ctin(i)))
+   !write (*,'(F12.10,A,F12.10)') real(ctin_to_print(i)), ' + i ' , aimag(ctin_to_print(i)), real(ctin(i)), & 
+    !                                     ' + i ' , aimag(ctin(i))
+   write (*,'(F12.10,A, F12.10)') pop_to_print(i), "  after = ", pop(i)
+   !write(*,'(2I4)') ctin_to_print(i), ctin(i)
+   !(A,I0,A,F20.3,A,F0.10)
+end do 
 
 
      !> PRINT

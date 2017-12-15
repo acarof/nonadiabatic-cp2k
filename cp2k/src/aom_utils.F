@@ -819,6 +819,7 @@ subroutine surfacehop(deltat, old_state, C2, &
                                ! decohere = .FALSE.
                                 sh_env%decohere = .FALSE.
                                 attempt_hop = .TRUE.
+print *, "ATTEMPTED_HOP"
                                 sh_print_env%attempt_hop    = attempt_hop
                                 sh_print_env%new_state = new_state
                                 EXIT

@@ -572,6 +572,8 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
                              tau(i) = sqrt(1/tau(i))
                          else
                              tau(i) = 1/tau(i)
+print *, "TAU_FORCE_FORCE", tau(i)
+print *, "TAU_HISEMB", 1/abs(sh_env%E_tp(i) -sh_env%E_tp(sh_env%active_state))
                          end if
                     else
 !                         sh_print_env%pure_deph(i) = .TRUE.
@@ -1019,6 +1021,7 @@ print *, "PURE_DEPHASING", i
                          ctcomp = ctcomp + ctotal(i)
                     end do
                     ctmag = abs(ctcomp)
+print *, "CTMAG", ctmag
                     !rescale to conserve norm = 1
                     do i=1,mat
                          ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
