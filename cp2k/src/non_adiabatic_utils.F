@@ -74,7 +74,8 @@ MODULE non_adiabatic_utils
                   calc_kinetic_tot, &
                  classically_forbidden_hops, &
                  ida_collapse, &
-                 define_active_region
+                 define_active_region, &
+                 calc_psi_after_correction
                   
 
 CONTAINS
@@ -128,7 +129,49 @@ end do
 
 END SUBROUTINE define_active_region
 
+SUBROUTINE calc_psi_after_correction(ctin, ctin_after_deco, active_region, mat, &
+                                               ctin_after_tranf_correction)
 
+     COMPLEX(KIND=dp), dimension(:), INTENT(IN) :: ctin, ctin_after_deco
+     COMPLEX(KIND=dp), dimension(:), allocatable, INTENT(out) :: ctin_after_tranf_correction
+     INTEGER, dimension(:), INTENT(in)          :: active_region
+     INTEGER, INTENT(IN)                        :: mat
+ 
+     CHARACTER(len=*), PARAMETER :: routineN = 'calc_psi_after_correction', &
+        routineP = moduleN//':'//routineN
+   
+     REAL(KIND=dp)             :: sum_ctin, sum_ctin_after_deco, lambda_scaling 
+     INTEGER                  :: i
+
+     allocate(ctin_after_tranf_correction(mat))
+    
+     sum_ctin = 0.0D0
+     sum_ctin_after_deco = 0.0D0
+     do i =1, mat
+         if (active_region(i) == 0) then 
+             sum_ctin = sum_ctin + abs(ctin(i)*conjg(ctin(i)))
+         else
+             sum_ctin_after_deco = sum_ctin_after_deco + &
+                                abs(ctin_after_deco(i)*conjg(ctin_after_deco(i)))
+         end if
+     end do
+
+print *, "sum_ctin", sum_ctin
+print *, "sum_ctin_after_deco", sum_ctin_after_deco
+
+    lambda_scaling = sqrt((1-sum_ctin)/sum_ctin_after_deco)
+print *, "lambda_scaling", lambda_scaling
+
+    ctin_after_tranf_correction(:) = ctin(:)
+    do i =1, mat
+       if (active_region(i) == 1) then
+           ctin_after_tranf_correction(i) = ctin_after_deco(i)*lambda_scaling
+       end if
+    end do
+
+print *, "ctin_after_tranf_correction", ctin_after_tranf_correction
+
+END SUBROUTINE calc_psi_after_correction
 
 SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &
                   velocities_com_tp, local_particles, atomic_kinds, nparticle_kind, &

@@ -106,7 +106,8 @@ MODULE aom_main
                                                prop_wf_HS_corr, & 
                                                calc_kinetic_tot, &
                                                classically_forbidden_hops, &
-                                               define_active_region
+                                               define_active_region, &
+                                               calc_psi_after_correction
                                           
      USE non_adiabatic_types,           ONLY: sh_env_type
 
@@ -169,10 +170,10 @@ CONTAINS
      REAL(KIND=dp)    :: cbar, minao
      REAL(KIND=dp), dimension(:), allocatable    :: energy_conservation
      INTEGER, dimension(:), allocatable          :: class_forbidden_hop_tp
-     COMPLEX(KIND=dp), dimension(:), allocatable :: ctin
+     COMPLEX(KIND=dp), dimension(:), allocatable :: ctin, ctin_after_deco
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin_to_print
      REAL(KIND=dp), dimension(:), allocatable :: pop_to_print
-     REAL(KIND=dp), dimension(:), allocatable :: pop
+     REAL(KIND=dp), dimension(:), allocatable :: pop, pop_after_corr
      INTEGER :: i
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp_to_print
@@ -189,9 +190,10 @@ CONTAINS
      CHARACTER(LEN=default_string_length)           :: deco_keyword, prop_wf_keyword 
      CHARACTER(LEN=default_string_length)          :: reversal_keyword
      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
-     LOGICAL    :: do_random
+     LOGICAL                                      :: do_random, correct_tranfer
      REAL(KIND=dp)                                :: sum
      INTEGER, dimension(:), allocatable       :: active_region
+     COMPLEX(KIND=dp), dimension(:), allocatable :: ctin_after_tranf_correction
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -253,6 +255,7 @@ CONTAINS
      ALLOCATE(ctin_to_print(mat))
      ALLOCATE(pop_to_print(mat))
      ALLOCATE(pop(mat))
+     ALLOCATE(pop_after_corr(mat))
      ALLOCATE(sh_env%adiab_nace(mat,mat))
 
      ALLOCATE(E_tp(mat))
@@ -262,6 +265,7 @@ CONTAINS
      ALLOCATE(velocities_com_tp(3, natom))
      allocate(exact_forces(3,natom))
      allocate(ctin(mat))      !ctin goes into the subroutine ZGEMV
+     allocate(ctin_after_deco(mat))
 
      !> OBTAIN COORDINATES, ENERGIES, STATES, etc. FROM PREVIOUS STEP
      CALL translate_com(positions_tp, keyword_translate, positions_com_tp, local_particles, atomic_kinds = atomic_kinds)  
@@ -424,8 +428,6 @@ if (abs(sum) .lt. 0.7) then
    print *, "POSSIBLE_TRIVIAL_CROSSING"
 end if
 
-!TEST
-CALL define_active_region(ctin, mat, active_region)
 
 
      !> APPLY DECOHERENCE CORRECTION
@@ -466,13 +468,17 @@ allocate(sh_env%exact_forces(3,natom))
                                     deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
                                     atomic_kind_set, K_tot, aom_env%ext_pres)
      
-
-     !If (correct_tranfert) THEN
-       
-
-     !ELSE
-      !ctin=sh_env%ctin
-     !ENDIF
+     correct_tranfer = .True.
+     if (correct_tranfer) then
+        CALL define_active_region(ctin, mat, active_region)
+        ctin_after_deco=sh_env%ctin         
+print *, "ctin", ctin
+print *, "ctin_after_deco", ctin_after_deco
+        CALL calc_psi_after_correction(ctin, ctin_after_deco, active_region, mat, ctin_after_tranf_correction)
+        ctin=sh_env%ctin
+     else
+        ctin=sh_env%ctin
+     ENDIF
 
 
 
@@ -502,9 +508,10 @@ print *, "##################################################"
 do i=1, mol
    pop_to_print(i) = real(ctin_to_print(i)*conjg(ctin_to_print(i)))
    pop(i)  = real(ctin(i)*conjg(ctin(i)))
+   pop_after_corr(i) = real(ctin_after_tranf_correction(i)*conjg( ctin_after_tranf_correction(i)))
    !write (*,'(F12.10,A,F12.10)') real(ctin_to_print(i)), ' + i ' , aimag(ctin_to_print(i)), real(ctin(i)), & 
     !                                     ' + i ' , aimag(ctin(i))
-   write (*,'(F12.10,A, F12.10)') pop_to_print(i), "  after = ", pop(i)
+   write (*,'(F12.10,A, F12.10, A, F12.10)') pop_to_print(i), " deco = ", pop(i), " corr = ", pop_after_corr(i)
    !write(*,'(2I4)') ctin_to_print(i), ctin(i)
    !(A,I0,A,F20.3,A,F0.10)
 end do 
@@ -575,7 +582,7 @@ end do
      DEALLOCATE(sh_env%ctt)
      DEALLOCATE(sh_env%ctin)
 
-     deallocate(ctin)
+     deallocate(ctin, ctin_after_deco)
      deallocate(exact_forces)
     END SUBROUTINE construct_ham_X_SH
 
