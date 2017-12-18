@@ -61,7 +61,8 @@ MODULE aom_main
                                              translate_com, &
                                              calc_adiab_nace, &
                                              calc_hop_nacv, &
-                                             cal_delta_energy_nacv
+                                             cal_delta_energy_nacv, &
+                                             rotation_diab_to_adiab
 
      USE aom_types,                    ONLY: aom_env_type, &
                                                 sh_print_env_type
@@ -194,6 +195,7 @@ CONTAINS
      REAL(KIND=dp)                                :: sum
      INTEGER, dimension(:), allocatable       :: active_region
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin_after_tranf_correction
+     COMPLEX(KIND=dp), dimension(:), allocatable :: adiab_ctin
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -475,7 +477,9 @@ allocate(sh_env%exact_forces(3,natom))
 print *, "ctin", ctin
 print *, "ctin_after_deco", ctin_after_deco
         CALL calc_psi_after_correction(ctin, ctin_after_deco, active_region, mat, ctin_after_tranf_correction)
-        ctin=sh_env%ctin
+
+        ctin = ctin_after_tranf_correction
+       ! ctin=sh_env%ctin
      else
         ctin=sh_env%ctin
      ENDIF
@@ -514,7 +518,16 @@ do i=1, mol
    write (*,'(F12.10,A, F12.10, A, F12.10)') pop_to_print(i), " deco = ", pop(i), " corr = ", pop_after_corr(i)
    !write(*,'(2I4)') ctin_to_print(i), ctin(i)
    !(A,I0,A,F20.3,A,F0.10)
+end do
+print *, "#################################################################"
+print *, "##############  ADIABATIC WF ##################################"
+CALL rotation_diab_to_adiab(C_tp, ctin_to_print, mat, adiab_ctin, pop_to_print)
+CALL rotation_diab_to_adiab(C_tp, ctin, mat, adiab_ctin, pop)
+CALL rotation_diab_to_adiab(C_tp, ctin_after_tranf_correction, mat, adiab_ctin, pop_after_corr)
+do i =1, mol
+   write (*,'(F12.10,A, F12.10, A, F12.10)') pop_to_print(i), " deco = ", pop(i), " corr = ", pop_after_corr(i)
 end do 
+ 
 
 
      !> PRINT

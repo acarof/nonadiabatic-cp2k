@@ -137,7 +137,8 @@ IMPLICIT NONE
              calc_adiab_nace, &
              calc_hop_nacv, &
              cal_delta_energy_nacv , &
-             calc_diabatic_nace
+             calc_diabatic_nace, &
+             rotation_diab_to_adiab
 
 CONTAINS
 
@@ -362,13 +363,40 @@ subroutine surf_hop_type(adiab_section, C1, C2, deltat, old_state, &
 END SUBROUTINE surf_hop_type
 
 
+!this subroutine might be redundant with the next one
+SUBROUTINE rotation_diab_to_adiab(C_tp, ctin, mat, adiab_ctin, pop)
+
+        REAL(KIND=dp), dimension(:,:), intent(in) :: C_tp
+        COMPLEX(KIND=dp), dimension(:), intent(in) :: ctin
+        integer, intent(in) :: mat
+        COMPLEX(KIND=dp), dimension(:), allocatable, intent(out) :: adiab_ctin
+        REAL(KIND=dp), dimension(:), allocatable, intent(out)    :: pop
+         
+        integer :: i, j!, mol!, k, l
+
+        ALLOCATE(adiab_ctin(mat))
+        ALLOCATE(pop(mat))
+
+        pop(:) = 0.0D0
+        !adiab_ctin =  cmplx(0.0D0, 0.0D0, dp)
+        do i=1,mat
+            adiab_ctin(i) = cmplx(0.0D0, 0.0D0,dp)
+            do j=1,mat
+               adiab_ctin(i) = adiab_ctin(i) + cmplx(C_tp(j,i), 0.0D0,dp)*ctin(j)
+            end do
+            pop(i) = real(adiab_ctin(i)*conjg(adiab_ctin(i)))
+        enddo 
+        
+
+END SUBROUTINE rotation_diab_to_adiab
+
 subroutine diab_to_adiab( C2, old_state, sh_env, mol, cstate, ct, C1, cttm_ad, cstate_tm)
         REAL(KIND=dp), dimension(:,:), intent(in) :: C2
         integer, intent(in) :: old_state
         TYPE(sh_env_type) :: sh_env
         integer, intent(in) :: mol
         COMPLEX(KIND=dp), intent(out) :: cstate
-        COMPLEX(KIND=dp), dimension(:), intent(inout) :: ct
+        COMPLEX(KIND=dp), dimension(:), intent(out) :: ct
         REAL(KIND=dp), dimension(:,:), optional, intent(in) :: C1
         COMPLEX(KIND=dp), dimension(:), optional, intent(inout) ::  cttm_ad
         COMPLEX(KIND=dp), optional, intent(out) :: cstate_tm

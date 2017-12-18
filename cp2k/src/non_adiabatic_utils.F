@@ -158,8 +158,11 @@ SUBROUTINE calc_psi_after_correction(ctin, ctin_after_deco, active_region, mat, 
 
 print *, "sum_ctin", sum_ctin
 print *, "sum_ctin_after_deco", sum_ctin_after_deco
-
-    lambda_scaling = sqrt((1-sum_ctin)/sum_ctin_after_deco)
+    if (sum_ctin_after_deco == 0.0) then
+        lambda_scaling = 1.0D0
+    else 
+        lambda_scaling = sqrt((1-sum_ctin)/sum_ctin_after_deco)
+    end if
 print *, "lambda_scaling", lambda_scaling
 
     ctin_after_tranf_correction(:) = ctin(:)
