@@ -73,10 +73,61 @@ MODULE non_adiabatic_utils
                   prop_wf_HS_corr, &
                   calc_kinetic_tot, &
                  classically_forbidden_hops, &
-                 ida_collapse
+                 ida_collapse, &
+                 define_active_region
                   
 
 CONTAINS
+
+SUBROUTINE define_active_region(ctin, mat, active_region)
+     COMPLEX(KIND=dp), dimension(:), allocatable, INTENT(IN) :: ctin
+     INTEGER, INTENT(IN)                                     :: mat
+     INTEGER, dimension(:), allocatable, INTENT(out)       :: active_region
+ 
+     CHARACTER(len=*), PARAMETER :: routineN = 'define_active_region', &
+        routineP = moduleN//':'//routineN
+    
+     REAL(KIND=dp), dimension(:), allocatable :: pop
+     REAL(KIND=dp)                            :: sum
+     INTEGER                                  :: i 
+
+
+     ALLOCATE(pop(mat))
+     ALLOCATE(active_region(mat))
+
+     ! do i=1, mol
+     pop(:)  = real(ctin(:)*conjg(ctin(:)))
+     ! end do
+print *, pop
+     active_region(:) = 0
+     sum = 0.0
+     do i =1, mat
+         print*, maxloc(pop), maxval(pop)
+print *, "########################################"
+         sum = sum + maxval(pop)
+         if (sum .le. 0.999) then
+             pop(maxloc(pop)) = -1
+         else
+             exit
+         end if
+     end do
+
+     do i =1,mat
+        if (pop(i) == -1) then
+            active_region(i) = 1
+        end if
+     end do
+
+do i =1, mat
+    write (*,'(I12,A, F12.10)') active_region(i),  "  pop = ", pop(i)
+end do
+
+
+     DEALLOCATE(pop)
+     !DEALLOCATE(active_region)
+
+END SUBROUTINE define_active_region
+
 
 
 SUBROUTINE classically_forbidden_hops(active_state, aom_env, mat, E_tp, &

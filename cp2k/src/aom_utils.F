@@ -497,7 +497,9 @@ subroutine modified_surfacehop(C1, C2, deltat, old_state, &
                !construct state density for t present and t-deltat from the active state to
                !other state
                 ak(i) = ct(i)*conjg(cstate)
+print *, "ADIAB_POP_timet", abs(ak(i))
                 akttm(i) = cttm_ad(i)*conjg(cstate_tm)
+print *, "ADIAB_POP_timet-dt", abs(akttm(i))
                ! b(i) = -2.0D0*REAL(conjg(ak(i))*aom_env%adiab_nace_tp(i,old_state))
       !>assign 0.0 to b(i) if the hop is forbidden
                 if (aom_env%HS_propagation .and. &

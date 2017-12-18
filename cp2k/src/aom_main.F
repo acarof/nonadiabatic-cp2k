@@ -105,7 +105,8 @@ MODULE aom_main
                                                propagate_adiab_wf, &
                                                prop_wf_HS_corr, & 
                                                calc_kinetic_tot, &
-                                               classically_forbidden_hops
+                                               classically_forbidden_hops, &
+                                               define_active_region
                                           
      USE non_adiabatic_types,           ONLY: sh_env_type
 
@@ -190,6 +191,7 @@ CONTAINS
      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
      LOGICAL    :: do_random
      REAL(KIND=dp)                                :: sum
+     INTEGER, dimension(:), allocatable       :: active_region
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -422,6 +424,9 @@ if (abs(sum) .lt. 0.7) then
    print *, "POSSIBLE_TRIVIAL_CROSSING"
 end if
 
+!TEST
+CALL define_active_region(ctin, mat, active_region)
+
 
      !> APPLY DECOHERENCE CORRECTION
      !> initialize derived type variables used in the decohere_wf subroutine
@@ -460,8 +465,14 @@ allocate(sh_env%exact_forces(3,natom))
      CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, &
                                     deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
                                     atomic_kind_set, K_tot, aom_env%ext_pres)
-     ctin=sh_env%ctin
+     
 
+     !If (correct_tranfert) THEN
+       
+
+     !ELSE
+      !ctin=sh_env%ctin
+     !ENDIF
 
 
 
