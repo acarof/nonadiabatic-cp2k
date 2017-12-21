@@ -470,7 +470,7 @@ allocate(sh_env%exact_forces(3,natom))
                                     deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
                                     atomic_kind_set, K_tot, aom_env%ext_pres)
      
-     correct_tranfer = .True.
+     correct_tranfer = .TRUE.
      if (correct_tranfer) then
         CALL define_active_region(ctin, mat, active_region)
         ctin_after_deco=sh_env%ctin         
@@ -512,6 +512,7 @@ print *, "##################################################"
 do i=1, mol
    pop_to_print(i) = real(ctin_to_print(i)*conjg(ctin_to_print(i)))
    pop(i)  = real(ctin(i)*conjg(ctin(i)))
+  ! pop_after_corr(i) = 0.0
    pop_after_corr(i) = real(ctin_after_tranf_correction(i)*conjg( ctin_after_tranf_correction(i)))
    !write (*,'(F12.10,A,F12.10)') real(ctin_to_print(i)), ' + i ' , aimag(ctin_to_print(i)), real(ctin(i)), & 
     !                                     ' + i ' , aimag(ctin(i))
@@ -523,7 +524,7 @@ print *, "#################################################################"
 print *, "##############  ADIABATIC WF ##################################"
 CALL rotation_diab_to_adiab(C_tp, ctin_to_print, mat, adiab_ctin, pop_to_print)
 CALL rotation_diab_to_adiab(C_tp, ctin, mat, adiab_ctin, pop)
-CALL rotation_diab_to_adiab(C_tp, ctin_after_tranf_correction, mat, adiab_ctin, pop_after_corr)
+!CALL rotation_diab_to_adiab(C_tp, ctin_after_tranf_correction, mat, adiab_ctin, pop_after_corr)
 do i =1, mol
    write (*,'(F12.10,A, F12.10, A, F12.10)') pop_to_print(i), " deco = ", pop(i), " corr = ", pop_after_corr(i)
 end do 

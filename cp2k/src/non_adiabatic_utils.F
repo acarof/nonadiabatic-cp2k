@@ -549,7 +549,7 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
     TYPE(atomic_kind_type), DIMENSION(:), &
                 POINTER, OPTIONAL                             :: atomic_kind_set
     INTEGER, INTENT(IN), OPTIONAL                      :: nparticle_kind
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: tau!, tau_forces
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: tau
     TYPE(section_vals_type), POINTER               :: adiab_section
 
 
@@ -558,6 +558,7 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
     routineP = moduleN//':'//routineN   
 
     CHARACTER(LEN=default_string_length)           :: tau_param
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tau_forces, tau_pure_deph
     REAL(KIND=dp)                           :: C_param, E_0_param
     TYPE(atomic_kind_type), ALLOCATABLE, TARGET, DIMENSION(:)     :: my_atomic_kind_set
     INTEGER                                  :: my_nparticle_kind
@@ -576,6 +577,8 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
 
     ALLOCATE(my_forces_adiab(3,sh_env%natom))
     allocate(tau(mol)) ! decoherence time (EDC method)
+    allocate(tau_forces(mol)) ! decoherence time (EDC method)
+    allocate(tau_pure_deph(mol)) ! decoherence time (EDC method)
     allocate(sh_print_env%tau_deco(mol))
     allocate(adiab_nace_vector(mol))
 !    allocate(sh_print_env%pure_deph(mol))
@@ -677,6 +680,71 @@ print *, "TAU_HISEMB", 1/abs(sh_env%E_tp(i) -sh_env%E_tp(sh_env%active_state))
                          tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))
 print *, "PURE_DEPHASING", i
                     end if
+
+              CASE("HYBRID_TAU")
+!                    allocate(sh_env%pure_deph(mol))
+
+                    !Boltzmann factor to use in alpha parameter
+                     KbT = (2*K_tot)/(3*sh_env%active_atoms)
+                    !instead of using the exact boltzmann factor, at the moment the code uses Temp =
+                    !298 K, maybe this point should be modified in future
+                    
+                    CALL section_vals_val_get(adiab_section,"THRESHOLD_TAU_FORCES",r_val=mixing_threshold)
+                    CALL section_vals_val_get(adiab_section,"TEMPERATURE_FG_WIDTH",r_val=T_inp)
+!print *, "mixing_threshold", mixing_threshold
+                    
+                    Temp = 3.1693191275167785e-06*T_inp !conver in KbT
+                      !Temp = 0.0009444571  !KbT at 298 K
+                      ! mixing_threshold = 2.0D0
+                    if ((abs(adiab_nace_vector(i))/(abs(sh_env%E_tp(i)-sh_env%E_tp(sh_env%active_state)))) & 
+                                         .ge. mixing_threshold) then
+                         !sh_env%pure_deph(i) = .FALSE.
+                         !if there is mixing then we use force otherwise we use !pure dephasing
+                         call calcforces(i ,-AIMAG(sh_env%H_tp), sh_env%C_tp, sh_env%nacv, &
+                              sh_env%NN, sh_env%atoms, &
+                              sh_env%scaling, sh_env%cbar, sh_env%F, my_forces_adiab, &
+                             sh_env%ext_pres, sh_env%analytics, sh_env%exact_forces)
+                         tau(i) = 0.0D0
+                         tau_forces(i) =  0.0D0
+                          tau_pure_deph(i) = 0.0D0
+                         DO iparticle_kind= 1, my_nparticle_kind
+                                atomic_kind => my_atomic_kind_set(iparticle_kind)
+                                CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+                                nparticle_local = local_particles%n_el(iparticle_kind)
+                                DO iparticle_local= 1, nparticle_local
+                                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                                   alpha = 6*mass*Temp                  
+                                   if (tau_schwartz) then    
+                                        tau(i) = tau(i) + &
+                                        (dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
+                                        (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle))))/(4*alpha)
+                                   else
+                                        tau(i) = tau(i) + &
+                                        (sqrt(dot_product((my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)),&
+                                        (my_forces_adiab(:,iparticle)-sh_env%forces_active_state(:,iparticle)))))/(2*sqrt(alpha))
+                                   end if
+                                END DO
+                         END DO
+                         if (tau_schwartz) then
+                             tau(i) = sqrt(1/tau(i))
+                         else
+                             tau_forces(i) = 1/tau(i)
+                             tau_pure_deph(i) =  1/abs(sh_env%E_tp(i)-sh_env%E_tp(sh_env%active_state))
+print *, "TAU_FORCE_FORCE", tau_forces(i)
+!print *, "TAU_HISEMB", 1/abs(sh_env%E_tp(i) -sh_env%E_tp(sh_env%active_state))
+print *, "TAU_HISEMB", tau_pure_deph(i)
+                            if(tau_forces(i) .ge. tau_pure_deph(i)) then
+                                 tau(i) = tau_forces(i)
+                            else
+                                 tau(i) =  tau_pure_deph(i)
+                            end if
+print *, "USED_TAU", tau(i)
+                         end if
+                    else
+!                         sh_print_env%pure_deph(i) = .TRUE.
+                         tau(i)= (1/abs(sh_env%E_tp(i) - sh_env%E_tp(sh_env%active_state)))
+print *, "PURE_DEPHASING", i
+                    end if
               
 !              deallocate(sh_env%pure_deph) 
               CASE DEFAULT
@@ -696,7 +764,7 @@ print *, "PURE_DEPHASING", i
     
     CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
 
-!    deallocate(tau, adiab_nace_vector)
+    deallocate(tau_forces, tau_pure_deph)
     deallocate(adiab_nace_vector)
     deallocate(sh_print_env%tau_deco)
     DEALLOCATE(my_forces_adiab)
