@@ -28,6 +28,7 @@ IMPLICIT NONE
 !> Variables used for the decoherence methods
    
      LOGICAL                                     :: decohere
+     LOGICAL                                     :: decoherence
 
      !COMPLEX(KIND=dp), dimension(:), POINTER     :: ctin       
      COMPLEX(KIND=dp), dimension(:), POINTER     :: ctin, cttm, ctt       

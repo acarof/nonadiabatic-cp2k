@@ -190,8 +190,9 @@ CONTAINS
      REAL(kind=dp), DIMENSION(:,:),POINTER          :: positions_com_tp, velocities_com_tp
      CHARACTER(LEN=default_string_length)           :: deco_keyword, prop_wf_keyword 
      CHARACTER(LEN=default_string_length)          :: reversal_keyword
+     LOGICAL                                      :: correct_transfer_keyword
      real(kind=dp), DIMENSION(:,:), allocatable :: PC_allrvecs
-     LOGICAL                                      :: do_random, correct_tranfer
+     LOGICAL                                      :: do_random !, correct_transfer
      REAL(KIND=dp)                                :: sum
      INTEGER, dimension(:), allocatable       :: active_region
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin_after_tranf_correction
@@ -469,9 +470,12 @@ allocate(sh_env%exact_forces(3,natom))
      CALL decohere_wf(adiab_section, sh_print_env, aom_env,sh_env, deco_keyword, itimes, &
                                     deltatMD, mol,velocities_com_tp, local_particles, atomic_kinds, nparticle_kind,    &
                                     atomic_kind_set, K_tot, aom_env%ext_pres)
-     
-     correct_tranfer = .TRUE.
-     if (correct_tranfer) then
+    
+     CALL section_vals_val_get(adiab_section,"SPURIOUS_TRANSFER_CORR", l_val=correct_transfer_keyword)
+!     CALL section_vals_val_get(coupling_section,"CENTER_OF_MASS",l_val=translate_keyword) 
+!     correct_transfer = .TRUE.
+     if (correct_transfer_keyword .and. sh_env%decoherence) then
+     !if (correct_tranfer) then
         CALL define_active_region(ctin, mat, active_region)
         ctin_after_deco=sh_env%ctin         
 print *, "ctin", ctin
@@ -512,7 +516,7 @@ print *, "##################################################"
 do i=1, mol
    pop_to_print(i) = real(ctin_to_print(i)*conjg(ctin_to_print(i)))
    pop(i)  = real(ctin(i)*conjg(ctin(i)))
-  ! pop_after_corr(i) = 0.0
+   !pop_after_corr(i) = 0.0
    pop_after_corr(i) = real(ctin_after_tranf_correction(i)*conjg( ctin_after_tranf_correction(i)))
    !write (*,'(F12.10,A,F12.10)') real(ctin_to_print(i)), ' + i ' , aimag(ctin_to_print(i)), real(ctin(i)), & 
     !                                     ' + i ' , aimag(ctin(i))

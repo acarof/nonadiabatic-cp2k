@@ -229,6 +229,15 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
     
+    CALL keyword_create(keyword, name="SPURIOUS_TRANSFER_CORR",&
+         description="Choose if you want to activate the spurious tranfer corre.",&
+         usage="SPURIOUS_TRANSFER_CORR: True", default_l_val=.TRUE., &
+         lone_keyword_l_val=.TRUE.) 
+        ! type_of_var=char_t,&
+        ! n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="EDC_C",&
          description="C parameter in the Energy-based deco. correction formula",&
          usage="1.0D0", type_of_var=real_t)

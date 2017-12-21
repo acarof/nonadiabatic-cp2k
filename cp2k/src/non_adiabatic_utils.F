@@ -354,11 +354,13 @@ END SUBROUTINE classically_forbidden_hops
         CALL section_vals_val_get(adiab_section,"DECOHERENCE_CORRECTIONS",c_val=deco_keyword)
         
         aom_env%ida_deco = .FALSE.
+        sh_env%decoherence = .TRUE.
         
         SELECT CASE(wfprop_keyword)
         CASE("DIABATIC_BASIS")   
             SELECT CASE(deco_keyword)                                                          
             CASE("NO_DECO_CORR")
+                 sh_env%decoherence = .FALSE.
                  PRINT *, 'NO DECOHERENCE CORRECTIONS'
             CASE("INSTANT_COLLAPSE")
               CALL wf_collapse(aom_env, sh_print_env, sh_env, itimes)
