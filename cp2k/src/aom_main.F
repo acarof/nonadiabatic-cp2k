@@ -553,7 +553,8 @@ end do
      aom_env%rm_tm      = aom_env%rm_t
      aom_env%rm_t       = positions_com_tp
      aom_env%energies_t = energies_tp
-     aom_env%adiab_energies_t = aom_env%E_t
+     !aom_env%adiab_energies_t = aom_env%E_t
+     aom_env%adiab_energies_t = E_tp
      aom_env%ctin        = ctin
      aom_env%attempt_hop  = attempt_hop
      aom_env%H_t = aom_env%H_tp

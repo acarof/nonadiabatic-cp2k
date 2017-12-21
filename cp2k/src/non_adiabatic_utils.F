@@ -1021,6 +1021,7 @@ print *, "PURE_DEPHASING", i
 
      COMPLEX(KIND=dp), dimension(:), allocatable     :: ctout, ctotal
      REAL(KIND=dp), dimension(:,:), allocatable      :: Sttdiff, Sttmdiff, Sttpdiff, Stmtmdiff, Stptpdiff
+     COMPLEX(KIND=dp), dimension(:,:), allocatable   :: my_H_t, my_H_tp
      REAL(KIND=dp), dimension(:,:), allocatable      :: NACE
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: H_1, Hdiff, H_0, H_2, X1, X2, X12
      COMPLEX(KIND=dp), dimension(:,:), allocatable   :: Ktot, K2, K3, K4
@@ -1028,7 +1029,7 @@ print *, "PURE_DEPHASING", i
      REAL(KIND=dp), dimension(:,:), allocatable       :: Stt_int, Sttp_int, Stptp_int, &
                                                           Sttm_int, Stmtm_int
 
-
+     LOGICAL                                         :: renorm, offset
      INTEGER                                         :: ELsteps   
      INTEGER, POINTER                                :: itimes
      TYPE(section_vals_type), POINTER                :: adiab_section
@@ -1095,15 +1096,29 @@ print *, "PURE_DEPHASING", i
      !used to give correct commands to ZGEMX subroutines later
      zgemm_type = 'N'
 
+     allocate(my_H_t(mat, mat))
+     allocate(my_H_tp(mat, mat))
+ 
+     offset = .TRUE.
+     my_H_t = aom_env%H_t
+     my_H_tp = aom_env%H_tp
+     if (offset) then
+        do i = 1, mat
+           my_H_t(i,i) = my_H_t(i,i) - aom_env%H_t(1,1)
+           my_H_tp(i,i) = my_H_tp(i,i) - aom_env%H_tp(1,1)
+        enddo
+     endif
+      
+
 !COMMENT: INDENTATION
-             Hdiff = (deltatE/deltatMD)*(aom_env%H_tp - aom_env%H_t)
+             Hdiff = (deltatE/deltatMD)*(my_H_tp - my_H_t)
              Sttdiff = (deltatE/deltatMD)*(aom_env%Stptp - aom_env%Stt)
              Sttpdiff = (deltatE/deltatMD)*(aom_env%Sttp - aom_env%Stmt)
              Sttmdiff = (deltatE/deltatMD)*(aom_env%Stpt - aom_env%Sttm)
              Stptpdiff = Sttdiff
              Stmtmdiff = (deltatE/deltatMD)*(aom_env%Stt - aom_env%Stmtm)
-             H_0  = aom_env%H_t
-             H_2 = aom_env%H_tp
+             H_0  = my_H_t
+             !H_2 =  my_H_tp
 
 !Assignment internal variabls used in the RK
              
@@ -1188,11 +1203,14 @@ print *, "PURE_DEPHASING", i
                          ctcomp = ctcomp + ctotal(i)
                     end do
                     ctmag = abs(ctcomp)
-print *, "CTMAG", ctmag
-                    !rescale to conserve norm = 1
-                    do i=1,mat
-                         ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
-                    end do
+                    print*, "AC_NORM", ctmag
+                    renorm = .TRUE.
+                    if (renorm) then
+                       !rescale to conserve norm = 1
+                       do i=1,mat
+                            ctout(i) = cmplx((1.0D0/sqrt(ctmag))*REAL(ctout(i)), (1.0D0/sqrt(ctmag))*AIMAG(ctout(i)),dp)
+                       end do
+                    endif
                     do i=1,mat
                          ctotal(i) = conjg(ctout(i))*ctout(i)
                     end do

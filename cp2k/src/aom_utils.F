@@ -639,6 +639,7 @@ print *, "ATTEMPTED_HOP"
                                 !if there has not been any surfacehop, we need to consider the possibility of the decoherence correction
                                 !if the non-adiabatic coupling dphi to all other states is below a certain threshold
                                 !then a wavefunction collapse will be enforced
+                                sh_env%decohere = .TRUE.
                                 do j=1,mol
                                         if (abs(aom_env%adiab_nace_tp(old_state,j)) & 
                                                      > decohere_criterion .and. old_state .ne. j) then
@@ -648,7 +649,7 @@ print *, "ATTEMPTED_HOP"
                                         end if
                                 end do
                                ! decohere = .TRUE.
-                                sh_env%decohere = .TRUE.
+                               ! sh_env%decohere = .TRUE.
                                 EXIT
                         end if
                 end if
