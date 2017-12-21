@@ -172,12 +172,8 @@ CONTAINS
      REAL(KIND=dp), dimension(:), allocatable    :: energy_conservation
      INTEGER, dimension(:), allocatable          :: class_forbidden_hop_tp
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin, ctin_after_deco
-     COMPLEX(KIND=dp), dimension(:), allocatable :: ctin_to_print
-     REAL(KIND=dp), dimension(:), allocatable :: pop_to_print
-     REAL(KIND=dp), dimension(:), allocatable :: pop, pop_after_corr
      INTEGER :: i
      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp
-     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: C_tp_to_print
      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: E_tp
      LOGICAL                                      :: analytics
      INTEGER                                      :: new_state , ELsteps   
@@ -196,7 +192,6 @@ CONTAINS
      REAL(KIND=dp)                                :: sum
      INTEGER, dimension(:), allocatable       :: active_region
      COMPLEX(KIND=dp), dimension(:), allocatable :: ctin_after_tranf_correction
-     COMPLEX(KIND=dp), dimension(:), allocatable :: adiab_ctin
 
      !> cutoff to define the neighborough list
      CALL section_vals_val_get(coupling_section,"CUT_OFF_BETWEEN_SITES",&
@@ -255,10 +250,6 @@ CONTAINS
      ALLOCATE(sh_env%cttm(mat))
      ALLOCATE(sh_env%ctt(mat))
      ALLOCATE(sh_env%ctin(mat))
-     ALLOCATE(ctin_to_print(mat))
-     ALLOCATE(pop_to_print(mat))
-     ALLOCATE(pop(mat))
-     ALLOCATE(pop_after_corr(mat))
      ALLOCATE(sh_env%adiab_nace(mat,mat))
 
      ALLOCATE(E_tp(mat))
@@ -314,8 +305,6 @@ CONTAINS
      CALL calc_adiab_nace(aom_env%C_t, C_tp, deltatMD, aom_env)
      sh_env%adiab_nace = aom_env%adiab_nace_tp 
 
-print *, "aom_env%C_t_BEFORE_PROP", aom_env%C_t(:, active_state)
-print *, "C_tp_BEFORE_PROP", C_tp(:, active_state)
 !allocate(var(mat))
 !do i = 1,mat
 !    if (i .eq. active_state) then
@@ -417,9 +406,6 @@ ALLOCATE(sh_env%forces_active_state(3,natom))
 
 !TEST TO EVALUATE TRIVIAL CROSSING
 
-print *, "aom_env%C_t", aom_env%C_t(:, active_state)
-print *, "C_tp", C_tp(:, active_state)
-
 sum = 0.0D0
 
 do i=1, mol
@@ -438,10 +424,6 @@ end if
      sh_env%ctin=ctin
      sh_env%active_state=active_state
 
-
-ALLOCATE(C_tp_to_print(mat,mat))
-ctin_to_print = ctin
-C_tp_to_print(:, active_state) = aom_env%C_t(:, active_state)
 
 ALLOCATE(sh_env%nacv(3,mat, mat*aom_atoms))
 ALLOCATE(sh_env%NN(mat, mat))
@@ -478,8 +460,6 @@ allocate(sh_env%exact_forces(3,natom))
      !if (correct_tranfer) then
         CALL define_active_region(ctin, mat, active_region)
         ctin_after_deco=sh_env%ctin         
-print *, "ctin", ctin
-print *, "ctin_after_deco", ctin_after_deco
         CALL calc_psi_after_correction(ctin, ctin_after_deco, active_region, mat, ctin_after_tranf_correction)
 
         ctin = ctin_after_tranf_correction
@@ -487,52 +467,6 @@ print *, "ctin_after_deco", ctin_after_deco
      else
         ctin=sh_env%ctin
      ENDIF
-
-
-
-
-!print *, "ctin_to_print", ctin_to_print
-!print *, "ctin", ctin
-
-
-!print *, C_tp_to_print(:, active_state), C_tp(:, active_state)
- 
-print *, "##################################################"
-
-
-do i=1, mol
-   pop_to_print(i) = C_tp_to_print(i, active_state)*C_tp_to_print(i, active_state)
-   pop(i)  = C_tp(i, active_state)*C_tp(i, active_state)
-   !write (*,'(F12.10,A,F12.10)') real(ctin_to_print(i)), ' + i ' , aimag(ctin_to_print(i)), real(ctin(i)), & 
-    !                                     ' + i ' , aimag(ctin(i))
-   write (*,'(F12.10,A, F12.10)') pop_to_print(i), "  after = ", pop(i)
-   !write(*,'(2I4)') ctin_to_print(i), ctin(i)
-   !(A,I0,A,F20.3,A,F0.10)
-end do 
-
-
-print *, "##################################################"
-
-do i=1, mol
-   pop_to_print(i) = real(ctin_to_print(i)*conjg(ctin_to_print(i)))
-   pop(i)  = real(ctin(i)*conjg(ctin(i)))
-   !pop_after_corr(i) = 0.0
-   pop_after_corr(i) = real(ctin_after_tranf_correction(i)*conjg( ctin_after_tranf_correction(i)))
-   !write (*,'(F12.10,A,F12.10)') real(ctin_to_print(i)), ' + i ' , aimag(ctin_to_print(i)), real(ctin(i)), & 
-    !                                     ' + i ' , aimag(ctin(i))
-   write (*,'(F12.10,A, F12.10, A, F12.10)') pop_to_print(i), " deco = ", pop(i), " corr = ", pop_after_corr(i)
-   !write(*,'(2I4)') ctin_to_print(i), ctin(i)
-   !(A,I0,A,F20.3,A,F0.10)
-end do
-print *, "#################################################################"
-print *, "##############  ADIABATIC WF ##################################"
-CALL rotation_diab_to_adiab(C_tp, ctin_to_print, mat, adiab_ctin, pop_to_print)
-CALL rotation_diab_to_adiab(C_tp, ctin, mat, adiab_ctin, pop)
-!CALL rotation_diab_to_adiab(C_tp, ctin_after_tranf_correction, mat, adiab_ctin, pop_after_corr)
-do i =1, mol
-   write (*,'(F12.10,A, F12.10, A, F12.10)') pop_to_print(i), " deco = ", pop(i), " corr = ", pop_after_corr(i)
-end do 
- 
 
 
      !> PRINT

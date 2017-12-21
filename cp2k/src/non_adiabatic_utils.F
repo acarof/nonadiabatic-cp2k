@@ -99,12 +99,9 @@ SUBROUTINE define_active_region(ctin, mat, active_region)
      ! do i=1, mol
      pop(:)  = real(ctin(:)*conjg(ctin(:)))
      ! end do
-print *, pop
      active_region(:) = 0
      sum = 0.0
      do i =1, mat
-         print*, maxloc(pop), maxval(pop)
-print *, "########################################"
          sum = sum + maxval(pop)
          if (sum .le. 0.999) then
              pop(maxloc(pop)) = -1
@@ -119,9 +116,9 @@ print *, "########################################"
         end if
      end do
 
-do i =1, mat
-    write (*,'(I12,A, F12.10)') active_region(i),  "  pop = ", pop(i)
-end do
+!do i =1, mat
+!    write (*,'(I12,A, F12.10)') active_region(i),  "  pop = ", pop(i)
+!end do
 
 
      DEALLOCATE(pop)
@@ -156,14 +153,11 @@ SUBROUTINE calc_psi_after_correction(ctin, ctin_after_deco, active_region, mat, 
          end if
      end do
 
-print *, "sum_ctin", sum_ctin
-print *, "sum_ctin_after_deco", sum_ctin_after_deco
     if (sum_ctin_after_deco == 0.0) then
         lambda_scaling = 1.0D0
     else 
         lambda_scaling = sqrt((1-sum_ctin)/sum_ctin_after_deco)
     end if
-print *, "lambda_scaling", lambda_scaling
 
     ctin_after_tranf_correction(:) = ctin(:)
     do i =1, mat
@@ -171,8 +165,6 @@ print *, "lambda_scaling", lambda_scaling
            ctin_after_tranf_correction(i) = ctin_after_deco(i)*lambda_scaling
        end if
     end do
-
-print *, "ctin_after_tranf_correction", ctin_after_tranf_correction
 
 END SUBROUTINE calc_psi_after_correction
 
@@ -382,7 +374,6 @@ END SUBROUTINE classically_forbidden_hops
               CALL  collapse_within_deco_time(tau, mol, deltatMD, aom_env, sh_env)
             CASE("IDA")
                aom_env%ida_deco = .TRUE.
-print *, "aom_env%ida_deco", aom_env%ida_deco
             CASE DEFAULT                                           
               CPABORT("There is no method to add the decoherence.") 
             END SELECT
@@ -674,8 +665,6 @@ print *, "aom_env%ida_deco", aom_env%ida_deco
                              tau(i) = sqrt(1/tau(i))
                          else
                              tau(i) = 1/tau(i)
-print *, "TAU_FORCE_FORCE", tau(i)
-print *, "TAU_HISEMB", 1/abs(sh_env%E_tp(i) -sh_env%E_tp(sh_env%active_state))
                          end if
                     else
 !                         sh_print_env%pure_deph(i) = .TRUE.
@@ -732,15 +721,11 @@ print *, "PURE_DEPHASING", i
                          else
                              tau_forces(i) = 1/tau(i)
                              tau_pure_deph(i) =  1/abs(sh_env%E_tp(i)-sh_env%E_tp(sh_env%active_state))
-print *, "TAU_FORCE_FORCE", tau_forces(i)
-!print *, "TAU_HISEMB", 1/abs(sh_env%E_tp(i) -sh_env%E_tp(sh_env%active_state))
-print *, "TAU_HISEMB", tau_pure_deph(i)
                             if(tau_forces(i) .ge. tau_pure_deph(i)) then
                                  tau(i) = tau_forces(i)
                             else
                                  tau(i) =  tau_pure_deph(i)
                             end if
-print *, "USED_TAU", tau(i)
                          end if
                     else
 !                         sh_print_env%pure_deph(i) = .TRUE.
@@ -759,10 +744,6 @@ print *, "PURE_DEPHASING", i
 
     sh_print_env%tau_deco = tau
 
-!print *, "sh_env%pure_deph", sh_print_env%pure_deph
-
-!print *, "TAU_NEW_EVAL", tau
-    
     
     CALL adiab_print_sh_info(sh_print_env, keyword = 'DAMPING')   
 
@@ -1203,7 +1184,7 @@ print *, "PURE_DEPHASING", i
                          ctcomp = ctcomp + ctotal(i)
                     end do
                     ctmag = abs(ctcomp)
-                    print*, "AC_NORM", ctmag
+                    !print*, "AC_NORM", ctmag
                     renorm = .TRUE.
                     if (renorm) then
                        !rescale to conserve norm = 1
